@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "knowledge-base": {
+      "type": "stdio",
+      "command": "bash",
+      "args": ["./knowledge-base-mcp.sh"],
+      "env": {
+        "KB_API_URL": "http://localhost:4000/api/v1"
+      }
+    }
+  }
+}

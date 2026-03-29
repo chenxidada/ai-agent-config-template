@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["./.opencode/plugins/kb-sync-runtime.mjs"],
+  "mcp": {
+    "knowledge-base": {
+      "type": "local",
+      "command": ["bash", "./knowledge-base-mcp.sh"],
+      "environment": {
+        "KB_API_URL": "http://localhost:4000/api/v1"
+      },
+      "enabled": true,
+    },
+  },
+}

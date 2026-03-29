@@ -1,0 +1,15 @@
+# AI Agent Rules
+
+## Knowledge Base MCP
+This project integrates with a personal Knowledge Base via MCP.
+
+## Workflow
+- Save notes, summaries, research to knowledge base via save_document
+- Search prior knowledge via search_documents
+- Review past AI conversations via list_conversations / get_conversation
+- Organize documents with folders and tags
+- Use MCP as the only official sync path
+- For structured records, prefer save_document / update_document
+- On compression or reset, create a Snapshot Doc and update the Daily Digest
+- Resolve target folders by logical path, never by hardcoded folderId
+- When updating task, topic, decision, or daily docs, read existing content first and merge incrementally
