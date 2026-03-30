@@ -1,5 +1,39 @@
 # AI Agent Rules
 
+## Orchestrator Architecture
+
+This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator is the default primary agent and the only agent the user interacts with directly.
+
+### Orchestrator Rules
+
+- The Orchestrator dispatches subagents via the Task tool, one stage at a time
+- The Orchestrator passes only summaries + file paths downward; subagents read full files themselves
+- Subagents return only 3-5 sentence summaries + output file paths upward; full documents never flow back
+- All subagent outputs go to the `specs/` directory
+- The Orchestrator maintains `specs/current-status.md` after every stage completion
+- After context compression, the Orchestrator must immediately read `specs/current-status.md` to recover state
+- Two fixed Human Gates: before implementation, and after each sub-spec completes
+- reviewer must-fix triggers auto-loop to implementer (max 3 rounds)
+- validator fail triggers auto-loop to implementer (max 3 rounds)
+- Exceed max rounds -> escalate to user
+
+### Subagent Rules
+
+- Each subagent writes its complete output to the designated file in `specs/`
+- Each subagent returns only a summary to the Orchestrator, not the full document
+- Each subagent reads upstream files from `specs/` as needed based on its Input definition
+- Subagents must not expand scope beyond what the Orchestrator dispatched
+
+### Pipeline Commands
+
+- `/feature <desc>` - New feature development
+- `/bugfix <desc>` - Bug investigation and fix
+- `/idea <desc>` - Idea exploration (no implementation)
+- `/rebuild <desc>` - System rebuild
+- `/fullflow <desc>` - Full 13-stage workflow
+
+See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
+
 ## Knowledge Base MCP
 
 This project integrates with a personal Knowledge Base through MCP. Use knowledge-base tools as the default persistence and retrieval layer for notes, summaries, research, and prior conversations.

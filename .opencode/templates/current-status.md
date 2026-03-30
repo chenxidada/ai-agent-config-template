@@ -1,19 +1,40 @@
-# Current Status Template
+# Current Status
 
-## Current Active Phase
+## Pipeline
 
-## Current Active Sub-Spec
+<!-- Pipeline type: feature | bugfix | idea | rebuild | fullflow -->
+<!-- User requirement (1-2 sentences) -->
 
-## Current State
+## Stage Progress
 
-## Last Confirmation Result
+<!-- Orchestrator updates this table after every stage completion -->
 
-## Recently Updated Spec
+| # | Stage | Agent | Status | Output File | Summary |
+|---|-------|-------|--------|-------------|---------|
 
-## Why It Changed
+<!-- Status values: pending | in_progress | completed | skipped | failed -->
 
-## Completed Work
+## Current Stage
 
-## Waiting For Confirmation
+<!-- Which stage is actively running or next to run -->
+
+## User Decisions
+
+<!-- Key decisions the user made at Human Gates or during intervention -->
+
+## Open Questions
+
+<!-- Unresolved items that need user input -->
+
+## Loop Tracking
+
+<!-- Track reviewer/validator retry loops -->
+<!-- Format: reviewer round 1/3, validator round 0/3 -->
+
+## Last Human Gate
+
+<!-- What was presented, what the user decided -->
 
 ## Recommended Next Step
+
+<!-- What the Orchestrator plans to do next -->

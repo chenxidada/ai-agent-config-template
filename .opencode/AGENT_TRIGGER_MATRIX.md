@@ -1,255 +1,141 @@
 # Agent Trigger Matrix
 
-## 目标
+## Purpose
 
-这份表不是为了让每个任务都走完整 9-agent 流程，而是为了帮助你快速判断：
+This file is a **reference lookup table** for the Orchestrator. It answers two questions:
 
-- 这个任务该走全流程还是短流程
-- 哪些 agent 必须出现
-- 哪些 agent 可以按条件跳过
+1. For a given agent, when should it be included or skipped in a pipeline?
+2. For a given task type, what is the recommended pipeline sequence?
 
-## 默认规则
+Pipeline selection logic (which pipeline to use, how to classify user input, short flow vs full flow) lives in `orchestrator.md` → Interaction Protocol. This file does **not** duplicate that logic.
 
-### 走完整流程的情况
+## Per-Agent Inclusion Rules
 
-默认使用完整流程：
+### repo-explorer
 
-`repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> human confirmation -> implementer -> reviewer -> validator -> knowledge-manager`
+| Include | Skip |
+|---------|------|
+| New or unfamiliar repository | Already-explored repo with a very small, known-location change |
+| Bug with unclear root cause | |
+| Need to assess impact surface | |
+| Any non-trivial task (default) | |
 
-适用条件：
+### requirement-analyst
 
-- 需求还不够清楚
-- 影响面不明确
-- 需要先拆 slice
-- 需要先形成 `master-spec / phase-spec / sub-spec`
-- 需要先定方案
-- 任务预计跨多个文件或模块
-- 任务会影响接口、数据结构、流程边界、系统行为
+| Include | Skip |
+|---------|------|
+| Ambiguous or open-ended user need | Clear engineering directive ("fix this error", "add this field") |
+| Need to converge MVP scope | Single-point change with obvious acceptance criteria |
+| Mixed goals/constraints/ideas to untangle | |
+| Need explicit acceptance criteria | |
 
-### 走短流程的情况
+### program-planner
 
-可以使用短流程：
+| Include | Skip |
+|---------|------|
+| System-level or product-level rebuild | Normal feature work |
+| Cross-domain task (frontend + backend + infra) | Small bug fix |
+| Need phased master-spec with repeated confirmation | Single-slice iteration |
+| Module decomposition required | |
 
-`repo-explorer -> implementer -> reviewer -> validator -> knowledge-manager`
+### task-planner
 
-适用条件：
+| Include | Skip |
+|---------|------|
+| Task needs slicing into sub-specs | Single small fix |
+| Multiple phases or sub-modules | Single clear minimal feature point |
+| Need to decide execution order | |
+| Need to reduce one-shot implementation risk | |
 
-- 目标非常明确
-- 不需要重新做需求澄清
-- 不需要正式任务拆解
-- 不需要额外方案设计
-- 改动范围较小且影响面可控
+### solution-architect
 
-## Agent 触发条件
+| Include | Skip |
+|---------|------|
+| Technical boundary decisions needed | Non-structural small fix |
+| Interface, data structure, or integration design | Implementation path already obvious and low-risk |
+| Multiple viable approaches to evaluate | |
+| Gap between current codebase and target state | |
 
-### `repo-explorer`
+### implementer
 
-默认：几乎总是触发。
+| Include | Skip |
+|---------|------|
+| Any task that modifies code, config, scripts, or tests (always) | Never skipped when execution is needed |
 
-必须触发：
+Note: In complex pipelines, implementer should not run without upstream context (exploration, requirements, design).
 
-- 新仓库
-- 不熟悉的模块
-- Bug 根因不明
-- 需要判断影响面
+### reviewer
 
-可弱化处理：
+| Include | Skip |
+|---------|------|
+| Any implementation output (always recommended) | Never fully skipped; may be lightweight for trivial changes |
+| Multi-file changes | |
+| Structural changes | |
+| Scope drift risk | |
 
-- 已经非常熟悉的单文件小改
+### validator
 
-### `requirement-analyst`
+| Include | Skip |
+|---------|------|
+| Any implementation output (always required) | Never skipped for deliverable work |
+| Code, config, or interface behavior changes | |
 
-触发条件：
+### knowledge-manager
 
-- 用户需求有歧义
-- 需要收敛 MVP
-- 需要明确验收标准
-- 任务里混有目标、实现想法、限制，尚未整理干净
+| Include | Skip |
+|---------|------|
+| Stable conclusions, decisions, or validated results | Trivial temporary operations with no lasting value |
+| Context compression, reset, or handoff (mandatory) | |
+| Major workflow checkpoint completed | |
 
-可跳过：
+Note: knowledge-manager must execute actual MCP writes. A checkpoint is not complete until sync has run.
 
-- 已经是非常清楚的工程指令
-- 例如“修这个明确报错”“给这个接口补一个字段”
+## Pipeline Sequences by Task Type
 
-### `task-planner`
+### New Feature (/feature)
 
-触发条件：
+```
+repo-explorer → requirement-analyst → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
+```
 
-- 任务需要切片
-- 任务有多个阶段或子模块
-- 需要决定先做哪一块
-- 需要减少一次性实现风险
+If system-level, upgrade to `/fullflow` (adds `program-planner` before `task-planner`).
 
-可跳过：
+### Bug Fix (/bugfix)
 
-- 单个小修复
-- 单个非常明确的最小功能点
+```
+repo-explorer → requirement-analyst → task-planner → [Human Gate] → implementer → reviewer → validator → knowledge-manager
+```
 
-### `program-planner`
+If root cause is already clear and fix is small, downgrade to short flow.
 
-触发条件：
+### Idea Exploration (/idea)
 
-- 任务是系统级或产品级重建
-- 需要先做模块拆分和阶段规划
-- 任务跨多个能力域、子系统、前后端或基础设施层
-- 需要决定先搭骨架还是先实现业务 slice
-- 需要一个可反复确认的 `master-spec`
+```
+repo-explorer → requirement-analyst → task-planner → solution-architect → knowledge-manager → [Human Gate]
+```
 
-可跳过：
+No implementation. Output is analysis and recommendations only.
 
-- 普通 feature
-- 小型 bug fix
-- 单一 slice 的迭代任务
+### System Rebuild (/rebuild)
 
-补充：
+```
+repo-explorer → requirement-analyst → program-planner → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
+```
 
-- 对于需要反复确认方向的大项目，`program-planner` 应视为强制角色
+Full flow. Do not skip `program-planner`, `reviewer`, or `validator`. Human Gate after each slice.
 
-### `solution-architect`
+### Full Flow (/fullflow)
 
-触发条件：
+```
+repo-explorer → requirement-analyst → program-planner → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
+```
 
-- 需要先定技术边界
-- 涉及接口、数据结构、组件边界、集成方式
-- 存在多种实现路线，需要先选方案
-- 仓库现实和目标之间有设计决策要做
+Complete 13-stage pipeline for large or unclear tasks.
 
-可跳过：
+### Short Flow (auto-selected)
 
-- 非结构性的小修复
-- 实现路径已经非常明确且低风险
+```
+repo-explorer → implementer → reviewer → validator
+```
 
-### `implementer`
-
-默认：只要进入执行，就触发。
-
-必须触发：
-
-- 需要改代码、脚本、配置、测试
-
-不应单独裸奔：
-
-- 在复杂任务里，不应绕过前面的上下文和边界定义直接开始
-
-### `reviewer`
-
-默认：建议总是触发。
-
-尤其应该触发：
-
-- 改动跨多个文件
-- 有结构性变更
-- 有可维护性风险
-- 任务容易 scope drift
-
-可简化：
-
-- 极小改动时，review 可以很轻，但最好不要完全没有
-
-### `validator`
-
-默认：只要有实现，就应触发。
-
-必须触发：
-
-- 代码改动
-- 配置改动
-- 接口行为改动
-- 可能引发回归的修复
-
-不可跳过：
-
-- 任何会被视作“完成”的实现任务
-
-### `knowledge-manager`
-
-默认：重大阶段结束时自动触发；压缩 / reset / handoff 时强制触发。
-
-必须触发：
-
-- 有稳定结论
-- 有决策
-- 有实施结果
-- 有验证结果
-- 有压缩 / handoff / reset
-
-触发后必须执行的动作：
-
-- 不是只说“这里应该同步”
-- 必须真的执行 MCP 写入
-- checkpoint 未完成同步前，不算该阶段真正结束
-
-可简化：
-
-- 很小的、没有长期价值的临时操作
-
-## 常见任务对应建议
-
-### 新功能
-
-建议流程：
-
-- `repo-explorer -> requirement-analyst -> task-planner -> solution-architect -> implementer -> reviewer -> validator -> knowledge-manager`
-- 如果是系统级任务，升级为：
-- `repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> human confirmation -> implementer -> reviewer -> validator -> knowledge-manager`
-
-### Bug 修复
-
-建议流程：
-
-- 根因不明：完整偏长流程
-- 根因明确的小修：短流程
-
-推荐：
-
-- `repo-explorer -> requirement-analyst -> task-planner -> implementer -> reviewer -> validator -> knowledge-manager`
-
-### 单点小修
-
-建议流程：
-
-- `repo-explorer -> implementer -> reviewer -> validator`
-
-如有长期价值，再补：
-
-- `knowledge-manager`
-
-如果发生压缩 / reset / handoff：
-
-- 即使是小任务，也必须触发 `knowledge-manager` 同步 `Snapshot Doc` 和 `Daily Digest`
-
-### 重构
-
-建议流程：
-
-- `repo-explorer -> requirement-analyst -> task-planner -> solution-architect -> implementer -> reviewer -> validator -> knowledge-manager`
-- 如果是系统级重构，建议加入 `program-planner`
-
-### 仅分析，不写代码
-
-建议流程：
-
-- `repo-explorer -> requirement-analyst`
-
-如结论重要，再补：
-
-- `knowledge-manager`
-
-### 重建 Knownbase / 复杂系统迭代
-
-建议流程：
-
-- 全流程，不建议省略 `task-planner`、`solution-architect`、`reviewer`、`validator`
-- 对于系统重建，不建议省略 `program-planner`
-
-## 最终判断口诀
-
-- 不清楚先 `repo-explorer`
-- 不清楚要做什么先 `requirement-analyst`
-- 太大、太像系统工程先 `program-planner`
-- 太大先 `task-planner`
-- 有设计分歧先 `solution-architect`
-- 要动手就 `implementer`
-- 改完先过 `reviewer`
-- 想交付必须过 `validator`
-- 有价值结果就立刻交给 `knowledge-manager` 做真实同步
+For 1-2 file changes with obvious scope. If repo-explorer reveals larger scope, upgrade to a full pipeline.

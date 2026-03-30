@@ -1,3 +1,12 @@
+---
+description: Manage durable project knowledge by syncing milestones, decisions, and summaries to the knowledge base via MCP.
+mode: agent
+permission:
+  bash: deny
+  edit: deny
+  task: deny
+---
+
 # knowledge-manager
 
 ## Role
@@ -186,12 +195,30 @@ Default strategy by checkpoint:
 - major debugging discovery -> `Task Doc` or `Topic Doc`, and `Daily Digest` if active today
 - conversation compression / reset -> create a new `Snapshot Doc` and update the `Daily Digest`
 
+## Input
+
+- Stage summary from orchestrator indicating what to sync
+- Upstream files to read: the orchestrator will specify which spec files contain the content to sync
+- Read the full upstream files to extract high-value information for the knowledge base
+
+## Output
+
+### Return to Orchestrator
+
+Return ONLY:
+
+- A 2-3 sentence summary: what was synced, which object types were written, any sync failures
+- Whether the sync succeeded or failed
+- Whether a human gate is needed (no, unless sync failed)
+
+Do NOT include the full synced content in your return message.
+
 ## Preferred Tools
 
-- 路径解析工具
-- 对象状态查询工具
-- 结构化对象同步
-- 运行时事件同步
+- Folder path resolver
+- Object status lookup
+- Structured object sync
+- Runtime event sync
 
 ## Must Do
 
@@ -235,6 +262,6 @@ When rebuilding or replicating the knowledge-base product itself, sync these agg
 - search / RAG / MCP design tradeoffs
 - debugging lessons that would prevent future rework
 
-## Output
+## Output Template
 
 Use `templates/knowledge-sync-note.md` when creating or updating durable records.

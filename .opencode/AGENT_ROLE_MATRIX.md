@@ -1,9 +1,10 @@
 # Agent Role Matrix
 
-## 9 个核心 Agent
+## 10 个核心 Agent
 
-当前推荐的 OpenCode 多阶段工作流角色共 9 个：
+当前推荐的 OpenCode Orchestrator 驱动工作流角色共 10 个：
 
+- `orchestrator` (primary agent)
 - `repo-explorer`
 - `requirement-analyst`
 - `program-planner`
@@ -14,16 +15,45 @@
 - `validator`
 - `knowledge-manager`
 
-这 9 个角色的设计目标不是“把流程拆得越细越好”，而是：
+用户只和 `orchestrator` 交互。其余 9 个 agent 作为 subagent 由 Orchestrator 通过 Task 工具调度。
 
+这 10 个角色的设计目标不是"把流程拆得越细越好"，而是：
+
+- 由 Orchestrator 统一调度和状态管理
 - 先看清仓库现实
 - 再收敛需求与方案
 - 再实施
 - 再审查
 - 再验证
 - 最后沉淀知识
+- 在关键节点停下来等人类确认
 
 ## 角色总表
+
+### `orchestrator`
+
+定位：主调度器，用户唯一交互入口
+
+负责：
+
+- 接收用户需求，选择合适的 pipeline
+- 通过 Task 工具依次调度子 Agent
+- 收集每个子 Agent 的摘要，维护全局状态
+- 在 Human Gate 停下来，展示结构化摘要等待用户确认
+- 维护 `specs/current-status.md` 以对抗上下文压缩
+- 处理 reviewer/validator 的回路（最多 3 轮）
+- 响应用户的干预指令（读文件、回退阶段、修正理解）
+
+不负责：
+
+- 不直接执行分析、实现、审查、验证等具体工作
+- 不在上下文中保留完整文档（只保留摘要 + 文件路径）
+- 不替代用户做关键决策
+
+典型输出：
+
+- `specs/current-status.md`（每阶段更新）
+- 结构化阶段报告（在 Human Gate 呈现给用户）
 
 ### `repo-explorer`
 
@@ -238,25 +268,32 @@
 
 ## 推荐顺序
 
-### 完整流程
+所有流程由 Orchestrator 调度。用户通过 pipeline 命令或自然对话触发。
 
-`repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> implementer -> reviewer -> validator -> knowledge-manager`
+### 完整流程 (/fullflow)
+
+`orchestrator -> repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> [Human Gate] -> implementer -> reviewer -> validator -> knowledge-manager -> [Human Gate]`
+
+### Feature 流程 (/feature)
+
+`orchestrator -> repo-explorer -> requirement-analyst -> task-planner -> solution-architect -> [Human Gate] -> implementer -> reviewer -> validator -> knowledge-manager -> [Human Gate]`
 
 ### 小任务缩短版
 
-`repo-explorer -> implementer -> reviewer -> validator -> knowledge-manager`
+`orchestrator -> repo-explorer -> implementer -> reviewer -> validator -> knowledge-manager`
 
 ## 核心分工原则
 
-- `repo-explorer` 解决“先别靠猜”
-- `requirement-analyst` 解决“到底要做什么”
-- `program-planner` 解决“整个系统先怎么分模块和阶段”
-- `task-planner` 解决“先做哪一小块”
-- `solution-architect` 解决“这一块该怎么做”
-- `implementer` 解决“把它做出来”
-- `reviewer` 解决“改得是否合理”
-- `validator` 解决“结果是否成立”
-- `knowledge-manager` 解决“别把过程和结论丢掉”
+- `orchestrator` 解决"谁来统一调度和保持状态"
+- `repo-explorer` 解决"先别靠猜"
+- `requirement-analyst` 解决"到底要做什么"
+- `program-planner` 解决"整个系统先怎么分模块和阶段"
+- `task-planner` 解决"先做哪一小块"
+- `solution-architect` 解决"这一块该怎么做"
+- `implementer` 解决"把它做出来"
+- `reviewer` 解决"改得是否合理"
+- `validator` 解决"结果是否成立"
+- `knowledge-manager` 解决"别把过程和结论丢掉"
 
 ## 当前结论
 
@@ -264,6 +301,7 @@
 
 原因：
 
-- 这 9 个角色已经覆盖了大多数工程工作流，尤其更适合系统级重建
+- 这 10 个角色（1 个调度器 + 9 个执行者）已经覆盖了大多数工程工作流
+- Orchestrator 的加入解决了之前手动调度的问题
 - 再继续拆分会显著增加流程摩擦
 - 目前最重要的是把边界执行稳定，而不是继续加角色数量

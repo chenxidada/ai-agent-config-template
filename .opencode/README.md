@@ -2,81 +2,117 @@
 
 This directory is the shared OpenCode template root.
 
-Recommended layout:
+## Architecture
 
-- `skills/` - reusable OpenCode skills
-- `agents/` - reusable role definitions for staged workflows
-- `templates/` - reusable prompt or output templates
-- `hooks/` - optional automation scripts or hook docs
-- `snippets/` - small reusable task snippets
+This template uses an **Orchestrator-driven workflow**. The user interacts with a single primary agent (the Orchestrator), which automatically dispatches work to 9 specialized subagents, collects summaries, and presents conclusions at human confirmation gates.
 
-Current recommended staged agents:
+See `ORCHESTRATOR_ARCHITECTURE.md` at the project root for the full architecture decision document.
 
-- `repo-explorer`
-- `requirement-analyst`
-- `program-planner`
-- `task-planner`
-- `solution-architect`
-- `implementer`
-- `reviewer`
-- `validator`
-- `knowledge-manager`
+## Layout
 
-Recommended use:
+- `agents/` - Role definitions: 1 orchestrator (primary) + 9 subagents
+- `commands/` - Pipeline command triggers (`/feature`, `/bugfix`, `/idea`, `/rebuild`, `/fullflow`)
+- `templates/` - Reusable output templates for each stage
+- `snippets/` - Workflow pipeline definitions (referenced by Orchestrator)
+- `skills/` - Reusable OpenCode skills
+- `hooks/` - Optional automation scripts or hook docs
+- `plugins/` - Runtime plugins (kb-sync-runtime)
 
-- Use `agents/` to define role boundaries
-- Use `snippets/` to define multi-agent workflows
-- Use `templates/` to standardize outputs across stages
-- See `AGENT_ROLE_MATRIX.md` for the consolidated role map
-- See `AGENT_TRIGGER_MATRIX.md` for when to use the full flow vs a shorter path
-- See `snippets/kb-sync-sop.md` for the required MCP sync procedure
-- See `hooks/kb-sync-runtime-plugin.md` for the OpenCode runtime trigger implementation
+## Agents
 
-Recommended master workflow:
+### Orchestrator (primary agent)
 
-- `snippets/requirements-to-implementation-workflow.md`
+- `orchestrator` - Master dispatcher. Receives user input, selects pipeline, dispatches subagents, manages Human Gates, maintains `specs/current-status.md`.
 
-Guidelines:
+### Subagents (dispatched by Orchestrator via Task tool)
+
+- `repo-explorer` - Repository reconnaissance and reality modeling
+- `requirement-analyst` - Requirement clarification and scope convergence
+- `program-planner` - Master-spec generation and system-level planning
+- `task-planner` - Phase-spec and sub-spec slicing
+- `solution-architect` - Technical design and boundary definition
+- `implementer` - Implementation within approved boundaries
+- `reviewer` - Quality and drift review
+- `validator` - Acceptance verification and evidence confirmation
+- `knowledge-manager` - Knowledge sync to MCP knowledge base
+
+## Pipeline Commands
+
+| Command | Pipeline | Use Case |
+|---------|----------|----------|
+| `/feature <desc>` | feature-pipeline | New feature development |
+| `/bugfix <desc>` | bugfix-pipeline | Bug investigation and fix |
+| `/idea <desc>` | idea-to-mvp | Idea exploration (no implementation) |
+| `/rebuild <desc>` | rebuild-knownbase-flow | System rebuild |
+| `/fullflow <desc>` | requirements-to-implementation | Full 13-stage workflow |
+
+## Data Flow
+
+- **Downward** (Orchestrator to subagent): Summary (3-5 sentences) + file paths. Subagents read full upstream files themselves from `specs/`.
+- **Upward** (subagent to Orchestrator): Summary (3-5 sentences) + output file path + risks/open questions. Full documents never flow back.
+- **Persistence**: All subagent outputs go to `specs/` directory. `specs/current-status.md` is the Orchestrator's lifeline after context compression.
+
+## Specs Directory Convention
+
+```
+specs/
+├── master-spec.md
+├── current-status.md
+├── exploration/
+│   └── repo-exploration.md
+├── requirements/
+│   └── requirements.md
+├── phases/
+│   └── <phase-id>/
+│       ├── phase-spec.md
+│       └── slices/
+│           └── <sub-spec-id>/
+│               ├── sub-spec.md
+│               ├── solution-design.md
+│               ├── implementation-summary.md
+│               ├── review-report.md
+│               └── validation-report.md
+└── task-plan/
+    └── task-plan.md
+```
+
+## Key References
+
+- `ORCHESTRATOR_ARCHITECTURE.md` - Full architecture spec
+- `AGENT_ROLE_MATRIX.md` - Consolidated role map (10 roles including orchestrator)
+- `AGENT_TRIGGER_MATRIX.md` - Pipeline selection and agent trigger rules
+- `snippets/kb-sync-sop.md` - MCP sync procedure
+- `hooks/kb-sync-runtime-plugin.md` - Runtime trigger implementation
+
+## Guidelines
 
 - Keep this directory generic and reusable across projects
-- Put knowledge-base related defaults here first
-- Do not hardcode machine-specific absolute paths in files here
+- Do not hardcode machine-specific absolute paths
 - If a file depends on local paths, resolve them through env vars or launcher scripts
-- When adding new content here, distribute it via `setup.sh`
+- When adding new content, distribute it via `setup.sh`
 
-Knowledge sync model:
+## Knowledge Sync Model
 
-- prefer structured knowledge objects over one monolithic project note
-- use `Tasks`, `Topics`, `Decisions`, and `Snapshots` under `Projects/<project>/`
-- use `Daily/<YYYY>/<YYYY-MM>/` for day-based continuity notes
-- allow one workflow checkpoint to write more than one object when that improves retrieval
-- treat sync as a real runtime action, not just a documentation reminder
+- Prefer structured knowledge objects over one monolithic project note
+- Use `Tasks`, `Topics`, `Decisions`, and `Snapshots` under `Projects/<project>/`
+- Use `Daily/<YYYY>/<YYYY-MM>/` for day-based continuity notes
 
-Trigger model:
+### Trigger Model
 
-- automatic compression trigger -> create `Snapshot Doc` and update `Daily Digest`
-- automatic workflow checkpoint trigger -> sync the completed stage result immediately
-- manual user trigger -> summarize and sync on explicit request
+- Automatic compression trigger -> create `Snapshot Doc` and update `Daily Digest`
+- Automatic workflow checkpoint trigger -> sync the completed stage result immediately
+- Manual user trigger -> summarize and sync on explicit request
 
-Runtime expectation:
+### Runtime Expectation
 
-- a trigger is only fulfilled if MCP write actions actually ran
-- workflow stages are not fully complete until their required checkpoint sync finishes
-- future hooks or orchestrators should call the same MCP-first sync flow defined in `snippets/kb-sync-sop.md`
-- the default OpenCode runtime plugin is configured in `opencode.jsonc` and implemented in `.opencode/plugins/kb-sync-runtime.mjs`
+- A trigger is only fulfilled if MCP write actions actually ran
+- Workflow stages are not fully complete until their required checkpoint sync finishes
+- The default runtime plugin is configured in `opencode.jsonc` and implemented in `plugins/kb-sync-runtime.mjs`
 
-Spec sync model:
+## Spec Sync Model
 
-- sync `master-spec` to `Projects/<project>/Specs/Master`
-- sync `phase-spec` to `Projects/<project>/Specs/Phases`
-- sync `sub-spec` to `Projects/<project>/Specs/SubSpecs`
-- sync `current-status` to `Projects/<project>/Specs/Status`
-- treat `master-spec` as the primary planning artifact for large projects
-
-Recommended specs layout in repositories:
-
-- `specs/master-spec.md`
-- `specs/current-status.md`
-- `specs/phases/<phase-id>/phase-spec.md`
-- `specs/phases/<phase-id>/slices/<sub-spec-id>.md`
-- legacy flat layouts can still be read during migration, but new projects should prefer the nested `phases/<phase-id>/slices/` layout
+- Sync `master-spec` to `Projects/<project>/Specs/Master`
+- Sync `phase-spec` to `Projects/<project>/Specs/Phases`
+- Sync `sub-spec` to `Projects/<project>/Specs/SubSpecs`
+- Sync `current-status` to `Projects/<project>/Specs/Status`
+- Treat `master-spec` as the primary planning artifact for large projects

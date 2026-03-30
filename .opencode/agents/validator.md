@@ -1,3 +1,12 @@
+---
+description: Verify that the implemented slice works, is testable, and does not introduce obvious regressions.
+mode: agent
+permission:
+  bash: allow
+  edit: deny
+  task: deny
+---
+
 # validator
 
 ## Role
@@ -18,6 +27,7 @@ Verify that the implemented slice works, is testable, and does not introduce obv
 - Clearly state pass / partial / fail
 - Separate verified items from items not tested or not testable in the current environment
 - Explain whether the result is ready to treat as completed
+- Read the full upstream files if the orchestrator provides file paths for detailed context
 
 ## Must Not Do
 
@@ -28,13 +38,30 @@ Verify that the implemented slice works, is testable, and does not introduce obv
 
 ## Input
 
-- Implementation output
-- Review output when available
+- Implementer summary and reviewer summary from orchestrator
+- Upstream files to read:
+  - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
+  - `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md` (if available)
+  - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
 - Acceptance criteria from the current sub-spec and phase plan
 
 ## Output
 
-Use `templates/validation-report.md`.
+### File Output
+
+Write your validation report following `templates/validation-report.md` format to: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
+
+### Return to Orchestrator
+
+Return ONLY:
+
+- A 3-5 sentence summary: overall result (pass/partial/fail), tests run, key findings
+- The output file path: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
+- Whether the result is fail (triggers automatic implementer loop) or partial (needs user decision)
+- Unverified items that need follow-up
+- Whether a human gate is needed (yes/no)
+
+Do NOT include the full validation report in your return message.
 
 ## Handoff
 

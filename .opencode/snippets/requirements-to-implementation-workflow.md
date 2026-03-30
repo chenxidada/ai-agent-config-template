@@ -1,97 +1,127 @@
 # requirements-to-implementation-workflow
 
-Use this as the master controller workflow from product idea or requirement document to validated implementation.
+Use this as the master controller workflow from product idea or requirement document to validated implementation. This is the most comprehensive pipeline with all 13 stages. The Orchestrator dispatches each stage via the Task tool.
 
-## Stage Order
+## Stages
 
-1. `repo-explorer`
-   - map the relevant repository areas before planning or design
-   - use `templates/repo-exploration-output.md`
+### Stage 1: repo-explorer
 
-2. `requirement-analyst`
-   - clarify scope, MVP, functional areas, and requirement structure with enough quality to anchor the project `master-spec`
-   - use `templates/requirements-output.md`
+- **Dispatch**: Pass the user's requirement or product idea
+- **Output file**: `specs/exploration/repo-exploration.md`
+- **Template**: `templates/repo-exploration-output.md`
+- **Expect back**: Summary of relevant repository areas, modules, constraints
 
-3. `knowledge-manager`
-   - auto-trigger checkpoint sync for the completed requirement stage
-   - save the clarified requirement as a `Topic Doc` or `Decision Doc`
+### Stage 2: requirement-analyst
 
-4. `program-planner`
-   - produce the project `master-spec`
-   - define top-level modules, phases, dependencies, and the recommended starting phase
-   - use `templates/master-spec.md`
+- **Dispatch**: Pass repo-explorer summary + user requirement
+- **Read upstream**: `specs/exploration/repo-exploration.md`
+- **Output file**: `specs/requirements/requirements.md`
+- **Template**: `templates/requirements-output.md`
+- **Expect back**: Summary of scope, MVP, functional areas, requirement structure
 
-5. `task-planner`
-   - produce the current `phase-spec`
-   - break the phase into ordered `sub-spec` candidates
-   - use `templates/phase-spec.md` and `templates/task-plan-output.md`
+### Stage 3: knowledge-manager (requirement checkpoint)
 
-6. `solution-architect`
-   - refine the current approved `sub-spec`
-   - define technical design for that `sub-spec`
-   - use `templates/sub-spec.md` and `templates/solution-design-output.md`
+- **Dispatch**: Pass requirement-analyst summary
+- **Action**: Sync clarified requirement as Topic Doc or Decision Doc
+- **Expect back**: Confirmation of sync
 
-7. Human confirmation gate
-   - stop for user review after `master-spec`, `phase-spec`, and current `sub-spec` are ready
-   - do not enter implementation until the current `sub-spec` is explicitly confirmed
+### Stage 4: program-planner
 
-8. `knowledge-manager`
-    - auto-trigger checkpoint sync for completed planning and architecture work
-    - sync plan and architecture milestones as `Decision Doc` and supporting `Topic Doc` entries when needed
+- **Dispatch**: Pass requirement-analyst summary + user decisions
+- **Read upstream**: `specs/requirements/requirements.md`, `specs/exploration/repo-exploration.md`
+- **Output file**: `specs/master-spec.md`
+- **Template**: `templates/master-spec.md`
+- **Expect back**: Summary of top-level modules, phases, dependencies, recommended starting phase
 
-9. `implementer`
-   - implement only the approved current `sub-spec`
-    - use `templates/implementation-summary.md`
+### Stage 5: task-planner
 
-10. `reviewer`
-    - review the implementation for scope drift, maintainability, and hidden risk
-    - use `templates/review-report.md`
+- **Dispatch**: Pass program-planner summary + requirement summary
+- **Read upstream**: `specs/master-spec.md`, `specs/requirements/requirements.md`
+- **Output files**: `specs/phases/<phase-id>/phase-spec.md`, `specs/task-plan/task-plan.md`
+- **Templates**: `templates/phase-spec.md`, `templates/task-plan-output.md`
+- **Expect back**: Summary of current phase, ordered sub-spec candidates, recommended first sub-spec
 
-11. `validator`
-    - validate against acceptance criteria
-    - use `templates/validation-report.md`
+### Stage 6: solution-architect
 
-12. `knowledge-manager`
-     - auto-trigger checkpoint sync for completed implementation and validation work
-     - sync implementation and validation outcome
-     - update the task record and `current-status`
+- **Dispatch**: Pass task-planner summary + recommended sub-spec
+- **Read upstream**: `specs/phases/<phase-id>/phase-spec.md`
+- **Output files**: `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`, `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+- **Templates**: `templates/sub-spec.md`, `templates/solution-design-output.md`
+- **Expect back**: Summary of technical design, key decisions, risks, constraints
 
-13. Human continuation gate
-   - report current `sub-spec` result and recommend the next `sub-spec`
-   - do not automatically enter the next `sub-spec` without user confirmation
+### Human Gate 1 (before implementation)
+
+- **Present**: master-spec summary, phase-spec summary, current sub-spec summary, key decisions, risks
+- **Condition**: Do not enter implementation until sub-spec is explicitly confirmed
+- **Wait for**: User confirmation, modifications, or "read <file>" requests
+
+### Stage 7: knowledge-manager (planning checkpoint)
+
+- **Dispatch**: Pass planning + architecture summaries
+- **Action**: Sync plan and architecture milestones as Decision Doc and Topic Doc
+- **Expect back**: Confirmation of sync
+
+### Stage 8: implementer
+
+- **Dispatch**: Pass solution-architect summary
+- **Read upstream**: `sub-spec.md`, `solution-design.md`
+- **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
+- **Template**: `templates/implementation-summary.md`
+- **Expect back**: Summary of changes, deviations from spec, known gaps, verification notes
+
+### Stage 9: reviewer
+
+- **Dispatch**: Pass implementer summary
+- **Read upstream**: `implementation-summary.md`, `sub-spec.md`
+- **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
+- **Template**: `templates/review-report.md`
+- **Expect back**: Verdict (pass/must-fix/should-fix), issue summary
+
+### Stage 10: validator
+
+- **Dispatch**: Pass implementer summary + reviewer summary
+- **Read upstream**: `implementation-summary.md`, `review-report.md`, `sub-spec.md`
+- **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
+- **Template**: `templates/validation-report.md`
+- **Expect back**: Verdict (pass/partial/fail), criteria met, failing items
+
+### Stage 11: knowledge-manager (implementation checkpoint)
+
+- **Dispatch**: Pass implementation + validation summaries
+- **Action**: Sync implementation and validation outcome, update task record and current-status
+- **Expect back**: Confirmation of sync
+
+### Human Gate 2 (after sub-spec completion)
+
+- **Present**: Sub-spec result, validation verdict, recommended next sub-spec
+- **Wait for**: User confirmation to start next sub-spec, or stop
+- **Repeat**: Stages 6-11 + Human Gate 2 for each subsequent sub-spec
 
 ## Stage Gates
 
-- Do not enter implementation before `master-spec`, current `phase-spec`, and current `sub-spec` are complete and confirmed
-- Do not enter implementation before repository context, requirement, plan, and solution are clear enough
-- Do not enter validation before review is complete unless the task is intentionally using a shortened flow
+- Do not enter implementation before master-spec, current phase-spec, and current sub-spec are complete and confirmed
+- Do not enter validation before review is complete unless intentionally using a shortened flow
 - Do not skip validation after implementation
-- Do not finish a major stage without syncing the result into the knowledge base
-- A stage is not considered fully complete until its checkpoint sync has actually run
+
+Loop handling, knowledge-manager checkpoint gates, escalation rules, and should-fix/partial-pass handling are defined in `orchestrator.md` and apply to all pipelines.
 
 ## Standard Outputs
 
-- repository exploration
-- requirement definition
-- master spec
-- phase spec
-- current sub-spec
-- solution design
-- implementation summary
-- review report
-- validation report
-- current status
-- knowledge-base record
+- `specs/exploration/repo-exploration.md`
+- `specs/requirements/requirements.md`
+- `specs/master-spec.md`
+- `specs/phases/<phase-id>/phase-spec.md`
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
+- `specs/current-status.md`
+- Knowledge base records
 
 ## Good Fit
 
 - greenfield product development
 - rebuilding a difficult product with stronger process control
 - long-context work that requires repeated user confirmation before implementation
-- practicing a spec-driven OpenCode workflow on repositories like `knownbase_bk`
-
-## Notes
-
-- `master-spec` is the most important planning artifact for large projects and should be treated as the primary control document
-- For small tasks, `program-planner` can produce a short `master-spec`
-- For system rebuilds, `program-planner` and the confirmation gate should not be skipped
+- practicing a spec-driven OpenCode workflow

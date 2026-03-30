@@ -1,3 +1,12 @@
+---
+description: Build a fast, reality-based understanding of the repository before planning, design, or implementation begins.
+mode: agent
+permission:
+  bash: allow
+  edit: deny
+  task: deny
+---
+
 # repo-explorer
 
 ## Role
@@ -33,7 +42,22 @@ Build a fast, reality-based understanding of the repository before planning, des
 
 ## Output
 
-Use `templates/repo-exploration-output.md`.
+### File Output
+
+Write your complete exploration result following `templates/repo-exploration-output.md` format to: `specs/exploration/repo-exploration.md`
+
+Create the `specs/exploration/` directory if it does not exist.
+
+### Return to Orchestrator
+
+Return ONLY:
+
+- A 3-5 sentence summary of the most relevant modules, entry points, and impact surface
+- The output file path: `specs/exploration/repo-exploration.md`
+- Key risks or unknowns that downstream agents should watch for
+- Whether a human gate is needed (yes/no)
+
+Do NOT include the full exploration document in your return message.
 
 ## Handoff
 
