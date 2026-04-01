@@ -1,6 +1,6 @@
 ---
 description: Verify that the implemented slice works, is testable, and does not introduce obvious regressions.
-mode: agent
+mode: subagent
 permission:
   bash: allow
   edit: deny

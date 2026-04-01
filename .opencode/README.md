@@ -4,14 +4,14 @@ This directory is the shared OpenCode template root.
 
 ## Architecture
 
-This template uses an **Orchestrator-driven workflow**. The user interacts with a single primary agent (the Orchestrator), which automatically dispatches work to 9 specialized subagents, collects summaries, and presents conclusions at human confirmation gates.
+This template uses an **Orchestrator-driven workflow**. The user interacts with a single primary agent (the Orchestrator), which automatically dispatches work to 10 specialized subagents, collects summaries, and presents conclusions at human confirmation gates.
 
 See `ORCHESTRATOR_ARCHITECTURE.md` at the project root for the full architecture decision document.
 
 ## Layout
 
-- `agents/` - Role definitions: 1 orchestrator (primary) + 9 subagents
-- `commands/` - Pipeline command triggers (`/feature`, `/bugfix`, `/idea`, `/rebuild`, `/fullflow`)
+- `agents/` - Role definitions: 1 orchestrator (primary) + 10 subagents
+- `commands/` - Pipeline command triggers (`/feature`, `/bugfix`, `/idea`, `/rebuild`, `/fullflow`, `/analyze`)
 - `templates/` - Reusable output templates for each stage
 - `snippets/` - Workflow pipeline definitions (referenced by Orchestrator)
 - `skills/` - Reusable OpenCode skills
@@ -35,6 +35,7 @@ See `ORCHESTRATOR_ARCHITECTURE.md` at the project root for the full architecture
 - `reviewer` - Quality and drift review
 - `validator` - Acceptance verification and evidence confirmation
 - `knowledge-manager` - Knowledge sync to MCP knowledge base
+- `code-analyst` - Deep codebase/module analysis, produces human-readable reports
 
 ## Pipeline Commands
 
@@ -45,6 +46,7 @@ See `ORCHESTRATOR_ARCHITECTURE.md` at the project root for the full architecture
 | `/idea <desc>` | idea-to-mvp | Idea exploration (no implementation) |
 | `/rebuild <desc>` | rebuild-knownbase-flow | System rebuild |
 | `/fullflow <desc>` | requirements-to-implementation | Full 13-stage workflow |
+| `/analyze <desc>` | analyze-pipeline | Codebase/module analysis (human-readable report) |
 
 ## Data Flow
 
@@ -62,6 +64,9 @@ specs/
 │   └── repo-exploration.md
 ├── requirements/
 │   └── requirements.md
+├── analysis/
+│   ├── code-analysis-full.md
+│   └── code-analysis-<scope-slug>.md
 ├── phases/
 │   └── <phase-id>/
 │       ├── phase-spec.md
@@ -79,7 +84,7 @@ specs/
 ## Key References
 
 - `ORCHESTRATOR_ARCHITECTURE.md` - Full architecture spec
-- `AGENT_ROLE_MATRIX.md` - Consolidated role map (10 roles including orchestrator)
+- `AGENT_ROLE_MATRIX.md` - Consolidated role map (11 roles including orchestrator)
 - `AGENT_TRIGGER_MATRIX.md` - Pipeline selection and agent trigger rules
 - `snippets/kb-sync-sop.md` - MCP sync procedure
 - `hooks/kb-sync-runtime-plugin.md` - Runtime trigger implementation

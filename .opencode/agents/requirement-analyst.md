@@ -1,6 +1,6 @@
 ---
 description: Turn a raw product idea into a clear, reviewable requirement definition that anchors the project master-spec.
-mode: agent
+mode: subagent
 permission:
   bash: deny
   edit: deny

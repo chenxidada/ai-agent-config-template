@@ -1,6 +1,6 @@
 ---
 description: Manage durable project knowledge by syncing milestones, decisions, and summaries to the knowledge base via MCP.
-mode: agent
+mode: subagent
 permission:
   bash: deny
   edit: deny

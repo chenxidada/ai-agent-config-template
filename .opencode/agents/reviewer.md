@@ -1,6 +1,6 @@
 ---
 description: Review implementation against agreed scope and design, focusing on code quality, maintainability, and hidden risk.
-mode: agent
+mode: subagent
 permission:
   bash: allow
   edit: deny

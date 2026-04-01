@@ -1,6 +1,6 @@
 ---
 description: Build a fast, reality-based understanding of the repository before planning, design, or implementation begins.
-mode: agent
+mode: subagent
 permission:
   bash: allow
   edit: deny

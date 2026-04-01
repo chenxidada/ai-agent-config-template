@@ -1,6 +1,6 @@
 ---
 description: Turn a large product or system goal into the project master-spec with modules, phases, and dependencies.
-mode: agent
+mode: subagent
 permission:
   bash: deny
   edit: deny

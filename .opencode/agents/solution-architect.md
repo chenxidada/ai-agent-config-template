@@ -1,6 +1,6 @@
 ---
 description: Design the technical approach for the approved current sub-spec including entities, APIs, and integration strategy.
-mode: agent
+mode: subagent
 permission:
   bash: deny
   edit: deny

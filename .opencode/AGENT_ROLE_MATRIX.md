@@ -1,8 +1,8 @@
 # Agent Role Matrix
 
-## 10 个核心 Agent
+## 11 个核心 Agent
 
-当前推荐的 OpenCode Orchestrator 驱动工作流角色共 10 个：
+当前推荐的 OpenCode Orchestrator 驱动工作流角色共 11 个：
 
 - `orchestrator` (primary agent)
 - `repo-explorer`
@@ -14,8 +14,9 @@
 - `reviewer`
 - `validator`
 - `knowledge-manager`
+- `code-analyst`
 
-用户只和 `orchestrator` 交互。其余 9 个 agent 作为 subagent 由 Orchestrator 通过 Task 工具调度。
+用户只和 `orchestrator` 交互。其余 10 个 agent 作为 subagent 由 Orchestrator 通过 Task 工具调度。
 
 这 10 个角色的设计目标不是"把流程拆得越细越好"，而是：
 
@@ -27,6 +28,7 @@
 - 再验证
 - 最后沉淀知识
 - 在关键节点停下来等人类确认
+- 对已有代码进行独立的深度分析
 
 ## 角色总表
 
@@ -266,6 +268,36 @@
 - snapshot doc
 - daily digest
 
+### `code-analyst`
+
+定位：独立的代码/模块深度分析，面向人类产出分析报告
+
+负责：
+
+- 分析代码仓或指定模块的整体架构、模块结构、层次关系
+- 识别核心抽象、设计模式、是否一致
+- 追踪主要数据流和状态管理方式
+- 调查技术栈、外部依赖、外部服务集成
+- 评估代码质量：优点、技术债、风险区、约定一致性
+- 产出优先阅读的关键文件索引
+
+不负责：
+
+- 不改代码
+- 不做实现建议（除非用户明确要求）
+- 不做需求分析或方案设计
+- 不为下游 agent 服务（与 repo-explorer 的关键区别）
+
+典型输出：
+
+- 完整分析报告（面向人类可读）
+- 架构概览
+- 设计模式识别
+- 数据流追踪
+- 依赖关系图
+- 代码质量观察
+- 关键文件索引
+
 ## 推荐顺序
 
 所有流程由 Orchestrator 调度。用户通过 pipeline 命令或自然对话触发。
@@ -282,6 +314,10 @@
 
 `orchestrator -> repo-explorer -> implementer -> reviewer -> validator -> knowledge-manager`
 
+### 代码分析 (/analyze)
+
+`orchestrator -> code-analyst -> knowledge-manager`
+
 ## 核心分工原则
 
 - `orchestrator` 解决"谁来统一调度和保持状态"
@@ -294,6 +330,7 @@
 - `reviewer` 解决"改得是否合理"
 - `validator` 解决"结果是否成立"
 - `knowledge-manager` 解决"别把过程和结论丢掉"
+- `code-analyst` 解决"面对一份新代码，先弄清楚它是什么"
 
 ## 当前结论
 
@@ -301,7 +338,8 @@
 
 原因：
 
-- 这 10 个角色（1 个调度器 + 9 个执行者）已经覆盖了大多数工程工作流
+- 这 11 个角色（1 个调度器 + 10 个执行者）已经覆盖了大多数工程工作流
+- 10 个执行者分为两类：9 个面向变更流水线（探索→需求→规划→设计→实现→审查→验证→沉淀），1 个面向独立分析（code-analyst）
 - Orchestrator 的加入解决了之前手动调度的问题
 - 再继续拆分会显著增加流程摩擦
 - 目前最重要的是把边界执行稳定，而不是继续加角色数量

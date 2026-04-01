@@ -90,6 +90,15 @@ Note: In complex pipelines, implementer should not run without upstream context 
 
 Note: knowledge-manager must execute actual MCP writes. A checkpoint is not complete until sync has run.
 
+### code-analyst
+
+| Include | Skip |
+|---------|------|
+| User wants to understand an existing codebase or module | User has a change request (use repo-explorer + pipeline instead) |
+| New code/module needs documentation or orientation | User wants implementation planning (use idea pipeline instead) |
+| `/analyze` command triggered | |
+| Need a human-readable architecture/quality report | |
+
 ## Pipeline Sequences by Task Type
 
 ### New Feature (/feature)
@@ -139,3 +148,11 @@ repo-explorer → implementer → reviewer → validator
 ```
 
 For 1-2 file changes with obvious scope. If repo-explorer reveals larger scope, upgrade to a full pipeline.
+
+### Codebase Analysis (/analyze)
+
+```
+code-analyst → knowledge-manager
+```
+
+Lightweight pipeline for understanding existing code. No Human Gate needed (read-only, no code changes). Supports full repo or scoped analysis.

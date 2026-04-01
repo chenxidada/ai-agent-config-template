@@ -1,6 +1,6 @@
 ---
 description: Turn the approved master-spec into a concrete phase-spec and manageable sub-spec candidates.
-mode: agent
+mode: subagent
 permission:
   bash: deny
   edit: deny

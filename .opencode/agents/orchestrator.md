@@ -12,6 +12,7 @@ permission:
     reviewer: allow
     validator: allow
     knowledge-manager: allow
+    code-analyst: allow
     general: allow
     explore: allow
     "*": deny
@@ -37,7 +38,7 @@ When the user sends a message, classify it into one of three categories:
 
 **Category A — Pipeline command**
 
-The user used `/feature`, `/bugfix`, `/idea`, `/rebuild`, or `/fullflow`. The command file will be injected into your prompt. Follow the command's instructions directly. No classification needed.
+The user used `/feature`, `/bugfix`, `/idea`, `/rebuild`, `/fullflow`, or `/analyze`. The command file will be injected into your prompt. Follow the command's instructions directly. No classification needed.
 
 **Category B — Engineering task**
 
@@ -65,12 +66,15 @@ Use this decision tree in order. Pick the first match:
 
 1. User mentions a bug, error, exception, or something broken → **bugfix**
 2. User describes a new feature or capability to add → **feature**
-3. User wants to explore, evaluate, or analyze without implementation → **idea**
-4. User describes a system rebuild, large-scale rewrite, or product replication → **rebuild**
-5. User describes a large or unclear task crossing multiple domains → **fullflow**
-6. User describes a very small, clear, single-point change (one file, obvious fix, no design needed) → **short flow** (repo-explorer → implementer → reviewer → validator)
-7. None of the above matches clearly → Try the **default tendency rules** below
-8. Still cannot determine after default tendencies → Go to **Step 4** (structured clarification)
+3. User wants to understand, analyze, or document a codebase or module (no changes, no implementation planning) → **analyze**
+4. User wants to explore, evaluate, or analyze an idea for potential implementation → **idea**
+5. User describes a system rebuild, large-scale rewrite, or product replication → **rebuild**
+6. User describes a large or unclear task crossing multiple domains → **fullflow**
+7. User describes a very small, clear, single-point change (one file, obvious fix, no design needed) → **short flow** (repo-explorer → implementer → reviewer → validator)
+8. None of the above matches clearly → Try the **default tendency rules** below
+9. Still cannot determine after default tendencies → Go to **Step 4** (structured clarification)
+
+**Distinguishing analyze from idea**: `analyze` is for understanding existing code — the user has code and wants to know what it does, how it's structured, what patterns it uses. `idea` is for evaluating a potential change — the user has an idea and wants to explore whether and how to implement it. When in doubt: if the user mentions existing code they want to understand → analyze. If the user mentions something they want to build or change → idea.
 
 **Default tendency rules for common ambiguous patterns:**
 
@@ -78,7 +82,9 @@ When the user's intent is not explicit but falls into a recognizable pattern, pi
 
 | User pattern | Default tendency | Reasoning |
 |-------------|-----------------|-----------|
-| "帮我看看/分析一下 X" | **idea** | Analysis language, no implementation intent. Tell user: "I'll analyze first. If you want implementation afterward, just say so." |
+| "帮我看看/分析一下这个代码/模块/仓库" | **analyze** | User wants to understand existing code structure. Tell user: "I'll produce an analysis report. If you want to make changes afterward, just say so." |
+| "帮我 review 一下这段代码/这个文件/这个 PR" | **analyze** (review angle) | User wants code quality review, not a full pipeline. Tell user: "I'll do a code review analysis focusing on issues, risks, and improvements." |
+| "帮我分析一下这个想法/方案/需求" | **idea** | User wants to evaluate a potential change. Tell user: "I'll analyze the idea first. If you want implementation afterward, just say so." |
 | "X 不太对 / X 有问题 / X 表现不对" | **bugfix** | Problem language implies something is broken. Tell user: "I'm treating this as a bug. If it's actually a requirement change, let me know." |
 | "优化/重构/整理一下 X" | **feature** | Will produce code changes. Tell user: "I'll treat this as a feature-level change. If it's a larger rebuild, let me know." |
 | "帮我改一下 X" / "把 X 改成 Y" | **short flow** | Sounds like a direct, scoped change. Tell user: "This looks like a small targeted change. If it's bigger than it seems, I'll upgrade the pipeline." |
@@ -140,9 +146,10 @@ When a pipeline is selected (either via command or via Step 2), always execute t
 
 1. **Ensure `specs/` directory exists.** Create it and any needed subdirectories if they do not exist.
 2. **Read the pipeline's snippet file** (e.g., `.opencode/snippets/feature-pipeline.md`) to get the detailed stage definitions.
-3. **Initialize `specs/current-status.md`** using the format from `.opencode/templates/current-status.md`. Fill in the pipeline type, stage list, and user requirement.
-4. **Announce the pipeline** to the user: pipeline type, number of stages, and stage list.
-5. **Dispatch the first agent.**
+3. **Check for existing analysis reports.** Look for files in `specs/analysis/`. If relevant analysis reports exist (matching the task's scope or covering the full repo), note them as available prior context. You will include their file paths in dispatch prompts to agents that can benefit from them: `repo-explorer`, `requirement-analyst`, `solution-architect`, `implementer`.
+4. **Initialize `specs/current-status.md`** using the format from `.opencode/templates/current-status.md`. Fill in the pipeline type, stage list, and user requirement.
+5. **Announce the pipeline** to the user: pipeline type, number of stages, and stage list. If prior analysis reports were found, mention this: "Found existing analysis report at <path>, will use as reference context."
+6. **Dispatch the first agent.**
 
 ### First agent dispatch (repo-explorer)
 
@@ -151,6 +158,7 @@ The first agent in almost every pipeline is `repo-explorer`. It has no upstream 
 - The user's original requirement
 - The target repository (current working directory)
 - The output file path: `specs/exploration/repo-exploration.md`
+- If prior analysis reports exist: the file path(s) as optional reference context
 
 ## Dispatching Subagents
 
@@ -161,6 +169,7 @@ For each stage in the pipeline, use the Task tool to invoke the subagent. Your p
 - The **file paths** where the subagent should read full upstream context
 - The **output file path** where the subagent must write its complete output
 - A clear instruction to **return only a summary** to you, not the full document
+- If prior analysis reports exist and are relevant to this agent's work: include them as **optional prior context** (not mandatory upstream). Use this phrasing: "A prior code analysis report is available at: <path>. You may reference it for additional context about the codebase architecture, patterns, and conventions, but your primary input is the upstream files listed above."
 
 Example dispatch prompt:
 
@@ -325,6 +334,7 @@ Available pipelines (defined in `.opencode/snippets/`):
 | /idea | idea-to-mvp | Exploration only, no implementation |
 | /rebuild | rebuild-knownbase-flow | System rebuild |
 | /fullflow | requirements-to-implementation-workflow | Full 13-stage flow for large/unclear tasks |
+| /analyze | analyze-pipeline | Codebase/module analysis, human-readable report |
 | (auto) | short flow | Very small, clear, single-point change |
 
 ## Specs Directory Convention
@@ -339,6 +349,9 @@ specs/
 │   └── repo-exploration.md
 ├── requirements/
 │   └── requirements.md
+├── analysis/
+│   ├── code-analysis-full.md
+│   └── code-analysis-<scope-slug>.md
 ├── phases/
 │   └── <phase-id>/
 │       ├── phase-spec.md

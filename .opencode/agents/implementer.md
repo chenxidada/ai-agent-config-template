@@ -1,6 +1,6 @@
 ---
 description: Implement the approved current sub-spec with minimal drift from the agreed plan.
-mode: agent
+mode: subagent
 permission:
   bash: allow
   edit: allow

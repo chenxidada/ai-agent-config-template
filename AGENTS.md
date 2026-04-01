@@ -31,6 +31,7 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - `/idea <desc>` - Idea exploration (no implementation)
 - `/rebuild <desc>` - System rebuild
 - `/fullflow <desc>` - Full 13-stage workflow
+- `/analyze <desc>` - Codebase/module analysis (human-readable report, no code changes)
 
 See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
 
