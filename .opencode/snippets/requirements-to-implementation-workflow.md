@@ -87,9 +87,13 @@ Use this as the master controller workflow from product idea or requirement docu
 
 ### Stage 11: knowledge-manager (implementation checkpoint)
 
+**MANDATORY — Do NOT skip this stage**
+
 - **Dispatch**: Pass implementation + validation summaries
-- **Action**: Sync implementation and validation outcome, update task record and current-status
-- **Expect back**: Confirmation of sync
+- **Include**: `project: ai-agent-config-template` (from `.opencode/project-config.md`)
+- **Read**: `implementation-summary.md`, `validation-report.md`
+- **Action**: Sync implementation and validation outcome as Task Doc, update Daily Digest if active
+- **Expect back**: Confirmation of sync (success/failure, which objects were written)
 
 ### Human Gate 2 (after sub-spec completion)
 

@@ -1,15 +1,34 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "orchestrator",
+  // 简化版插件 - 只注入系统提示，不拦截消息
   "plugin": ["./.opencode/plugins/kb-sync-runtime.mjs"],
   "mcp": {
+    // ============================================
+    // Knowledge Base MCP Server
+    // ============================================
+    // 
+    // 连接模式（通过环境变量控制）：
+    //   MCP_MODE=docker  - 使用 Docker 容器中的 MCP Server（推荐）
+    //   MCP_MODE=local   - 使用本地源码运行 MCP Server
+    //   MCP_MODE=auto    - 自动检测（默认）
+    //
+    // Docker 模式要求：
+    //   1. knownbase 后端服务已通过 docker-compose 启动
+    //   2. kb-mcp-server 容器正在运行
+    //
+    // 本地模式要求：
+    //   1. 设置 KNOWNBASE_ROOT 环境变量指向 knownbase/AI-Chat 目录
+    //   2. 已执行 pnpm build 构建 MCP Server
+    //
     "knowledge-base": {
       "type": "local",
       "command": ["bash", "./knowledge-base-mcp.sh"],
       "environment": {
-        "KB_API_URL": "http://localhost:4000/api/v1"
+        "KB_API_URL": "http://localhost:4000/api/v1",
+        "MCP_MODE": "auto"
       },
-      "enabled": true,
-    },
-  },
+      "enabled": true
+    }
+  }
 }

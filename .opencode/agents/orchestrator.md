@@ -254,9 +254,58 @@ These rules apply to ALL pipelines. Individual pipeline snippets do not repeat t
 
 These rules apply to ALL pipelines. Individual pipeline snippets do not repeat them.
 
+### Mandatory Checkpoints
+
+**CRITICAL: The following checkpoints are MANDATORY. Do NOT skip them.**
+
+| Checkpoint | When | What to Sync |
+|------------|------|--------------|
+| Requirement checkpoint | After requirement-analyst completes | Topic Doc or Decision Doc |
+| Planning checkpoint | After Human Gate 1 (user confirms design) | Decision Doc for architecture |
+| Implementation checkpoint | After validator completes (before Human Gate 2) | Task Doc with implementation result |
+
+### Project Identity
+
+**Always use the project identifier from `.opencode/project-config.md`** when dispatching knowledge-manager.
+
+Include this in every knowledge-manager dispatch:
+
+```
+project: ai-agent-config-template
+```
+
+### Execution Rules
+
 - A knowledge-manager checkpoint stage is not complete until the sync action has actually executed and returned success or failure
 - If sync fails, retry once. If it still fails, report the failure to the user and continue the pipeline (do not block indefinitely)
 - knowledge-manager checkpoints placed after a Human Gate sync user-confirmed content (preferred). Checkpoints placed before a Human Gate sync preliminary content (acceptable but less ideal)
+- **NEVER skip implementation checkpoint after validator** — this is the most commonly missed checkpoint
+- When dispatching knowledge-manager, always specify which spec files to read for content extraction
+
+### Example Dispatch for Implementation Checkpoint
+
+```
+You are knowledge-manager. Sync the completed sub-spec implementation to the knowledge base.
+
+## Project
+project: ai-agent-config-template
+
+## Trigger
+implementation checkpoint (validator passed)
+
+## Content Source
+- Implementation summary: specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md
+- Validation report: specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md
+
+## Action Required
+1. Read the source files
+2. Create or update a Task Doc in Projects/ai-agent-config-template/Tasks/
+3. Update today's Daily Digest if active
+4. Return sync confirmation
+
+## Output
+Return ONLY: sync status, which objects were written, any failures
+```
 
 ## Short Flow
 

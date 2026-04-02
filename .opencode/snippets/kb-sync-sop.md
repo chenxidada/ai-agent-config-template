@@ -50,7 +50,19 @@ Use the standard naming rules:
 
 Never resolve folders by a single ambiguous display name.
 
-Use logical paths:
+### Project Identity Rule
+
+**CRITICAL: Always read `.opencode/project-config.md` first to get the canonical project identifier.**
+
+The project identifier must be consistent across all sync operations. Never:
+
+- Invent a new project name
+- Use variations like `ai-agent-template` vs `ai-agent-config-template`
+- Use display names instead of the canonical identifier
+
+### Canonical Paths
+
+Use these logical paths with the project identifier from `project-config.md`:
 
 - `Projects/<project>/Tasks/`
 - `Projects/<project>/Topics/`

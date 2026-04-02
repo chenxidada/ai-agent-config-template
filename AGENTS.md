@@ -125,6 +125,14 @@ This template is intentionally not using noisy real-time logging. Sync should ha
 
 ## Unified Knowledge Object Model
 
+### Project Identity
+
+**CRITICAL: Always use the project identifier from `.opencode/project-config.md`**
+
+Before any KB sync operation, read the project config to get the canonical project name. Never invent new project names or use variations.
+
+### Object Paths
+
 - `Task Doc` -> `Projects/<project>/Tasks/` -> `[task:<task-id>] <project> - <task-name>`
 - `Topic Doc` -> `Projects/<project>/Topics/` -> `[topic:<topic-key>] <project> - <topic-name>`
 - `Decision Doc` -> `Projects/<project>/Decisions/` -> `[decision:<decision-key>] <project> - <decision-name>`
