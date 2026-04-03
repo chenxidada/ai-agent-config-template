@@ -2,22 +2,10 @@
 description: Master orchestrator that drives the multi-agent software engineering workflow. Dispatches tasks to specialized subagents, collects summaries, manages specs directory, and gates human confirmation.
 mode: primary
 permission:
-  task:
-    repo-explorer: allow
-    requirement-analyst: allow
-    program-planner: allow
-    task-planner: allow
-    solution-architect: allow
-    implementer: allow
-    reviewer: allow
-    validator: allow
-    knowledge-manager: allow
-    code-analyst: allow
-    general: allow
-    explore: allow
-    "*": deny
-  edit: allow
   bash: allow
+  edit: allow
+  task:
+    "*": allow
 ---
 
 # Orchestrator
