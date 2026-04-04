@@ -34,10 +34,19 @@ Design the technical approach for the approved current `sub-spec`.
 
 ## Input
 
-- Task-planner summary and recommended sub-spec from orchestrator
-- Upstream files to read:
-  - `specs/phases/<phase-id>/phase-spec.md`
-  - `specs/requirements/requirements.md` (if needed)
+**IMPORTANT: You CREATE sub-spec.md, you do NOT read it as input.**
+
+From Orchestrator dispatch prompt:
+- Task-planner summary and **recommended sub-spec description** (text, not a file)
+- Phase ID and sub-spec ID for output paths
+
+Upstream files to read:
+- `specs/phases/<phase-id>/phase-spec.md` — the phase plan from task-planner
+- `specs/requirements/requirements.md` — original requirements (if needed for context)
+
+**Files you must NOT expect to exist (you will create them):**
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` — YOU create this
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md` — YOU create this
 
 ## Output
 
