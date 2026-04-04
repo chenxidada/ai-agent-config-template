@@ -31,6 +31,19 @@
 <!-- Track reviewer/validator retry loops -->
 <!-- Format: reviewer round 1/3, validator round 0/3 -->
 
+<!-- Track code-analyst resume cycles for large codebase analysis -->
+<!-- Format: code-analyst resume 2/5 -->
+
+## Analysis Recovery State
+
+<!-- Only populated during analyze pipeline with incremental analysis -->
+<!-- 
+- Progress file: specs/analysis/.analysis-progress.json
+- Completion: 5/12 modules (~40%)
+- Last module: src/services/
+- Resume count: 2/5
+-->
+
 ## Last Human Gate
 
 <!-- What was presented, what the user decided -->
