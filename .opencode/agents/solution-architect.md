@@ -17,12 +17,14 @@ Design the technical approach for the approved current `sub-spec`.
 
 - Refine the architecture and implementation shape for the approved current `sub-spec`
 - Define the relevant entities, data flow, API domains, contracts, and integration strategy for that `sub-spec`
+- **Design the Validation Plan**: Based on acceptance criteria, define concrete test scenarios (functional, boundary, error-handling, regression) that the reviewer and validator will use
 - Evaluate risky technical points inside the current implementation boundary
 - Identify tradeoffs and alternatives
 
 ## Must Do
 
 - Keep design aligned with the approved current `sub-spec`
+- **Fill in the Validation Plan section of sub-spec.md** with concrete test scenarios covering: normal flow, edge cases, error handling, and regression checks
 - Call out decisions that require user confirmation
 - Prefer simple, stable architecture before advanced features
 - Read the full upstream files if the orchestrator provides file paths for detailed context

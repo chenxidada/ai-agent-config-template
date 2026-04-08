@@ -83,7 +83,7 @@
 
 ### `requirement-analyst`
 
-定位：需求澄清与范围收敛
+定位：需求澄清与范围收敛（支持追加模式）
 
 负责：
 
@@ -91,12 +91,14 @@
 - 明确 MVP、非目标、验收标准、开放问题
 - 去掉模糊和过宽的表述
 - 为高质量 `master-spec` 提供最强需求输入
+- **支持两种模式**：create（首次创建）和 append（追加新需求到已有文档）
 
 不负责：
 
 - 不直接拆实现任务
 - 不直接定技术方案
 - 不直接改代码
+- append 模式下不重写或重构已有需求
 
 典型输出：
 
@@ -107,13 +109,15 @@
 
 ### `program-planner`
 
-定位：`master-spec` 生成与系统级规划拆解
+定位：`master-spec` 生成/更新与系统级规划拆解
 
 负责：
 
 - 把大型产品或系统目标拆成顶层模块、能力域、交付阶段、里程碑
 - 明确哪些模块先做、哪些后做、哪些需要先搭骨架
 - 产出项目最重要的控制文档：`master-spec`
+- **支持两种模式**：create（首次创建）和 update（增量追加新 phase）
+- **提取子需求**：为每个新 phase 产出独立的 requirements 文档
 - 为 `task-planner` 提供 program-level 边界，而不是直接下钻到代码实现
 
 不负责：
@@ -121,9 +125,12 @@
 - 不替代详细 task slicing
 - 不直接做具体技术实现设计
 - 不直接写代码
+- 不修改或重排已完成的 phase
 
 典型输出：
 
+- `master-spec.md`（创建或更新）
+- `phases/<phase-id>/requirements.md`（每个新 phase 的子需求）
 - 模块地图
 - 交付阶段
 - 里程碑
@@ -136,9 +143,11 @@
 
 负责：
 
-- 把 `master-spec` 落成当前 `phase-spec`
+- 把 `master-spec` 中指定 phase 落成当前 `phase-spec`
 - 把当前阶段拆成有顺序的多个 `sub-spec`
 - 指出当前最适合实现的 active `sub-spec`
+- 始终读取 `master-spec.md` 获取全局上下文
+- 始终读取 `phases/<phase-id>/requirements.md` 获取子需求
 
 不负责：
 
@@ -147,7 +156,7 @@
 
 典型输出：
 
-- 当前阶段边界
+- `phase-spec.md`（当前 phase 的任务拆分）
 - sub-spec 列表
 - 当前推荐 sub-spec
 - 阶段内依赖与顺序
@@ -160,6 +169,7 @@
 
 - 为当前批准切片定义实现路径
 - 说明模块边界、接口、数据流、约束、风险
+- **设计 Validation Plan**：根据验收标准设计具体的测试场景（功能、边界、错误处理、回归），供 reviewer 和 validator 使用
 - 让 `implementer` 有足够明确的执行边界
 
 不负责：
@@ -171,6 +181,7 @@
 
 - 方案设计
 - 关键决策
+- **结构化 Validation Plan**（测试场景表、回归检查清单）
 - 风险点
 - 待确认项
 
@@ -182,30 +193,37 @@
 
 - 只实现当前批准的 slice
 - 修改必要代码、配置、脚本、测试
+- **对 Validation Plan 中 functional/boundary 场景必须编写自动化测试**
 - 记录改动、偏差、已知缺口、后续验证注意点
 
 不负责：
 
 - 不扩 scope
 - 不私自改架构
-- 不把顺手重构包装成“顺便做了”
+- 不把顺手重构包装成"顺便做了"
+- 不跳过写测试
 
 典型输出：
 
 - 实施总结
 - 改动文件
+- **自动化测试代码**
 - 与原方案的偏差
 - 已知缺口
 - 给 reviewer / validator 的交接说明
 
 ### `reviewer`
 
-定位：实现质量与偏航风险审查
+定位：实现质量、逻辑正确性与测试覆盖审查
 
 负责：
 
 - 检查实现是否偏离需求和方案
+- **逻辑正确性验证**：对照验收标准逐项检查代码是否正确实现
 - 检查代码结构、命名、耦合、可维护性、一致性
+- **测试覆盖度评估**：检查 implementer 是否编写了覆盖 Validation Plan 场景的测试
+- **补充测试场景**：基于代码审查发现的边界条件，补充 Validation Plan 中遗漏的测试场景
+- **提供验证命令**：列出 validator 应执行的具体验证命令
 - 识别隐藏风险和应补修项
 
 不负责：
@@ -216,32 +234,39 @@
 
 典型输出：
 
-- must-fix
-- should-fix
-- optional improvements
+- 逻辑正确性检查表
+- 测试覆盖度评估
+- must-fix / should-fix / optional improvements
+- **补充测试场景**（供 validator 使用）
+- **推荐验证命令**
 - review verdict
 
 ### `validator`
 
-定位：交付验证与证据确认
+定位：交付验证、测试用例执行与证据确认
 
 负责：
 
 - 依据验收标准验证功能是否成立
-- 跑测试、构建、检查、回归验证、边界验证
-- 区分“验证通过”“部分验证”“未验证”
+- **设计测试执行计划**：合并 sub-spec Validation Plan + reviewer 补充场景 + 自行发现的场景
+- **逐项执行测试**：跑测试、构建、检查、回归验证、边界验证
+- **编写验证脚本**：对没有自动化测试的场景，编写临时验证脚本
+- **记录具体证据**：每个场景都有命令输出、测试结果等可追溯证据
+- 区分"验证通过""部分验证""未验证"
 
 不负责：
 
 - 不把 code review 当成验证结论
 - 不隐瞒失败检查
 - 不在缺少证据时宣称 fully validated
+- 不修改实现代码（只创建测试/验证脚本）
 
 典型输出：
 
-- 验收项对照
-- 执行过的检查
-- 结果
+- **测试执行矩阵**（每个场景的来源、方法、结果、证据）
+- 验收项对照表
+- 验证脚本（临时）
+- 结果（pass / partial / fail + 场景统计）
 - 未验证项
 - 风险与后续建议
 
@@ -283,7 +308,7 @@
 
 不负责：
 
-- 不改代码
+- 不改代码（edit 权限仅用于写入 specs/analysis/ 目录的分析报告和进度文件）
 - 不做实现建议（除非用户明确要求）
 - 不做需求分析或方案设计
 - 不为下游 agent 服务（与 repo-explorer 的关键区别）
@@ -302,17 +327,19 @@
 
 所有流程由 Orchestrator 调度。用户通过 pipeline 命令或自然对话触发。
 
-### 完整流程 (/fullflow)
+### 统一 Pipeline (/feature, /bugfix, /rebuild)
 
-`orchestrator -> repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> [Human Gate] -> implementer -> reviewer -> validator -> knowledge-manager -> [Human Gate]`
+`orchestrator -> repo-explorer -> requirement-analyst -> program-planner -> [KM checkpoint] -> 每个 phase: task-planner -> solution-architect -> [Human Gate] -> [KM checkpoint] -> implementer -> reviewer -> validator -> [KM checkpoint] -> [Human Gate]`
 
-### Feature 流程 (/feature)
+三个命令共用同一条 pipeline，区别仅在于传递给 requirement-analyst 的 intent 上下文。
 
-`orchestrator -> repo-explorer -> requirement-analyst -> task-planner -> solution-architect -> [Human Gate] -> implementer -> reviewer -> validator -> knowledge-manager -> [Human Gate]`
+### Idea 流程 (/idea)
 
-### 小任务缩短版
+`orchestrator -> repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> knowledge-manager -> [Human Gate]`
 
-`orchestrator -> repo-explorer -> implementer -> reviewer -> validator -> knowledge-manager`
+### 小任务缩短版 (short flow)
+
+`orchestrator -> repo-explorer -> implementer -> reviewer -> validator`
 
 ### 代码分析 (/analyze)
 

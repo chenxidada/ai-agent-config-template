@@ -61,31 +61,26 @@ ai-agent-config-template/
 
 当前推荐的阶段化 agents：
 
-- `requirement-analyst`
-- `task-planner`
-- `solution-architect`
-- `implementer`
-- `validator`
-- `knowledge-manager`
+- `repo-explorer` — 仓库探查
+- `requirement-analyst` — 需求分析（支持 create/append 模式）
+- `program-planner` — 总体规划（支持 create/update 模式）
+- `task-planner` — 阶段任务拆解
+- `solution-architect` — 方案设计
+- `code-analyst` — 代码分析
+- `implementer` — 实现（必须写测试）
+- `reviewer` — 代码审查（逻辑 + 测试覆盖度）
+- `validator` — 验证（支持前端截图验证）
+- `knowledge-manager` — 知识库同步
 
-其中 `knowledge-manager` 用于把关键需求、方案、实现、验证结果持续同步到当前知识库，并在关键检查点做增量沉淀，尤其适合在复刻知识库应用本身时保留过程知识。
+其中 `knowledge-manager` 用于把关键需求、方案、实现、验证结果持续同步到当前知识库，并在关键检查点做增量沉淀。
 
 当前模板还包含一个 OpenCode runtime plugin，用于把压缩触发、手动同步请求等场景真正接到 MCP 同步流程上。
 
 推荐的总控 workflow：
 
-- `requirements-to-implementation-workflow`
+- `unified-pipeline`
 
-它负责把：
-
-- 需求理解
-- 任务拆解
-- 方案设计
-- 实现
-- 验证
-- 知识同步
-
-串成一条标准流水线。
+`/feature`、`/bugfix`、`/rebuild` 共用同一条统一 pipeline，以 intent 标签区分范围和侧重点。Pipeline 以 master-spec 为中心文档，按 phase 为颗粒度循环执行：需求分析 → 总体规划 → 阶段拆解 → 方案设计 → 实现 → 审查 → 验证 → 知识同步。
 
 ## 当前 Knowledge Base 能力
 
@@ -345,12 +340,14 @@ Daily/<YYYY>/<YYYY-MM>/
 
 OpenCode 在选择 workflow 时，建议按下面规则判断：
 
-- 需求文档、产品想法、范围不清、需要先澄清和拆解：`requirements-to-implementation-workflow`
-- 常规新功能、目标比较明确、但仍需要 repo 探查和 review：`feature-pipeline`
-- Bug、回归、根因排查、修复任务：`bugfix-pipeline`
-- 重建 Knownbase 类系统、架构级迭代、复杂子系统重做：`rebuild-knownbase-flow`
+- `/feature <desc>` — 新功能开发，走统一 pipeline（unified-pipeline）
+- `/bugfix <desc>` — Bug 修复、回归、根因排查，走统一 pipeline
+- `/rebuild <desc>` — 架构级迭代、系统重建，走统一 pipeline
+- `/idea <desc>` — 想法探索，停在 solution-architect 之后，不进入实现
+- `/analyze <desc>` — 代码库/模块分析，产出人类可读报告，不做代码修改
 
 补充判断：
 
+- `/feature`、`/bugfix`、`/rebuild` 共用同一条 unified pipeline，以 intent 标签区分范围和侧重点
 - 如果仓库现实、影响面、根因还不明确，应优先选择会从 `repo-explorer` 开始的 staged workflow，而不是直接实现
 - 非极小任务，默认都应包含 `reviewer` 和 `validator`

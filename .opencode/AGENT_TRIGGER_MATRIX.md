@@ -7,7 +7,7 @@ This file is a **reference lookup table** for the Orchestrator. It answers two q
 1. For a given agent, when should it be included or skipped in a pipeline?
 2. For a given task type, what is the recommended pipeline sequence?
 
-Pipeline selection logic (which pipeline to use, how to classify user input, short flow vs full flow) lives in `orchestrator.md` → Interaction Protocol. This file does **not** duplicate that logic.
+Pipeline selection logic (which pipeline to use, how to classify user input, short flow vs unified pipeline) lives in `orchestrator.md` -> Interaction Protocol. This file does **not** duplicate that logic.
 
 ## Per-Agent Inclusion Rules
 
@@ -24,8 +24,9 @@ Pipeline selection logic (which pipeline to use, how to classify user input, sho
 
 | Include | Skip |
 |---------|------|
-| Ambiguous or open-ended user need | Clear engineering directive ("fix this error", "add this field") |
-| Need to converge MVP scope | Single-point change with obvious acceptance criteria |
+| Any task using the unified pipeline (always) | Short flow (1-2 file obvious fix) |
+| Ambiguous or open-ended user need | |
+| Need to converge MVP scope | |
 | Mixed goals/constraints/ideas to untangle | |
 | Need explicit acceptance criteria | |
 
@@ -33,28 +34,26 @@ Pipeline selection logic (which pipeline to use, how to classify user input, sho
 
 | Include | Skip |
 |---------|------|
-| System-level or product-level rebuild | Normal feature work |
-| Cross-domain task (frontend + backend + infra) | Small bug fix |
-| Need phased master-spec with repeated confirmation | Single-slice iteration |
-| Module decomposition required | |
+| Any task using the unified pipeline (always) | Short flow |
+| First-time: creates master-spec | Analyze pipeline |
+| Append: updates master-spec with new phases | |
 
 ### task-planner
 
 | Include | Skip |
 |---------|------|
-| Task needs slicing into sub-specs | Single small fix |
-| Multiple phases or sub-modules | Single clear minimal feature point |
+| Any task using the unified pipeline (always) | Short flow |
+| Needed to break phase into sub-specs | Analyze pipeline |
 | Need to decide execution order | |
-| Need to reduce one-shot implementation risk | |
 
 ### solution-architect
 
 | Include | Skip |
 |---------|------|
-| Technical boundary decisions needed | Non-structural small fix |
-| Interface, data structure, or integration design | Implementation path already obvious and low-risk |
-| Multiple viable approaches to evaluate | |
-| Gap between current codebase and target state | |
+| Any task using the unified pipeline (always) | Short flow |
+| Technical boundary decisions needed | Analyze pipeline |
+| Interface, data structure, or integration design | |
+| Validation Plan design for downstream agents | |
 
 ### implementer
 
@@ -62,7 +61,7 @@ Pipeline selection logic (which pipeline to use, how to classify user input, sho
 |---------|------|
 | Any task that modifies code, config, scripts, or tests (always) | Never skipped when execution is needed |
 
-Note: In complex pipelines, implementer should not run without upstream context (exploration, requirements, design).
+Note: In the unified pipeline, implementer always has upstream context (sub-spec + solution-design). Must write automated tests for Validation Plan scenarios.
 
 ### reviewer
 
@@ -94,65 +93,47 @@ Note: knowledge-manager must execute actual MCP writes. A checkpoint is not comp
 
 | Include | Skip |
 |---------|------|
-| User wants to understand an existing codebase or module | User has a change request (use repo-explorer + pipeline instead) |
+| User wants to understand an existing codebase or module | User has a change request (use unified pipeline instead) |
 | New code/module needs documentation or orientation | User wants implementation planning (use idea pipeline instead) |
 | `/analyze` command triggered | |
 | Need a human-readable architecture/quality report | |
 
 ## Pipeline Sequences by Task Type
 
-### New Feature (/feature)
+### Unified Pipeline (/feature, /bugfix, /rebuild)
 
 ```
-repo-explorer → requirement-analyst → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
+repo-explorer -> requirement-analyst -> program-planner -> [KM checkpoint] ->
+  For each phase:
+    task-planner -> solution-architect -> [Human Gate 1] -> [KM checkpoint] ->
+    implementer -> reviewer -> validator -> [KM checkpoint] -> [Human Gate 2]
 ```
 
-If system-level, upgrade to `/fullflow` (adds `program-planner` before `task-planner`).
+All three commands use the same pipeline. Differences are only in the intent context passed to requirement-analyst.
 
-### Bug Fix (/bugfix)
-
-```
-repo-explorer → requirement-analyst → task-planner → [Human Gate] → implementer → reviewer → validator → knowledge-manager
-```
-
-If root cause is already clear and fix is small, downgrade to short flow.
+**First-time mode** (no existing master-spec): Creates master-spec from scratch.
+**Append mode** (existing master-spec): Updates master-spec, adds new phases.
 
 ### Idea Exploration (/idea)
 
 ```
-repo-explorer → requirement-analyst → task-planner → solution-architect → knowledge-manager → [Human Gate]
+repo-explorer -> requirement-analyst -> program-planner -> task-planner -> solution-architect -> knowledge-manager -> [Human Gate]
 ```
 
-No implementation. Output is analysis and recommendations only.
-
-### System Rebuild (/rebuild)
-
-```
-repo-explorer → requirement-analyst → program-planner → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
-```
-
-Full flow. Do not skip `program-planner`, `reviewer`, or `validator`. Human Gate after each slice.
-
-### Full Flow (/fullflow)
-
-```
-repo-explorer → requirement-analyst → program-planner → task-planner → solution-architect → [Human Gate] → implementer → reviewer → validator → knowledge-manager → [Human Gate]
-```
-
-Complete 13-stage pipeline for large or unclear tasks.
+No implementation. Output is analysis and recommendations only. User can proceed to `/feature` or `/rebuild` after review.
 
 ### Short Flow (auto-selected)
 
 ```
-repo-explorer → implementer → reviewer → validator
+repo-explorer -> implementer -> reviewer -> validator
 ```
 
-For 1-2 file changes with obvious scope. If repo-explorer reveals larger scope, upgrade to a full pipeline.
+For 1-2 file changes with obvious scope. If repo-explorer reveals larger scope, upgrade to the unified pipeline.
 
 ### Codebase Analysis (/analyze)
 
 ```
-code-analyst → knowledge-manager
+code-analyst -> knowledge-manager
 ```
 
 Lightweight pipeline for understanding existing code. No Human Gate needed (read-only, no code changes). Supports full repo or scoped analysis.

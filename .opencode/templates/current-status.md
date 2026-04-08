@@ -18,6 +18,28 @@
 
 <!-- Which stage is actively running or next to run -->
 
+## Recovery Briefing
+
+<!-- CRITICAL: This section is the primary recovery source after context compression. -->
+<!-- Keep it current after EVERY stage completion. -->
+
+<!-- Current sub-spec file: specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md -->
+<!-- Last agent output file: <path to the last completed agent's output file> -->
+<!-- Next agent to dispatch: <agent name> -->
+<!-- Info to pass downstream: <1-2 sentence summary for the next agent> -->
+
+## Knowledge Sync Checkpoints
+
+<!-- Track whether each mandatory KM checkpoint has been executed -->
+
+| Checkpoint | Required At | Status | Sync Result |
+|------------|-------------|--------|-------------|
+<!-- Example rows:
+| Requirement | After stage 2 | completed | Topic Doc synced |
+| Planning | After HG1 | pending | — |
+| Implementation | After stage 9 | pending | — |
+-->
+
 ## User Decisions
 
 <!-- Key decisions the user made at Human Gates or during intervention -->

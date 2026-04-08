@@ -1,13 +1,14 @@
 // ============================================
-// KB Sync Runtime Plugin - 稳定版
+// KB Sync Runtime Plugin - 稳定版 v2
 // ============================================
 // 
 // 功能：
-// 1. 注入 KB sync runtime contract 到系统提示
-// 2. 压缩时保留同步所需上下文
+// 1. 压缩事件处理 - 自动同步到 KB
+// 2. 压缩前注入最小化上下文保留指令（只保留 pipeline 状态，不保留规则）
 //
-// 注意：
-// - chat.message hook 与当前 OpenCode 版本不兼容，已移除
+// 设计原则：
+// - 不在系统提示中注入 KB sync 规则（规则已在 AGENTS.md 和 knowledge-manager.md 中定义）
+// - 压缩后 orchestrator 应通过读取 specs/current-status.md 恢复状态，而非依赖压缩总结
 // - 手动同步触发依赖 AGENTS.md 中的规则引导 AI 识别
 //
 
@@ -109,30 +110,17 @@ async function postToKB(url, body) {
   return response.json()
 }
 
-function buildRuntimeContract() {
-  return [
-    "KB sync runtime contract:",
-    "- Treat knowledge-base MCP as the only official sync path.",
-    "- Automatic compression trigger: on compression, reset, or handoff, use the runtime event sync flow to create one Snapshot Doc and update today's Daily Digest.",
-    "- Automatic workflow checkpoint trigger: when requirement, architecture, implementation milestone, validation, or major debugging conclusion is completed, sync the stage result immediately through the high-level sync flow.",
-    "- Manual user trigger: when the user explicitly asks to summarize and sync (e.g. 同步知识库, 总结并同步, sync to kb), execute KB sync immediately with the high-level sync tools.",
-    "- A trigger is fulfilled only after actual MCP write actions run.",
-    "- Do not mark a stage complete until required checkpoint sync has executed.",
-    "- Follow the KB Sync SOP in .opencode/snippets/kb-sync-sop.md.",
-  ].join("\n")
-}
-
 function buildCompressionSyncPrompt() {
   return [
     "Automatic KB sync trigger: session.compacted.",
     "Before continuing normal work, sync the compacted session into the knowledge base through knowledge-base MCP.",
     "Required actions:",
-    "1. Use the runtime event sync flow with compression semantics.",
-    "2. Ensure it creates one new Snapshot Doc in Projects/<project>/Snapshots/.",
-    "3. Ensure it finds or creates today's Daily Digest in Daily/<YYYY>/<YYYY-MM>/.",
-    "4. If a durable architectural or product conclusion emerged, also sync a Decision Doc or Topic Doc.",
-    "5. State whether the sync succeeded.",
-    "Follow .opencode/snippets/kb-sync-sop.md.",
+    "1. Read .opencode/project-config.md for the project identifier.",
+    "2. Read .opencode/snippets/kb-sync-sop.md for the sync procedure.",
+    "3. Create one new Snapshot Doc in Projects/<project>/Snapshots/.",
+    "4. Find or create today's Daily Digest in Daily/<YYYY>/<YYYY-MM>/.",
+    "5. If a durable architectural or product conclusion emerged, also sync a Decision Doc or Topic Doc.",
+    "6. State whether the sync succeeded.",
   ].join("\n")
 }
 
@@ -140,13 +128,6 @@ export const KbSyncRuntimePlugin = async (ctx) => {
   const projectName = getProjectName(ctx?.directory || "")
 
   return {
-    // 注入 KB sync 规则到系统提示
-    "experimental.chat.system.transform": async (_input, output) => {
-      if (output?.system && Array.isArray(output.system)) {
-        output.system.push(buildRuntimeContract())
-      }
-    },
-
     // 压缩事件处理 - 尝试自动同步
     event: async ({ event }) => {
       if (event?.type !== "session.compacted") return
@@ -202,11 +183,14 @@ export const KbSyncRuntimePlugin = async (ctx) => {
       }
     },
 
-    // 压缩前保留同步所需上下文
+    // 压缩前注入最小化上下文保留指令
     "experimental.session.compacting": async (_input, output) => {
       if (output?.context && Array.isArray(output.context)) {
         output.context.push(
-          "Before compaction completes, preserve enough detail for KB sync. The next automatic step after compaction is a runtime event sync action that creates a Snapshot Doc and updates the Daily Digest following .opencode/snippets/kb-sync-sop.md.",
+          "COMPACTION DIRECTIVE: After compaction, the orchestrator MUST read specs/current-status.md to recover pipeline state. " +
+          "The compacted summary should ONLY contain: (1) the user's original requirement in one sentence, (2) the current pipeline stage name, (3) the last completed action and its result. " +
+          "Do NOT preserve workflow rules, KB sync procedures, architecture descriptions, or agent definitions in the summary — these are already defined in system prompt files and will be available after compaction. " +
+          "Minimal context = faster recovery = less re-compression.",
         )
       }
     },

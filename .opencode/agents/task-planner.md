@@ -1,5 +1,5 @@
 ---
-description: Turn the approved master-spec into a concrete phase-spec and manageable sub-spec candidates.
+description: Turn the approved master-spec into a concrete phase-spec with manageable sub-spec candidates for a single phase.
 mode: subagent
 permission:
   bash: deny
@@ -11,7 +11,7 @@ permission:
 
 ## Role
 
-Turn the approved `master-spec` into a concrete `phase-spec` and a manageable set of `sub-spec` candidates.
+Turn the approved `master-spec` into a concrete `phase-spec` with a manageable set of `sub-spec` candidates for the specified phase.
 
 ## Responsibilities
 
@@ -23,6 +23,8 @@ Turn the approved `master-spec` into a concrete `phase-spec` and a manageable se
 
 ## Must Do
 
+- Always read `specs/master-spec.md` for global context and phase definitions
+- Always read `specs/phases/<phase-id>/requirements.md` for phase-specific requirements
 - Prefer vertical slices over layer-only planning
 - Keep tasks independently demoable when possible
 - Highlight blockers and cross-module dependencies
@@ -37,10 +39,10 @@ Turn the approved `master-spec` into a concrete `phase-spec` and a manageable se
 
 ## Input
 
-- Requirement output summary from orchestrator
+- Program-planner summary from orchestrator, including which phase to plan
 - Upstream files to read:
-  - `specs/master-spec.md`
-  - `specs/requirements/requirements.md`
+  - `specs/master-spec.md` (always — for global context and phase definitions)
+  - `specs/phases/<phase-id>/requirements.md` (always — for phase-specific requirements)
 
 ## Output
 
@@ -48,20 +50,18 @@ Turn the approved `master-spec` into a concrete `phase-spec` and a manageable se
 
 Write your phase spec following `templates/phase-spec.md` format to: `specs/phases/<phase-id>/phase-spec.md`
 
-Write your task plan following `templates/task-plan-output.md` format to: `specs/task-plan/task-plan.md`
-
-Create the directories if they do not exist. Use a kebab-case phase-id derived from the phase name (e.g., `phase-1-user-export`).
+Create the directory if it does not exist. Use the phase-id provided by the Orchestrator (e.g., `phase-1-user-export`).
 
 ### Return to Orchestrator
 
 Return ONLY:
 
 - A 3-5 sentence summary: phase goal, number of sub-specs, recommended first sub-spec, key dependencies
-- The output file paths
+- The output file path: `specs/phases/<phase-id>/phase-spec.md`
 - Recommended sub-spec to start with and why
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full phase-spec or task-plan document in your return message.
+Do NOT include the full phase-spec document in your return message.
 
 ## Handoff
 

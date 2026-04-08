@@ -26,14 +26,13 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 
 ### Pipeline Commands
 
-- `/feature <desc>` - New feature development
-- `/bugfix <desc>` - Bug investigation and fix
-- `/idea <desc>` - Idea exploration (no implementation)
-- `/rebuild <desc>` - System rebuild
-- `/fullflow <desc>` - Full 13-stage workflow
+- `/feature <desc>` - New feature development (unified pipeline)
+- `/bugfix <desc>` - Bug investigation and fix (unified pipeline)
+- `/rebuild <desc>` - System rebuild (unified pipeline)
+- `/idea <desc>` - Idea exploration (stops after solution-architect, no implementation)
 - `/analyze <desc>` - Codebase/module analysis (human-readable report, no code changes)
 
-See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
+`/feature`, `/bugfix`, and `/rebuild` share the same unified pipeline structure. The intent tag determines scope and emphasis, not the pipeline shape. See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
 
 ## Knowledge Base MCP
 
@@ -105,72 +104,23 @@ Use these tools for document-centric workflows:
 - When organizing content: use folders and tags rather than leaving notes unstructured
 - When a task produces durable value: prefer saving a structured document over leaving it only in chat history
 
-## Sync Trigger Model
+## Knowledge Base Sync
 
-Knowledge sync uses three trigger classes:
+KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only job is to **dispatch it at the right time**. All sync procedures, object models, naming conventions, and merge rules are defined in `knowledge-manager.md` and `.opencode/snippets/kb-sync-sop.md` — the Orchestrator does not need to know these details.
 
-1. Automatic compression trigger
-   - Fire on conversation compression, context reset, or workflow handoff
-   - Must create one new `Snapshot Doc`
-   - Must update today's `Daily Digest`
-2. Automatic workflow checkpoint trigger
-   - Fire when a workflow reaches a major completed checkpoint
-   - Typical checkpoints: requirement clarification, architecture decision, implementation milestone, validation completion, major debugging conclusion
-   - Must extract the new high-value result and sync the matching `Task`, `Topic`, `Decision`, or `Daily` object
-3. Manual user trigger
-   - Fire when the user explicitly asks to summarize, refine, or sync something into the knowledge base
-   - Must treat the request as an immediate sync task and choose the best matching object type
+### Mandatory Dispatch Points
 
-This template is intentionally not using noisy real-time logging. Sync should happen automatically at compression boundaries and workflow checkpoints, plus manually on explicit user request.
+| When | What to Sync |
+|------|-------------|
+| After requirement-analyst completes | Topic Doc or Decision Doc |
+| After Human Gate 1 (user confirms design) | Decision Doc for architecture |
+| After validator completes (**NEVER skip**) | Task Doc with implementation result |
+| On context compression | Snapshot Doc + Daily Digest (if pipeline has progressed) |
+| On explicit user request (e.g. "同步知识库") | Immediate sync per user instruction |
 
-## Unified Knowledge Object Model
+### Rules
 
-### Project Identity
-
-**CRITICAL: Always use the project identifier from `.opencode/project-config.md`**
-
-Before any KB sync operation, read the project config to get the canonical project name. Never invent new project names or use variations.
-
-### Object Paths
-
-- `Task Doc` -> `Projects/<project>/Tasks/` -> `[task:<task-id>] <project> - <task-name>`
-- `Topic Doc` -> `Projects/<project>/Topics/` -> `[topic:<topic-key>] <project> - <topic-name>`
-- `Decision Doc` -> `Projects/<project>/Decisions/` -> `[decision:<decision-key>] <project> - <decision-name>`
-- `Snapshot Doc` -> `Projects/<project>/Snapshots/` -> `[snapshot:YYYYMMDD-HHmmss] <project> - <label>`
-- `Daily Digest` -> `Daily/<YYYY>/<YYYY-MM>/` -> `[daily] YYYY-MM-DD - <project>`
-
-Update semantics:
-
-- `Task`, `Topic`, `Decision`, and `Daily` are appendable or updateable objects
-- `Snapshot` is create-only for each compression, reset, or handoff event
-- Always resolve folders by logical path and name, never by hardcoded IDs
-- Always read an existing appendable document before updating it
-
-## Conversation Compression Sync
-
-When context compression or conversation reset happens, sync the summary into the knowledge base before continuing substantive work.
-
-### Required Flow
-
-1. Create one new `Snapshot Doc` in `Projects/<project>/Snapshots/`
-2. Use the title format `[snapshot:YYYYMMDD-HHmmss] <project> - <label>`
-3. Resolve the daily folder path `Daily/<YYYY>/<YYYY-MM>/`
-4. Find today's `Daily Digest` named `[daily] YYYY-MM-DD - <project>`
-5. If the daily document exists:
-   - read it first
-   - merge only new high-value continuity information
-   - update it without overwriting unrelated sections
-6. If the daily document does not exist:
-   - create it with links to the new snapshot, current blockers, and next actions
-7. If the compression produces a durable architectural or product conclusion, also create or update a `Decision Doc` or `Topic Doc`
-
-## Important Rules
-
-- Never hardcode folder IDs
-- Always resolve folders dynamically by logical path
-- Never overwrite an existing task, topic, decision, or daily document without reading and merging first
-- Never collapse compression output into one catch-all daily note; create a `Snapshot Doc` and then update the `Daily Digest`
-- Keep structured object writes on structured object sync and runtime-triggered writes on runtime event sync
-- Do not say a checkpoint is synced unless a sync action was actually executed
-- Workflow checkpoint sync is required behavior, not just documentation guidance
-- If sync fails, retry once; if it still fails, tell the user clearly
+- Always pass `project` identifier from `.opencode/project-config.md` when dispatching knowledge-manager
+- A checkpoint is not complete until sync action has actually executed and returned success or failure
+- If sync fails twice, report to user and continue the pipeline — do not block indefinitely
+- On compression recovery, check `specs/current-status.md` for any pending KM checkpoints and execute them before continuing

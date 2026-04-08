@@ -15,25 +15,38 @@ The Orchestrator dispatches each stage via the Task tool.
 ### Stage 2: requirement-analyst
 
 - **Dispatch**: Pass repo-explorer summary + user's idea description
+- **Mode context**: "Analyze this idea and create a requirements document"
 - **Read upstream**: `specs/exploration/repo-exploration.md`
+- **Read existing** (if append): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
 - **Expect back**: Summary of goals, users, MVP scope, non-goals, open questions
 
-### Stage 3: task-planner
+### Stage 3: program-planner
 
 - **Dispatch**: Pass requirement-analyst summary + user decisions on open questions
-- **Read upstream**: `specs/requirements/requirements.md`
-- **Output files**: `specs/task-plan/task-plan.md`, `specs/phases/<phase-id>/phase-spec.md`
-- **Expect back**: Summary of modules, vertical slices, recommended build order
+- **Mode context**: First-time or append (based on whether master-spec exists)
+- **Read upstream**: `specs/requirements/requirements.md`, `specs/exploration/repo-exploration.md`
+- **Read existing** (if append): `specs/master-spec.md`
+- **Output files**:
+  - `specs/master-spec.md` (create or update)
+  - `specs/phases/<phase-id>/requirements.md` (per new phase)
+- **Expect back**: Summary of modules, phases, recommended starting phase
 
-### Stage 4: solution-architect
+### Stage 4: task-planner
+
+- **Dispatch**: Pass program-planner summary + recommended first phase
+- **Read upstream**: `specs/master-spec.md`, `specs/phases/<phase-id>/requirements.md`
+- **Output file**: `specs/phases/<phase-id>/phase-spec.md`
+- **Expect back**: Summary of sub-specs, recommended build order
+
+### Stage 5: solution-architect
 
 - **Dispatch**: Pass task-planner summary + recommended first slice
-- **Read upstream**: `specs/requirements/requirements.md`, `specs/phases/<phase-id>/phase-spec.md`
+- **Read upstream**: `specs/phases/<phase-id>/phase-spec.md`, `specs/phases/<phase-id>/requirements.md`
 - **Output files**: `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`, `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
 - **Expect back**: Summary of proposed technical design for the MVP
 
-### Stage 5: knowledge-manager
+### Stage 6: knowledge-manager
 
 - **Dispatch**: Pass requirement + architecture summaries
 - **Action**: Save requirement and architecture milestones as Topic Doc and Decision Doc
@@ -41,14 +54,17 @@ The Orchestrator dispatches each stage via the Task tool.
 
 ### Human Gate (final presentation)
 
-- **Present**: Complete idea analysis: requirement summary, module breakdown, technical approach, key risks
+- **Present**: Complete idea analysis: requirement summary, phase breakdown, technical approach, key risks
 - **Purpose**: User reviews the idea analysis. No auto-implementation.
-- **Next steps**: User can choose to start `/feature` or `/fullflow` to proceed to implementation
+- **Next steps**: User can choose to start `/feature` or `/rebuild` to proceed to implementation
 
 ## Expected Outputs
 
 - `specs/exploration/repo-exploration.md` - Repository/system context
 - `specs/requirements/requirements.md` - Requirement definition
-- `specs/task-plan/task-plan.md` - MVP task plan
+- `specs/master-spec.md` - Master plan with phase breakdown
+- `specs/phases/<phase-id>/requirements.md` - Phase-specific requirements
+- `specs/phases/<phase-id>/phase-spec.md` - Phase task breakdown
+- `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` - Technical spec with Validation Plan
 - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md` - Solution design
 - Knowledge base records (Topic Doc, Decision Doc)

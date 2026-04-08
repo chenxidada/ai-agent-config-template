@@ -3,7 +3,7 @@ description: Deep analysis of codebases and modules, producing human-readable an
 mode: subagent
 permission:
   bash: allow
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -49,10 +49,19 @@ When the Orchestrator dispatches you with a review focus angle:
 
 ## Must Not Do
 
-- Do not modify any code or configuration (except the progress file `specs/analysis/.analysis-progress.json`)
+- Do not modify any code or configuration outside of `specs/analysis/`
 - Do not present guesses as confirmed facts — mark uncertainties clearly
 - Do not produce shallow file-listing-only reports — always explain the "why" behind the structure
 - In review mode: do not refuse to give improvement suggestions — the user explicitly wants actionable feedback
+
+## Write Permissions
+
+This agent has `edit: allow` **limited to writing analysis output files**:
+
+- `specs/analysis/code-analysis-*.md` (analysis reports)
+- `specs/analysis/.analysis-progress.json` (progress tracking)
+
+**Do NOT edit any other files.** This permission exists solely so the agent can write its analysis output and progress tracking.
 
 ## Incremental Analysis Mode
 
