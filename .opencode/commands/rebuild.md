@@ -9,7 +9,7 @@ You are the Orchestrator. The user has triggered the **rebuild-knownbase-flow** 
 ## Pipeline Stages
 
 1. `repo-explorer` - Inspect current codebase, subsystem boundaries, and risky integration points
-2. `requirement-analyst` - Extract the true MVP from the feature/product requirement doc
+2. `requirement-analyst` - Extract the complete scope from the feature/product requirement doc
 3. `task-planner` - Map the system into vertical slices (documents, folders/tags, search, AI chat, RAG, PDF, sync, MCP, etc.)
 4. `solution-architect` - Propose architecture and highlight risky subsystems
 5. **Human Gate** - Present full plan, wait for confirmation before implementation

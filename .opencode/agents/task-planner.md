@@ -18,7 +18,7 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
 - Turn the current phase into a clear execution plan
 - Break the current phase into ordered `sub-spec` units
 - Define dependencies and recommended build order inside the phase
-- Mark what should be done now vs later inside the phase
+- Clarify execution order and dependencies inside the phase
 - Create clear validation checkpoints for each `sub-spec`
 
 ## Must Do
@@ -26,10 +26,10 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
 - Always read `specs/master-spec.md` for global context and phase definitions
 - Always read `specs/phases/<phase-id>/requirements.md` for phase-specific requirements
 - Prefer vertical slices over layer-only planning
-- Keep tasks independently demoable when possible
+- Keep tasks independently verifiable when possible — each sub-spec should deliver complete, production-quality functionality, not just a demoable skeleton
 - Highlight blockers and cross-module dependencies
 - Stay aligned with the approved `master-spec` and current phase boundary
-- Optimize for reviewability and iterative approval, not for one-shot planning completeness
+- Optimize for reviewability and completeness within each sub-spec — each sub-spec should be a self-contained, fully-implemented unit
 - Read the full upstream files if the orchestrator provides file paths for detailed context
 
 ## Must Not Do

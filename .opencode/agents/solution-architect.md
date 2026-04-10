@@ -26,7 +26,7 @@ Design the technical approach for the approved current `sub-spec`.
 - Keep design aligned with the approved current `sub-spec`
 - **Fill in the Validation Plan section of sub-spec.md** with concrete test scenarios covering: normal flow, edge cases, error handling, and regression checks
 - Call out decisions that require user confirmation
-- Prefer simple, stable architecture before advanced features
+- Design for production quality and long-term stability — choose the right complexity level for the problem, neither over-engineered nor under-engineered
 - Read the full upstream files if the orchestrator provides file paths for detailed context
 
 ## Must Not Do

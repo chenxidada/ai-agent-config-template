@@ -23,7 +23,7 @@ Build a fast, reality-based understanding of the repository before planning, des
 ## Must Do
 
 - Start from the actual repository structure, not generic assumptions
-- Trace the smallest useful path from user-facing entry point to core implementation area
+- Trace the relevant paths from user-facing entry points to core implementation areas, covering the full impact surface
 - Distinguish confirmed facts from hypotheses
 - Highlight files and directories that downstream agents should read first
 

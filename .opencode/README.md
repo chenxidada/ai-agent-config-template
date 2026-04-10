@@ -185,7 +185,7 @@ specs/
 | `/feature <desc>` | unified-pipeline | New feature development |
 | `/bugfix <desc>` | unified-pipeline | Bug investigation and fix |
 | `/rebuild <desc>` | unified-pipeline | System rebuild |
-| `/idea <desc>` | idea-to-mvp | Idea exploration (no implementation) |
+| `/idea <desc>` | idea-to-plan | Idea exploration (no implementation) |
 | `/analyze <desc>` | analyze-pipeline | Codebase/module analysis (human-readable report) |
 
 ## Data Flow

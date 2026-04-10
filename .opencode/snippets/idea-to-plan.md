@@ -1,4 +1,4 @@
-# idea-to-mvp
+# idea-to-plan
 
 Use this workflow when a user starts from a product idea. This pipeline does NOT include implementation -- it stops after planning and design.
 
@@ -19,7 +19,7 @@ The Orchestrator dispatches each stage via the Task tool.
 - **Read upstream**: `specs/exploration/repo-exploration.md`
 - **Read existing** (if append): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
-- **Expect back**: Summary of goals, users, MVP scope, non-goals, open questions
+- **Expect back**: Summary of goals, users, intended scope, non-goals, open questions
 
 ### Stage 3: program-planner
 
@@ -44,7 +44,7 @@ The Orchestrator dispatches each stage via the Task tool.
 - **Dispatch**: Pass task-planner summary + recommended first slice
 - **Read upstream**: `specs/phases/<phase-id>/phase-spec.md`, `specs/phases/<phase-id>/requirements.md`
 - **Output files**: `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`, `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-- **Expect back**: Summary of proposed technical design for the MVP
+- **Expect back**: Summary of proposed technical design for the intended scope
 
 ### Stage 6: knowledge-manager
 

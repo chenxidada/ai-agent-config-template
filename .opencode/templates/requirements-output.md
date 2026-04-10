@@ -26,9 +26,9 @@
 
 <!-- List the key user scenarios (user stories or use cases). Number them for easy reference. -->
 
-## MVP Scope
+## Intended Scope
 
-<!-- What is the minimum viable scope? Be specific about what IS and IS NOT included. -->
+<!-- What is the full intended scope of this product/feature? Be specific about what IS and IS NOT included. Do not artificially reduce to an MVP — capture the user's complete intent. -->
 
 ## Functional Areas
 
@@ -51,7 +51,7 @@
 
 ## Non-Goals
 
-<!-- What is explicitly NOT in scope? List clearly to prevent scope creep. -->
+<!-- What is explicitly NOT in scope? Only list things the user has confirmed are not needed, or things clearly unrelated to the stated goal. Do not preemptively defer features that belong to the user's core intent. -->
 
 ## Constraints
 

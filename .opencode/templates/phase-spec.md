@@ -36,7 +36,7 @@
 ## Out Of Scope
 
 <!--
-  Features explicitly deferred to later phases. Prevents scope creep.
+  Features that belong to later phases based on dependency ordering or user decision.
   
   Example:
   - Full-text search (Phase 2)
@@ -60,7 +60,7 @@
 
 <!--
   Break the phase into ordered sub-spec units. Each sub-spec should be:
-  - Small enough to implement in one cycle (typically 1-3 sessions)
+  - Sized for one implementation cycle (typically 1-3 sessions), but must deliver complete functionality within its boundary
   - Large enough to deliver testable, meaningful value
   - Independently verifiable (has its own acceptance criteria)
   

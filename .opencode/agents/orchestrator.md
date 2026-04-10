@@ -128,7 +128,7 @@ If the user says something unrelated during an active pipeline:
 
 ### Other Pipeline Startup
 
-- **Idea**: Read `.opencode/snippets/idea-to-mvp.md`, follow its stages
+- **Idea**: Read `.opencode/snippets/idea-to-plan.md`, follow its stages
 - **Analyze**: Read `.opencode/snippets/analyze-pipeline.md`, follow its stages
 - **Short flow**: No snippet file; stages are inline below
 

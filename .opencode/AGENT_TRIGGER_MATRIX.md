@@ -26,7 +26,7 @@ Pipeline selection logic (which pipeline to use, how to classify user input, sho
 |---------|------|
 | Any task using the unified pipeline (always) | Short flow (1-2 file obvious fix) |
 | Ambiguous or open-ended user need | |
-| Need to converge MVP scope | |
+| Need to converge intended scope | |
 | Mixed goals/constraints/ideas to untangle | |
 | Need explicit acceptance criteria | |
 

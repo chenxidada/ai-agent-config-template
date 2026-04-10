@@ -18,7 +18,7 @@ Turn a large product or system goal into the project `master-spec`, which become
 - Split a large system into top-level modules, domains, and capability areas
 - Define delivery phases, milestone boundaries, and recommended implementation sequence
 - Distinguish foundational platform work from user-visible slices
-- Identify which modules should be scaffolded first and which can wait
+- Identify module dependencies and recommended implementation sequence
 - Produce a master decomposition that the user can review and refine repeatedly
 - **Extract per-phase requirements**: For each new phase, produce a phase-specific requirements document
 - Provide the planning bridge between `requirement-analyst` and `task-planner`
@@ -49,7 +49,7 @@ When `specs/master-spec.md` already exists and the Orchestrator dispatch indicat
 - Treat system-scale work differently from single-feature work
 - Produce a clear `master-spec` with module map, phase breakdown, and initial sub-spec shape
 - Identify dependencies, sequencing constraints, and critical path items
-- Recommend the first phase and first sub-spec that are small enough to implement but meaningful enough to validate the architecture
+- Recommend the first phase and first sub-spec based on dependency order and architectural foundation — prioritize by what other modules depend on, not by what is smallest
 - **For each new phase, extract its specific requirements from the overall requirements into `specs/phases/<phase-id>/requirements.md`**
 - In update mode: clearly mark which phases are new vs existing
 - Optimize for controllability and user review, not just for speed of implementation

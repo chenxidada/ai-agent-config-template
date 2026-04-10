@@ -36,7 +36,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**: `specs/exploration/repo-exploration.md`
 - **Read existing** (append mode): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
-- **Expect back**: Summary of goals, MVP scope, acceptance criteria, open questions
+- **Expect back**: Summary of goals, intended scope, acceptance criteria, open questions
 
 ### Stage 3: program-planner
 

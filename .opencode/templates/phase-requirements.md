@@ -4,7 +4,7 @@
   This template is used by program-planner to extract phase-specific requirements
   from the overall requirements document.
   
-  Purpose: Narrow the full project requirements down to what THIS phase must deliver.
+  Purpose: Extract the specific requirements from the full project scope that THIS phase must deliver completely.
   Downstream consumers: task-planner (for sub-spec breakdown), solution-architect (for design scope).
   
   Rules:
