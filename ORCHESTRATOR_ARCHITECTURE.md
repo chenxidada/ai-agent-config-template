@@ -371,22 +371,23 @@ Short flow 没有单独的 snippet 文件，阶段定义内联在 orchestrator.m
 | Agent | bash | edit | task |
 |-------|------|------|------|
 | repo-explorer | allow | deny | deny |
-| requirement-analyst | deny | deny | deny |
-| program-planner | deny | deny | deny |
-| task-planner | deny | deny | deny |
-| solution-architect | deny | deny | deny |
+| requirement-analyst | deny | allow | deny |
+| program-planner | deny | allow | deny |
+| task-planner | deny | allow | deny |
+| solution-architect | deny | allow | deny |
 | implementer | allow | allow | deny |
-| reviewer | allow | deny | deny |
+| reviewer | allow | allow | deny |
 | validator | allow | allow | deny |
-| knowledge-manager | deny | deny | deny |
+| knowledge-manager | allow | allow | deny |
 | code-analyst | allow | allow | deny |
 
 原则：
 - implementer 和 validator 有 edit 权限（implementer 改代码，validator 编写临时验证脚本）
 - code-analyst 有 edit 权限（限定写入 specs/analysis/ 目录）
+- requirement-analyst、program-planner、task-planner、solution-architect、reviewer 有 edit 权限（限定写入 specs/ 目录的规格文档和报告）
 - repo-explorer、reviewer、validator 有 bash 权限（需要探索仓库/看 diff/跑测试）
 - 所有子 agent 的 task 都是 deny（不能调度其他 agent，只有 Orchestrator 能调度）
-- knowledge-manager 通过 MCP 工具写入知识库，不需要 bash 或 edit
+- knowledge-manager 优先通过 MCP 工具写入知识库；MCP 不可用时回退到本地 specs/kb-pending/ 目录
 
 ### 11.3 信息流合同
 
@@ -428,4 +429,4 @@ snippet 只负责"这个 pipeline 有哪些阶段、每个阶段传什么"，不
 9. **Human Gate 保留控制权** — 实现前确认、sub-spec 完成后确认
 10. **先确认再同步** — Human Gate 在 knowledge-manager checkpoint 之前，确保同步的是用户已确认的内容
 11. **通用规则单点定义** — 回路/门控/升级规则只在 orchestrator.md 中定义一次，snippet 不重复
-12. **子 Agent 权限最小化** — 每个 agent 只获得其职责所需的最小权限集
+12. **子 Agent 权限按职责分配** — 每个 agent 获得其职责所需的权限，spec-writing agents 有 edit 权限（限定 specs/ 目录），knowledge-manager 有 bash+edit 权限用于 MCP fallback

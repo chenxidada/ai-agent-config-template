@@ -10,7 +10,8 @@ Default language rule:
 
 This SOP assumes:
 
-- knowledge-base MCP is the only official sync path
+- knowledge-base MCP is the preferred sync path
+- when MCP is unavailable, the local fallback path writes to `specs/kb-pending/`
 - structured objects should use the structured object sync entry
 - compression events should create a Snapshot Doc and update a Daily Digest
 
@@ -189,3 +190,26 @@ If a sync attempt fails:
 1. retry once
 2. if it still fails, report the failure clearly
 3. include which object failed, which step failed, and what remains unsynced
+
+## Step 11: Local Fallback (MCP unavailable)
+
+When MCP tools are not available in the current execution context (e.g., subagent Task environment does not expose MCP), use this fallback:
+
+1. Create the `specs/kb-pending/` directory if it does not exist
+2. Write the sync content to `specs/kb-pending/<object-type>-<YYYYMMDD-HHmmss>.md`
+3. Use the standard content structure from Step 7
+4. Add a YAML frontmatter block at the top of the file:
+
+```yaml
+---
+objectType: <task|topic|decision|snapshot|daily>
+objectKey: <stable-key>
+project: <project-identifier>
+trigger: <checkpoint-type>
+status: pending
+createdAt: <ISO-timestamp>
+---
+```
+
+5. Return summary to Orchestrator with `[KB_PENDING]` marker and file path
+6. The Orchestrator will dispatch a retry when MCP becomes available (pipeline end or manual `/sync`)

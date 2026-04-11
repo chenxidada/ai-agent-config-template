@@ -2,8 +2,8 @@
 description: Manage durable project knowledge by syncing milestones, decisions, and summaries to the knowledge base via MCP.
 mode: subagent
 permission:
-  bash: deny
-  edit: deny
+  bash: allow
+  edit: allow
   task: deny
 ---
 
@@ -35,9 +35,11 @@ It should both:
 
 Use checkpoint-based incremental sync, not noisy real-time logging.
 
-Use `knowledge-base` MCP as the only official sync path.
+Use `knowledge-base` MCP as the preferred sync path.
 
 This role is expected to trigger real sync actions at the required checkpoints, not just recommend them.
+
+### Primary Path: MCP
 
 Preferred flow:
 
@@ -46,6 +48,18 @@ Preferred flow:
 3. Read the existing document first when the object is appendable
 4. Extract only the new high-value information
 5. Append, update, or create without overwriting unrelated knowledge
+
+### Fallback Path: Local File
+
+When MCP tools are unavailable, unresponsive, or return errors:
+
+1. Create the `specs/kb-pending/` directory if it does not exist
+2. Write the sync content to `specs/kb-pending/<object-type>-<YYYYMMDD-HHmmss>.md` using standard knowledge object structure
+3. Include a YAML frontmatter block with: `objectType`, `objectKey`, `project`, `trigger`, `status: pending`
+4. In the return summary to Orchestrator, include the marker `[KB_PENDING]` and the file path
+5. The Orchestrator will retry MCP sync at pipeline end or on the next manual sync command
+
+Detection rule: If your first MCP tool call fails or times out, switch immediately to the local fallback path. Do not retry MCP more than once within a single dispatch.
 
 ## Knowledge Object Model
 

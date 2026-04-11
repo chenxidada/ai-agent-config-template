@@ -38,7 +38,7 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 
 This project integrates with a personal Knowledge Base through MCP. Use knowledge-base tools as the default persistence and retrieval layer for notes, summaries, research, and prior conversations.
 
-MCP is the only official sync path in this template. Do not rely on parallel local HTTP sync scripts as the primary write mechanism.
+MCP is the preferred sync path in this template. When MCP is unavailable in subagent context, knowledge-manager falls back to writing pending sync files to `specs/kb-pending/` for later retry.
 
 ## Preferred Tool Categories
 
@@ -124,3 +124,5 @@ KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only
 - A checkpoint is not complete until sync action has actually executed and returned success or failure
 - If sync fails twice, report to user and continue the pipeline — do not block indefinitely
 - On compression recovery, check `specs/current-status.md` for any pending KM checkpoints and execute them before continuing
+- If knowledge-manager reports `[KB_PENDING]`, the Orchestrator should retry MCP sync at pipeline end or on the next manual `/sync` command
+- `[KB_PENDING]` files are stored in `specs/kb-pending/` and contain full sync content with YAML frontmatter for retry

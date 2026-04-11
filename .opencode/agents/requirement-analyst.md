@@ -3,7 +3,7 @@ description: Turn a raw product idea into a clear, reviewable requirement defini
 mode: subagent
 permission:
   bash: deny
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -69,6 +69,10 @@ When `specs/requirements/requirements.md` already exists and the Orchestrator di
 - Existing file to read (append mode): `specs/requirements/requirements.md`
 
 ## Output
+
+### Write Scope Constraint
+
+The `edit` permission is granted solely for writing spec documents to the `specs/` directory. Do NOT modify source code or any project files outside `specs/`.
 
 ### File Output
 

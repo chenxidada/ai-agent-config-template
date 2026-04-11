@@ -3,7 +3,7 @@ description: Turn a large product or system goal into the project master-spec wi
 mode: subagent
 permission:
   bash: deny
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -72,6 +72,10 @@ When `specs/master-spec.md` already exists and the Orchestrator dispatch indicat
   - `specs/master-spec.md` (in update mode)
 
 ## Output
+
+### Write Scope Constraint
+
+The `edit` permission is granted solely for writing spec documents to the `specs/` directory. Do NOT modify source code or any project files outside `specs/`.
 
 ### File Output
 

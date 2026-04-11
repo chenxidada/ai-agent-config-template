@@ -3,7 +3,7 @@ description: Turn the approved master-spec into a concrete phase-spec with manag
 mode: subagent
 permission:
   bash: deny
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -45,6 +45,10 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
   - `specs/phases/<phase-id>/requirements.md` (always — for phase-specific requirements)
 
 ## Output
+
+### Write Scope Constraint
+
+The `edit` permission is granted solely for writing spec documents to the `specs/` directory. Do NOT modify source code or any project files outside `specs/`.
 
 ### File Output
 

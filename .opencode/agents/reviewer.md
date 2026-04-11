@@ -3,7 +3,7 @@ description: Review implementation against agreed scope and design, focusing on 
 mode: subagent
 permission:
   bash: allow
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -52,6 +52,10 @@ Review the implementation against the agreed scope and design, focusing on code 
 - Relevant changed files or diff context
 
 ## Output
+
+### Write Scope Constraint
+
+The `edit` permission is granted solely for writing spec documents to the `specs/` directory. Do NOT modify source code or any project files outside `specs/`.
 
 ### File Output
 

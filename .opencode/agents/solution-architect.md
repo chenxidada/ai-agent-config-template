@@ -3,7 +3,7 @@ description: Design the technical approach for the approved current sub-spec inc
 mode: subagent
 permission:
   bash: deny
-  edit: deny
+  edit: allow
   task: deny
 ---
 
@@ -51,6 +51,10 @@ Upstream files to read:
 - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md` — YOU create this
 
 ## Output
+
+### Write Scope Constraint
+
+The `edit` permission is granted solely for writing spec documents to the `specs/` directory. Do NOT modify source code or any project files outside `specs/`.
 
 ### File Output
 
