@@ -6,7 +6,7 @@ permission:
   edit: allow
   task: deny
 tools:
-  playwright: allow
+  playwright: true
 ---
 
 # reviewer
