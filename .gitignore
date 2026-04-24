@@ -1,0 +1,10 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Playwright MCP runtime artifacts
+.playwright-mcp/
+
+# Orchestrator working state (not for template distribution)
+specs/
