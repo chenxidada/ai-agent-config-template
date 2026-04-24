@@ -5,6 +5,8 @@ permission:
   bash: allow
   edit: allow
   task: deny
+tools:
+  playwright: allow
 ---
 
 # implementer
@@ -39,6 +41,10 @@ Implement the approved current `sub-spec` completely and with production quality
 - Do not hide shortcuts, tradeoffs, or partial completion
 - Do not skip implementation notes for downstream review and validation
 - **Do not skip writing tests** — if a Validation Plan scenario cannot be tested automatically, explain why in the implementation summary
+
+## Browser-Backed UI Self-Check (Optional but Encouraged)
+
+涉及 UI 实现时，**可以也鼓励**在写测试之前先通过 Playwright MCP（`browser_navigate` / `browser_snapshot` / `browser_click` / `browser_take_screenshot` 等结构化 `browser_*` 工具）启动 dev server 后立即在 headless 浏览器中自检渲染与交互，用浏览器观察到的实际行为驱动后续单元 / 集成 / e2e 测试的设计。Playwright MCP 由 `opencode.jsonc` 中的 `playwright` server 提供，复用本机 Chrome，无需在目标项目内安装 playwright 依赖。
 
 ## Input
 

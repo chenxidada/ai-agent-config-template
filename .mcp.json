@@ -7,6 +7,18 @@
       "env": {
         "KB_API_URL": "http://localhost:4000/api/v1"
       }
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y", "@playwright/mcp@latest",
+        "--browser", "chrome",
+        "--executable-path", "/usr/bin/google-chrome",
+        "--headless",
+        "--isolated",
+        "--no-sandbox"
+      ]
     }
   }
 }

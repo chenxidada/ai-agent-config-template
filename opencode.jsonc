@@ -29,6 +29,41 @@
         "MCP_MODE": "auto"
       },
       "enabled": true
+    },
+
+    // ============================================
+    // Playwright MCP Server — 浏览器访问能力
+    // ============================================
+    //
+    // 文档: https://github.com/microsoft/playwright-mcp
+    // 用途: 让 validator / implementer / reviewer 在前端验证、E2E 调试、
+    //       UI 自检时调用结构化的 browser_* 工具集（约 25 个），
+    //       例如 browser_navigate / browser_click / browser_snapshot /
+    //       browser_take_screenshot / browser_console_messages /
+    //       browser_network_requests。
+    //
+    // 配置说明:
+    //   - 复用本机 /usr/bin/google-chrome，避免下载 ~150MB Chromium。
+    //   - --headless: 默认无头；开发自测时可临时去掉或改为 --headed。
+    //   - --isolated: 每个 MCP session 独立 context，避免跨任务 cookie/state 污染。
+    //   - --no-sandbox: 容器/沙箱环境通常需要。
+    //   - 如需限制可访问域名，追加 "--allowed-origins", "http://localhost:*;http://127.0.0.1:*"。
+    //   - PLAYWRIGHT_BROWSERS_PATH=0 抑制自动下载 Chromium，强制走 executable-path。
+    //
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx", "-y", "@playwright/mcp@latest",
+        "--browser", "chrome",
+        "--executable-path", "/usr/bin/google-chrome",
+        "--headless",
+        "--isolated",
+        "--no-sandbox"
+      ],
+      "environment": {
+        "PLAYWRIGHT_BROWSERS_PATH": "0"
+      },
+      "enabled": true
     }
   }
 }

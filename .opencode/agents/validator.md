@@ -5,6 +5,8 @@ permission:
   bash: allow
   edit: allow
   task: deny
+tools:
+  playwright: allow
 ---
 
 # validator
@@ -66,13 +68,28 @@ Verify that the implemented slice works by designing and executing test cases, r
 
 When the implementation involves frontend / UI changes, use headless browser screenshots as concrete evidence. This applies to any change that affects what the user sees: component rendering, layout, styling, routing, interactive behavior, etc.
 
+### Tool Order (MUST follow)
+
+1. **First choice — Playwright MCP tools**: 优先调用 MCP 提供的结构化 `browser_*` 工具，例如：
+   - `browser_navigate(url)` 打开页面
+   - `browser_snapshot()` 获取 accessibility tree（**LLM 可直接断言文本/角色/属性，无需识图**）
+   - `browser_click(ref)` / `browser_type(ref, text)` 模拟交互
+   - `browser_take_screenshot(path, fullPage)` 留档截图
+   - `browser_console_messages()` 抓 console 日志、断言无 error
+   - `browser_network_requests()` 观察网络请求
+   这是默认且推荐的浏览器访问方式，启动开销低、语义清晰、与 LLM 推理风格匹配。
+2. **Fallback — Bash + 项目内 Playwright 脚本**: 仅当 Playwright MCP 不可用（启动失败、被禁用、网络隔离）时，才退化到下面"Script Template (Playwright)"中的 bash + `npx playwright` 路径，并在报告里注明 "MCP unavailable, fallback to bash + playwright script"。
+3. **Last resort — curl HTML check**: 仅在以上两条路径都不可用时使用，并把对应场景在报告里标注 "partial — no visual verification"。
+
 ### Approach
 
+> 默认通过 **Playwright MCP** 完成下面所有步骤；只有在 MCP 不可用时才落到 bash + 项目内 Playwright 脚本的兜底路径。
+
 1. **Start the dev server** in background (e.g. `npm run dev &` or `npx vite --host &`), wait for it to be ready
-2. **Write a temporary validation script** using the project's existing browser tooling (Playwright, Puppeteer, or Cypress). If none is installed, install `playwright` as a temporary dev dependency
-3. **Navigate to each affected page/state** and capture screenshots
-4. **Verify DOM elements** — check that expected text, elements, and attributes exist
-5. **Simulate interactions** — click buttons, fill forms, trigger state changes, capture results
+2. **Drive the browser via Playwright MCP `browser_*` tools** (preferred). 仅当 MCP 不可用时才写一段临时 Playwright 脚本作兜底（参考下面 Script Template）
+3. **Navigate to each affected page/state** and capture screenshots（MCP: `browser_navigate` + `browser_take_screenshot`）
+4. **Verify DOM elements** — 优先使用 `browser_snapshot()` 返回的 accessibility tree 做断言；必要时再用截图 + Vision
+5. **Simulate interactions** — `browser_click` / `browser_type` / `browser_press_key`，捕获结果截图
 6. **Save all screenshots** to `specs/phases/<phase-id>/slices/<sub-spec-id>/screenshots/` with descriptive filenames
 7. **Read each screenshot file** — use the file reading capability to open the saved `.png` files. You have vision capability and can analyze image content directly. Verify that the rendered UI matches expectations: layout correctness, text content, element visibility, styling, responsive behavior
 8. **Record visual verdict** for each screenshot — what you see, whether it matches the expected behavior, any visual issues found
@@ -90,9 +107,11 @@ screenshots/
 └── 06-mobile-viewport-375px.png
 ```
 
-### Script Template (Playwright)
+### Script Template (Playwright) — Fallback only
 
-When writing a frontend validation script, follow this pattern:
+> ⚠️ 仅当 Playwright MCP 不可用时才使用此模板。默认请走上面的 `browser_*` MCP 工具。
+
+When writing a frontend validation script (fallback path), follow this pattern:
 
 ```javascript
 // specs/phases/<phase-id>/slices/<sub-spec-id>/test-scripts/visual-validation.mjs
@@ -127,12 +146,24 @@ console.log('Visual validation complete. Screenshots saved.');
 
 ### Fallback When No Browser Tooling Exists
 
-If the project has no browser testing tool and installing one is not feasible:
+If both Playwright MCP and project-local browser tooling are unavailable, and installing one is not feasible:
 
 1. Still start the dev server
 2. Use `curl` to fetch the page HTML, verify key elements exist in the response
 3. Clearly mark these scenarios as **"partial — no visual verification"** in the report
-4. Recommend adding Playwright/Cypress as a follow-up task
+4. Recommend re-enabling Playwright MCP (preferred) or adding Playwright/Cypress as a follow-up task
+
+### Example: Validating a UI change via Playwright MCP
+
+End-to-end shape of a typical MCP-driven validation flow:
+
+1. `browser_navigate(url="http://localhost:5173/dashboard")`
+2. `browser_snapshot()` → 取 accessibility tree，断言 heading / button 的 name / role
+3. `browser_click(ref="button[name='Submit']")`
+4. `browser_take_screenshot(path="specs/phases/<phase-id>/slices/<sub-spec-id>/screenshots/02-after-submit.png", fullPage=true)`
+5. `browser_console_messages()` → 断言无 error / warning（按需）
+6. `browser_network_requests()` → 断言关键 API 请求的状态码 / payload（按需）
+7. 把每个工具调用的关键输出（snapshot 摘要、screenshot 路径、console/network 摘要）写入 Test Execution Matrix 作为证据
 
 ### Key Principle: Screenshot + Vision Analysis
 

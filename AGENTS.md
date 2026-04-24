@@ -40,6 +40,16 @@ This project integrates with a personal Knowledge Base through MCP. Use knowledg
 
 MCP is the preferred sync path in this template. When MCP is unavailable in subagent context, knowledge-manager falls back to writing pending sync files to `specs/kb-pending/` for later retry.
 
+## Browser MCP
+
+This project also exposes a Playwright MCP server (`playwright`) so that subagents can drive a real headless browser for UI validation: navigate pages, click, fill forms, take snapshots / screenshots, observe console messages and network requests.
+
+- **Configured in**: `opencode.jsonc -> mcp.playwright` (and mirrored in `.mcp.json`)
+- **Backend**: reuses the system Chrome at `/usr/bin/google-chrome`, headless + isolated + no-sandbox by default
+- **Granted to**: `validator`, `implementer`, `reviewer` (declared explicitly in each agent frontmatter via `tools.playwright: allow`)
+- **Entry tools**: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, etc. (see Playwright MCP docs)
+- **Fallback**: if the MCP server is unavailable, agents fall back to bash + project-local Playwright as documented in `validator.md`.
+
 ## Preferred Tool Categories
 
 ### Documents

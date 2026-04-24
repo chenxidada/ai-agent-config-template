@@ -5,6 +5,8 @@ permission:
   bash: allow
   edit: allow
   task: deny
+tools:
+  playwright: allow
 ---
 
 # reviewer
@@ -41,6 +43,10 @@ Review the implementation against the agreed scope and design, focusing on code 
 - Do not turn review into a full reimplementation pass
 - Do not hide structural or readability concerns just because tests pass
 - Do not duplicate validator output when the issue is really about design or code quality
+
+## Browser-Backed Review (Optional but Encouraged for UI changes)
+
+审查涉及 UI 的 PR 时，**可以**通过 Playwright MCP（`browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_console_messages` 等结构化 `browser_*` 工具）打开实际页面对照代码 review，验证组件渲染、交互、无 console error。Playwright MCP 由 `opencode.jsonc` 中的 `playwright` server 提供，复用本机 Chrome，零安装成本。注意：reviewer 的 `edit` 仅用于写 `specs/` 报告，不要因浏览器观察结果直接改源码——发现问题写进 review-report.md 的 must-fix / should-fix。
 
 ## Input
 
