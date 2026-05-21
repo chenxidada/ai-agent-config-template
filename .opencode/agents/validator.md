@@ -51,18 +51,24 @@ Verify that the implemented slice works by designing and executing test cases, r
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md` (especially: Additional Test Scenarios, Recommended Validation Commands, Test Coverage Assessment)
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` (especially: Validation Plan, Completion Criteria)
+  - **Original design document** (path provided by orchestrator — for verifying performance targets, acceptance criteria, and design constraints. MUST read when available.)
 - Acceptance criteria from the current sub-spec and phase plan
 
 ## Validation Workflow
 
-1. **Collect all test scenarios**: Merge scenarios from sub-spec Validation Plan + reviewer Additional Test Scenarios + your own findings
-2. **Run build and lint** first — if build fails, report immediately
-3. **Run existing automated tests** relevant to the change
-4. **Execute each test scenario** — use existing tests, manual commands, or write temporary scripts
-5. **Frontend visual validation** — if the change involves UI, follow the Frontend Validation Strategy below
-6. **Record evidence** for every scenario: command output, test results, screenshots, pass/fail
-7. **Assess acceptance criteria** — map each criterion to test results
-8. **Write the validation report** with the complete Test Execution Matrix
+1. **Load test skill**: Read `.opencode/skills/project-test/SKILL.md` (if exists) for test knowledge
+2. **Collect all test scenarios**: Merge scenarios from sub-spec Validation Plan + reviewer Additional Test Scenarios + your own findings
+3. **Run build and lint** first — if build fails, report immediately
+4. **Run existing automated tests** relevant to the change
+5. **Execute each test scenario** — use existing tests, manual commands, or write temporary scripts
+6. **Frontend visual validation** — if the change involves UI, follow the Frontend Validation Strategy below
+7. **Record evidence** for every scenario: command output, test results, screenshots, pass/fail
+8. **Assess acceptance criteria** — map each criterion to test results
+9. **Update test skill**: Read current `.opencode/skills/project-test/SKILL.md` in full, then compare with what you learned:
+   - New test commands, framework details, environment setup steps, common failures and fixes
+   - If there is new knowledge → merge new knowledge into the existing content and write back the complete file. NEVER discard existing entries unless they are factually wrong.
+   - If skill is already current → skip
+10. **Write the validation report** with the complete Test Execution Matrix
 
 ## Frontend Validation Strategy
 

@@ -85,6 +85,22 @@ To remove this integration:
 2. Remove this section from `AGENTS.md`
 3. No agent definitions need to change (this is the design's main strength).
 
+## Project Operation Skills (Auto-Evolving)
+
+This template ships with skeleton skills that agents maintain during development:
+
+- `.opencode/skills/project-build/SKILL.md` — Build/compile knowledge, maintained by `implementer`
+- `.opencode/skills/project-test/SKILL.md` — Test/validation knowledge, maintained by `validator`
+
+These skills start as empty skeletons. Agents update them after successful operations, accumulating project-specific knowledge. The opencode skill discovery mechanism auto-loads them when relevant (e.g., when an agent needs to compile or test).
+
+### Rules
+
+- Agents MUST check and load the relevant skill before performing build/test operations
+- Agents MUST update the skill after successful operations if new knowledge was gained
+- Skills are project-specific — each downstream project generates its own content
+- Never delete accumulated knowledge from skills — only add or correct
+
 ## Preferred Tool Categories
 
 ### Documents

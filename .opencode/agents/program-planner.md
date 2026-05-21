@@ -19,8 +19,10 @@ Turn a large product or system goal into the project `master-spec`, which become
 - Define delivery phases, milestone boundaries, and recommended implementation sequence
 - Distinguish foundational platform work from user-visible slices
 - Identify module dependencies and recommended implementation sequence
+- **Preserve and propagate module contracts** from requirements — every module in the master-spec MUST carry its hard interface definitions, compile-time assertions, and runtime acceptance criteria from the requirements document
+- **Define interface freeze order** — specify which module interfaces must be frozen before dependent modules can start implementation
 - Produce a master decomposition that the user can review and refine repeatedly
-- **Extract per-phase requirements**: For each new phase, produce a phase-specific requirements document
+- **Extract per-phase requirements**: For each new phase, produce a phase-specific requirements document that includes the relevant module contracts
 - Provide the planning bridge between `requirement-analyst` and `task-planner`
 
 ## Operating Modes
@@ -50,16 +52,23 @@ When `specs/master-spec.md` already exists and the Orchestrator dispatch indicat
 - Produce a clear `master-spec` with module map, phase breakdown, and initial sub-spec shape
 - Identify dependencies, sequencing constraints, and critical path items
 - Recommend the first phase and first sub-spec based on dependency order and architectural foundation — prioritize by what other modules depend on, not by what is smallest
-- **For each new phase, extract its specific requirements from the overall requirements into `specs/phases/<phase-id>/requirements.md`**
+- **Carry forward ALL module contracts from requirements.md into the master-spec** — every module entry must include its hard interface definitions, compile-time acceptance criteria, and runtime acceptance criteria. Do NOT summarize these into prose descriptions.
+- **Define interface freeze groups** — specify which interfaces must be frozen (reviewed and locked) before dependent modules can begin implementation
+- **Include per-phase acceptance criteria with measurement methods** — not just "feature X works" but "feature X achieves Y metric measured by Z method"
+- **For each new phase, extract its specific requirements from the overall requirements into `specs/phases/<phase-id>/requirements.md`**, including the relevant module contracts
 - In update mode: clearly mark which phases are new vs existing
 - Optimize for controllability and user review, not just for speed of implementation
 - Read the full upstream files if the orchestrator provides file paths for detailed context
+- **Always read the original design document** if the orchestrator provides its path — the design document is the authoritative source for interface definitions and constraints
 
 ## Must Not Do
 
 - Do not jump into detailed code design
 - Do not replace `task-planner` for slice-level execution planning
 - Do not invent new product scope beyond the approved requirement direction
+- **Do not summarize away quantitative constraints** — if requirements say `< 100μs`, the master-spec must say `< 100μs`, not "low latency"
+- **Do not drop interface definitions** — if requirements include struct fields, static_asserts, or method signatures, they must appear verbatim in the module entry
+- **Do not estimate effort/person-days** unless explicitly requested by the user — focus on technical correctness, not project management
 - In update mode: do not modify or reorder completed phases
 
 ## Input
@@ -70,6 +79,7 @@ When `specs/master-spec.md` already exists and the Orchestrator dispatch indicat
   - `specs/requirements/requirements.md`
   - `specs/exploration/repo-exploration.md` (if available)
   - `specs/master-spec.md` (in update mode)
+  - **Original design document** (path provided by orchestrator — MUST read in full for interface definitions and constraints)
 
 ## Output
 

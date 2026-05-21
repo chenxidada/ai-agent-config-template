@@ -1,6 +1,6 @@
 ---
 name: conversation-sync-kb
-description: 对话压缩时自动同步摘要到个人知识库，创建 Snapshot 并更新 Daily Digest，确保上下文不丢失。
+description: 对话压缩时自动同步摘要到个人知识库，创建 snapshot 并更新 daily，确保每次上下文压缩都不丢失关键信息。
 ---
 
 ## 对话压缩同步知识库
@@ -11,70 +11,79 @@ description: 对话压缩时自动同步摘要到个人知识库，创建 Snapsh
 
 这是一条强制规则，不需要用户额外提醒。
 
-### 核心要求
-
-每次触发时必须同时完成两件事：
-
-1. 对当前阶段对话进行结构化总结
-2. 通过 MCP 将总结结果同步到知识库
-
 ### 流程
 
-1. **整理摘要**：将当前对话中的关键进展、发现、结论、待办整理成结构化 Markdown
-2. **创建 Snapshot**：解析 `Projects/<project>/Snapshots/` 目录，调用 `knowledge-base_save_document` 创建新的 `Snapshot Doc`
-3. **解析 Daily 目录**：定位 `Daily/<YYYY>/<YYYY-MM>/`
-4. **查找当天 Daily Digest**：调用 `knowledge-base_list_documents` 查找 `[daily] YYYY-MM-DD - <project>`
-5. **读取旧内容**：如果当天 `Daily Digest` 已存在，先调用 `knowledge-base_get_document` 读取
-6. **增量更新 Daily Digest**：
-   - 如果当天文档已存在：调用 `knowledge-base_update_document` 做增量更新
-   - 如果当天文档不存在：调用 `knowledge-base_save_document` 创建新文档
-7. **必要时补长期对象**：如果本次压缩包含重大架构、产品或策略结论，再补 `Decision Doc` 或 `Topic Doc`
-8. **确认同步成功**：打印同步结果告知用户
+1. **获取已有快照**：调用 `knowledge-base_get_sync_object_status`（objectType: `snapshot`, project: 当前项目名, objectKey: 项目名）检查是否已有快照文档
+   - 如果存在，通过 `knowledge-base_get_document` 读取其完整内容
+   - 如果不存在，跳到下一步
+2. **精炼项目快照**：将压缩后的 Goal block（Goal / Instructions / Discoveries / Accomplished / Relevant files）与已有快照内容合并精炼：
+   - 保留长期有效的上下文（项目目标、架构决策、累积成果）
+   - 更新当前状态和进度
+   - 移除已过时的信息
+   - 输出为完整的 Markdown 文档（不是增量片段）
+3. **同步快照**：调用 `knowledge-base_sync_runtime_event`
+   - `triggerType`：`compression`
+   - `stage`：`compression` / `reset` / `handoff`
+   - `project`：当前项目名
+   - `summary`：精炼后的完整项目快照内容
+   - `objectKey`：项目名（确保同一项目只有一个快照）
+4. **同步 daily**：上述调用默认也会更新当天的 daily 文档
+5. **必要时补结构化对象**：如果本轮压缩产出长期结论，再调用 `knowledge-base_sync_kb_object` 同步 `decision` 或 `topic`
+6. **确认同步成功**：打印同步结果告知用户
 
 ### 文档格式
 
 ```markdown
-# [snapshot:YYYYMMDD-HHmmss] <project> - Conversation compression handoff
+# <project> - 项目快照
 
-## Objective
-（当前阶段在解决什么问题）
+> 最后更新: <ISO timestamp> | 会话: <session-id>
 
-## Important Discoveries
-（本轮对话里的关键发现、判断、结论）
+## 项目目标
 
-## Implementation Status
-（已完成、进行中、卡住的内容）
+（长期项目目标和核心方向）
 
-## Outstanding Issues
-（当前阻塞与风险）
+## 架构决策
 
-## Next Actions
+（重要的架构和技术选型决策）
+
+## 当前状态
+
+（进行中的工作、最新进展）
+
+## 累积成果
+
+（已完成的重要里程碑）
+
+## 待办事项
+
 - [ ] 下一步要做的事情
 
-## Relevant Files / Commands
-（本次修改/查看的关键文件路径）
+## 关键文件
+
+（项目核心文件路径）
 ```
 
 ### 知识库配置
 
-| 配置项 | 值 |
-|--------|-----|
-| Snapshot 路径 | `Projects/<project>/Snapshots/` |
-| Daily 路径 | `Daily/<YYYY>/<YYYY-MM>/` |
-| Snapshot 标题格式 | `[snapshot:YYYYMMDD-HHmmss] <project> - <label>` |
-| Daily 标题格式 | `[daily] YYYY-MM-DD - <project>` |
-| sourceType | `ai-chat` |
+| 配置项         | 值                                                |
+| -------------- | ------------------------------------------------- |
+| 运行时事件工具 | `knowledge-base_sync_runtime_event`               |
+| snapshot 路径  | `Projects/<project>/Snapshots/`（每项目一个文档） |
+| daily 路径     | `Daily/<YYYY>/<YYYY-MM>/`                         |
+| sourceType     | `ai-chat`                                         |
 
-### 保存策略
+### summary 字段质量规范（强制）
 
-本技能固定使用 `Snapshot + Daily Digest Sync`。
+`summary` 必须包含具体技术内容，禁止统计性泛化描述。
 
-也就是说：
+**要求：** 写明具体文件名/函数名/架构变更、关键决策及原因、重要发现、下一步 TODO。用 Markdown 结构化。
 
-- 默认创建 `Snapshot Doc`
-- 同时维护当天的 `Daily Digest`
-- 不负责把长期项目知识硬塞进 daily 文档
-- 如本次压缩中包含重大架构/产品决策，可由 `knowledge-manager` 再补 `Decision Doc` 或 `Topic Doc`
+**禁止：** "共执行 N 次工具调用"、"修改了几个文件"、"进行了优化" 等不含技术细节的描述。
+
+**示例：**
+
+- ✅ 重构 `pdf.service.ts`（1087→7 子服务），新增 `LlmCallSpec` 统一 AI 调用
+- ❌ 对代码进行了修改和优化
 
 ### 注意事项
 
@@ -82,8 +91,4 @@ description: 对话压缩时自动同步摘要到个人知识库，创建 Snapsh
 - 包含具体的文件路径、行号、命令等可操作信息
 - 包含未完成的待办事项，方便下次继续
 - 避免冗余，突出关键结论和决策
-- `Snapshot Doc` 每次压缩都新建，不覆盖旧快照
-- `Daily Digest` 在同项目同日期下只维护一份，并按 section 增量更新
-- 绝对不要在技能中写死 folderId
-- 每次压缩后，不仅要总结，还必须完成 MCP 同步
-- 如同步失败，应重试一次，仍失败则明确报告失败原因
+- 压缩事件的默认结果应是：更新项目唯一的 `snapshot` 对象并更新当天的 `daily` 对象

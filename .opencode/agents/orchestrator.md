@@ -143,6 +143,7 @@ Your prompt to each subagent must include:
 - **Pipeline mode context** (first-time vs append, intent: feature/bugfix/rebuild)
 - Clear instruction: **"Return ONLY a 3-5 sentence summary + output file path"**
 - If prior analysis reports exist: include as optional reference context
+- **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
 
 ## After Each Stage
 
@@ -178,7 +179,7 @@ Format:
 - **pass**: Proceed to validator.
 
 ### validator verdicts
-- **fail**: Auto-dispatch implementer to fix -> re-validate. Max 3 rounds. Escalate to user after 3.
+- **fail**: Dispatch `code-analyst` to investigate the failure (read validator report + relevant code → produce diagnosis). Then dispatch `implementer` with the diagnosis to fix → re-dispatch `validator`. Max 3 rounds total. Escalate to user after 3.
 - **partial pass**: Report to user. User decides.
 - **pass**: Proceed to next stage.
 
@@ -199,6 +200,17 @@ Update `specs/current-status.md` Loop Tracking after each iteration.
 | Implementation | After validator completes (before HG2) | Task Doc with implementation result |
 
 Always include `project: <from .opencode/project-config.md>` in dispatch. Always specify which spec files to read for content extraction. Update KM checkpoint status in `specs/current-status.md` after each sync.
+
+## Phase Closure Protocol
+
+After all sub-specs in a Phase have completed (passed validator + Human Gate 2):
+
+1. **Collect**: Read all SS `implementation-summary.md` (Deviations/Known Gaps) + `review-report.md` (should-fix items) + `phase-spec.md` (CapabilityClaims)
+2. **Generate**: `specs/phases/<phase-id>/scope-gap-report.md` — cross-reference CapabilityClaims vs actual delivery, classify gaps as Deferred/Degraded/Missed
+3. **Exit Verdict**: PASS (all claims met) / PASS_WITH_CONDITIONS (partial claims, non-blocking) / BLOCK (unknown-impact gaps or blocking should-fix)
+4. **Human Gate (Phase Exit)**: Present CapabilityClaim summary + deferred items + verdict. BLOCK = do not proceed. PASS_WITH_CONDITIONS = user decides.
+5. **Update**: `specs/current-status.md` Phase Deferred Items Tracker
+6. **KM checkpoint**: Sync Phase completion as Decision Doc
 
 ## Short Flow
 

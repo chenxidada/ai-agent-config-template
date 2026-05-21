@@ -9,6 +9,10 @@
   
   Quality bar: task-planner must be able to read this document and produce a
   phase-spec WITHOUT needing to ask the orchestrator for clarification.
+  
+  CRITICAL: This document must carry forward ALL hard interface definitions,
+  compile-time assertions, and runtime acceptance criteria from requirements.md.
+  Summarizing technical constraints into prose is FORBIDDEN.
 -->
 
 ## Project Goal
@@ -27,11 +31,12 @@
 
 <!--
   Measurable criteria that define project success. Number them (SC-1, SC-2, ...).
+  MUST include quantitative targets with measurement methods.
   
   Example:
-  - SC-1: User can perform full CRUD on documents with sub-second response times
-  - SC-2: AI-powered search returns relevant results for 90%+ of natural language queries
-  - SC-3: System handles 1000+ documents without performance degradation
+  - SC-1: API response time < 50ms (P99), measured by load test with 1000 concurrent requests
+  - SC-2: Cold start to first request served < 500ms, measured by process timestamps
+  - SC-3: Service handles ≥ 200 concurrent connections with event latency < 10ms (P99)
 -->
 
 ## Product / System Scope
@@ -44,18 +49,69 @@
   - Out of scope: Multi-user collaboration, mobile app, offline mode
 -->
 
-## Top-Level Modules
+## Top-Level Modules with Contracts
 
 <!--
-  List the major modules/packages/domains of the system.
-  For each module, give a one-line description of its responsibility.
+  CRITICAL SECTION — This is the core of the master-spec.
   
-  Example:
-  | Module | Responsibility |
-  |--------|---------------|
-  | `apps/api` | Backend REST API (NestJS) |
-  | `apps/web` | Frontend SPA (Next.js) |
-  | `packages/shared` | Shared types and utilities |
+  List ALL modules with their FULL contracts carried forward from requirements.md.
+  Every module entry MUST include the subsections below. Do NOT summarize into prose.
+  
+  ### M{XX}: {Module Name} ({English ID})
+  
+  **Layer**: {architectural layer}
+  **Design Doc Reference**: {exact section numbers}
+  **Dependencies**: {module IDs this depends on}
+  **Phase**: {which delivery phase}
+  
+  #### Hard Interface Definitions
+  
+  ```cpp
+  // Exact struct/class/enum definitions from design document
+  // Do NOT paraphrase — copy verbatim
+  struct MessageHeader {
+      uint64_t timestamp_ns;
+      uint32_t sequence;
+      uint16_t msg_type;
+      uint16_t flags;
+  };
+  static_assert(sizeof(MessageHeader) == 16);
+  ```
+  
+  #### Compile-Time Acceptance
+  
+  - [ ] {static_assert or compile condition}
+  - [ ] {header compiles under -Wall -Wextra -Werror}
+  
+  #### Runtime Acceptance
+  
+  | Criterion | Target | Measurement Method | Test Environment |
+  |-----------|--------|-------------------|-----------------|
+  | {metric} | {value} | {how to measure} | {hardware/OS} |
+  
+  #### Downstream Commitments
+  
+  - {what this module promises to dependents}
+  - {interface change rules after freeze}
+  
+  #### Source Traceability
+  
+  - Design document: {§X.Y paragraph Z}
+  - Requirements: {AC-N, Module Contract M{XX}}
+-->
+
+## Interface Freeze Order
+
+<!--
+  Define which module interfaces must be frozen before dependent modules can start.
+  
+  | Freeze Group | Modules | Must Freeze Before | Freeze Criteria |
+  |-------------|---------|-------------------|-----------------|
+  | Group 1 | M01 | M02-M08 start | Headers compile, review approved |
+  | Group 2 | M09-M11 | M12-M15 start | Public API review approved |
+  
+  Freeze means: method signatures, struct definitions, enum values are locked.
+  New methods on extension interfaces allowed. Existing signature changes require CR.
 -->
 
 ## Capability Areas
@@ -74,48 +130,44 @@
 <!--
   Break the project into sequential phases. Each phase should deliver usable, testable value.
   
-  Use this table format:
-  
-  | Phase ID | Name | Goal | Key Deliverables | Est. Files | Status |
-  |----------|------|------|-----------------|------------|--------|
-  | phase-0-infra | Infrastructure | Database, auth, project scaffolding | Prisma schema, auth middleware, app shell | ~15 | complete |
-  | phase-1-core-crud | Core CRUD | Full document lifecycle management | Folder/Doc/Tag CRUD APIs + management UI | ~53 | pending |
-  | phase-2-ai-chat | AI Chat | Intelligent conversation with knowledge base | RAG pipeline, chat UI, embedding service | ~54 | pending |
+  | Phase ID | Name | Goal | Modules Included | Status |
+  |----------|------|------|-----------------|--------|
+  | phase-1-foundation | Foundation | Core abstractions + build system | M01-M03 | pending |
   
   Status values: complete, in-progress, pending
-  Est. Files: rough estimate of new files to create (helps gauge complexity)
+  
+  Do NOT include effort estimates (person-days) unless explicitly requested.
 -->
 
 ## Phase Dependencies
 
 <!--
-  Show how phases depend on each other. Use ASCII diagram for clarity.
+  Show how phases depend on each other. Use mermaid or ASCII diagram.
+-->
+
+## Per-Phase Acceptance Criteria
+
+<!--
+  For each phase, define measurable acceptance criteria with test methods.
   
-  Example:
-  ```
-  phase-0-infra
-    │
-    ▼
-  phase-1-core-crud
-    │
-    ├──► phase-2-ai-chat
-    │
-    └──► phase-3-advanced (can parallel with phase-2 partially)
-  ```
+  ### Phase 1 Acceptance
+  
+  | # | Criterion | Target | Measurement Method | Test Environment |
+  |---|-----------|--------|-------------------|-----------------|
+  | 1 | Core interfaces compile | zero warnings | -Wall -Wextra -Werror | any x86_64 Linux |
+  | 2 | Buffer is move-only | compile check | static_assert(!is_copy_constructible) | compile time |
+  
+  Do NOT write vague criteria like "basic framework works" or "service is functional".
 -->
 
 ## New Dependency Summary
 
 <!--
-  List ALL new external dependencies (npm packages, services, infrastructure) across all phases.
-  This gives a single view of what the project will pull in.
+  List ALL new external dependencies across all phases.
   
-  Example:
   | Package | Version | Introduced In | Purpose |
   |---------|---------|--------------|---------|
-  | meilisearch | ^0.41.0 | phase-1 | Full-text search client |
-  | @codemirror/view | ^6.0.0 | phase-1 | Markdown editor |
-  | @xyflow/react | ^12.0.0 | phase-3 | Knowledge graph visualization |
+  | example-lib | ^2.0.0 | phase-1 | Core functionality |
   
   If no new dependencies are needed, state "None" explicitly.
 -->
@@ -124,12 +176,7 @@
 
 <!--
   Technical, business, or timeline constraints that affect ALL phases.
-  Sourced from requirements.md Constraints section.
-  
-  Example:
-  - Must use PostgreSQL (existing infrastructure)
-  - Frontend must be SSR-compatible (Next.js App Router)
-  - All APIs must be RESTful with Swagger documentation
+  Sourced from requirements.md and design document.
 -->
 
 ## Key Decisions
@@ -137,11 +184,7 @@
 <!--
   Architecture-level decisions that affect the overall project.
   Number them (KD-1, KD-2, ...) for traceability.
-  
-  Example:
-  - KD-1: Use pgvector for vector storage instead of a dedicated vector database
-  - KD-2: Monorepo structure with Turborepo
-  - KD-3: Server-side streaming for AI chat (SSE, not WebSocket)
+  Reference the design document decision numbers if available.
 -->
 
 ## Risks / Assumptions
@@ -151,18 +194,10 @@
   
   | Risk | Impact | Likelihood | Mitigation |
   |------|--------|-----------|------------|
-  | Third-party API rate limits | Feature degradation | Medium | Implement caching and retry |
-  | Large document performance | Slow UI | Low | Virtualization + pagination |
 -->
 
 ## Recommended Starting Phase
 
 <!--
   Which phase should be implemented first and why.
-  If phases are already in progress, state the current phase and next recommended action.
-  
-  Example:
-  "Start with phase-1-core-crud. It establishes the data layer and management UI
-  that all subsequent phases depend on. The first sub-spec should be the backend
-  API layer (folder + document + tag CRUD) since the frontend depends on it."
 -->

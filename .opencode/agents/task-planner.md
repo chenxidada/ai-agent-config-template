@@ -43,6 +43,7 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
 - Upstream files to read:
   - `specs/master-spec.md` (always — for global context and phase definitions)
   - `specs/phases/<phase-id>/requirements.md` (always — for phase-specific requirements)
+  - **Original design document** (path provided by orchestrator — for interface definitions, struct layouts, and acceptance criteria. MUST read when available.)
 
 ## Output
 
@@ -53,6 +54,8 @@ The `edit` permission is granted solely for writing spec documents to the `specs
 ### File Output
 
 Write your phase spec following `templates/phase-spec.md` format to: `specs/phases/<phase-id>/phase-spec.md`
+
+**Do NOT estimate effort/person-days/duration** (e.g., "3-4 days", "~16 weeks") unless the user explicitly requests it. Focus on technical scope and dependencies, not project management.
 
 Create the directory if it does not exist. Use the phase-id provided by the Orchestrator (e.g., `phase-1-user-export`).
 

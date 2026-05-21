@@ -33,6 +33,18 @@
   - REST API with Swagger documentation for all endpoints
 -->
 
+## CapabilityClaims
+
+<!--
+  Testable declarations of Phase deliverables. Validator checks verify_environment.
+  partial_ok=yes: claim can be "partial" if AC passes but env not fully met (e.g. mock).
+  partial_ok=no: claim is either complete or deferred, no partial state.
+-->
+
+| Claim ID | Description | Verified By | Verify Environment | Partial OK? |
+|----------|-------------|-------------|-------------------|:-----------:|
+| CC-1 | {what capability is delivered} | {AC-XX} | {required test environment} | {yes/no} |
+
 ## Out Of Scope
 
 <!--

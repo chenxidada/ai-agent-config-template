@@ -4,6 +4,12 @@ This is the standard pipeline for all development workflows: `/feature`, `/bugfi
 
 The only difference between `/feature`, `/bugfix`, and `/rebuild` is the context passed to the requirement-analyst (describing the nature of the change). The pipeline structure is identical.
 
+## Design Document as Authoritative Source
+
+When the user provides a completed design document as input (rather than a raw idea), the design document becomes the **authoritative source** for all interface definitions, constraints, and acceptance criteria. ALL downstream agents MUST read the original design document directly — not just the intermediate specs/ artifacts.
+
+The Orchestrator MUST pass the design document path to every agent dispatch. Agents MUST read it in full when they need interface definitions, struct layouts, performance targets, or design decisions.
+
 ## Pipeline Modes
 
 ### First-Time Mode
@@ -31,12 +37,14 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - `/feature`: "Analyze this new feature requirement"
   - `/bugfix`: "Analyze this bug — identify root cause, affected areas, and fix approach"
   - `/rebuild`: "Analyze this rebuild/refactor requirement — assess impact scope"
-  - First-time: "Create a new requirements document"
-  - Append: "Append new requirements to the existing `specs/requirements/requirements.md`"
+  - First-time from idea: "Create a new requirements document" (create mode)
+  - First-time from design doc: "Extract implementable requirements from this completed design document" (extract mode)
+  - Append: "Append new requirements to the existing `specs/requirements/requirements.md`" (append mode)
 - **Read upstream**: `specs/exploration/repo-exploration.md`
+- **Read original design document**: (path provided by Orchestrator — MUST read in full in extract mode)
 - **Read existing** (append mode): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
-- **Expect back**: Summary of goals, intended scope, acceptance criteria, open questions
+- **Expect back**: Summary of goals, intended scope, module contract count, acceptance criteria count, open questions
 
 ### Stage 3: program-planner
 
@@ -45,11 +53,12 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - First-time: "Create a new master-spec with phase breakdown"
   - Append: "Update the existing `specs/master-spec.md` — add new phases for the new requirements. Do NOT modify completed phases."
 - **Read upstream**: `specs/requirements/requirements.md`, `specs/exploration/repo-exploration.md` (if available)
+- **Read original design document**: (path provided by Orchestrator — MUST read for interface definitions and constraints)
 - **Read existing** (append mode): `specs/master-spec.md`
 - **Output files**:
   - `specs/master-spec.md` (create or update)
-  - `specs/phases/<phase-id>/requirements.md` (one per new phase — phase-specific requirements extracted from overall requirements)
-- **Expect back**: Summary of modules, number of phases, recommended starting phase, critical dependencies
+  - `specs/phases/<phase-id>/requirements.md` (one per new phase — phase-specific requirements with module contracts)
+- **Expect back**: Summary of modules, number of phases, interface freeze groups, recommended starting phase, critical dependencies
 
 ### Stage 4: knowledge-manager checkpoint
 
@@ -69,6 +78,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**:
   - `specs/master-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
+  - **Original design document** (path provided by Orchestrator — for interface definitions and acceptance criteria)
 - **Output file**: `specs/phases/<phase-id>/phase-spec.md`
 - **Expect back**: Summary of sub-specs, recommended first sub-spec, dependencies within the phase
 
@@ -78,6 +88,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**:
   - `specs/phases/<phase-id>/phase-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
+  - **Original design document** (path provided by Orchestrator — authoritative source for interface definitions, struct layouts, design decisions)
 - **Output files**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
@@ -101,6 +112,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - **Original design document** (path provided by Orchestrator — for struct definitions, static_asserts, and interface contracts)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
 - **Code changes**: Actual code modifications + automated tests for Validation Plan scenarios
 - **Expect back**: Summary of what was implemented, key files changed, deviations from plan
@@ -112,6 +124,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - **Original design document** (path provided by Orchestrator — for verifying implementation matches design constraints)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
 - **Expect back**: Overall verdict (pass/must-fix/should-fix), finding counts, test coverage assessment
 - **Loop**: If must-fix -> auto-dispatch implementer to fix -> re-review (max 3 rounds)
@@ -123,9 +136,10 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
+  - **Original design document** (path provided by Orchestrator — for verifying performance targets and acceptance criteria)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
 - **Expect back**: Overall result (pass/partial/fail), scenarios tested, pass/fail counts
-- **Loop**: If fail -> auto-dispatch implementer to fix -> re-validate (max 3 rounds)
+- **Loop**: If fail → dispatch `code-analyst` (diagnosis mode: read validation-report + relevant code → produce failure diagnosis to `specs/phases/<phase-id>/slices/<sub-spec-id>/failure-diagnosis.md`) → dispatch `implementer` with diagnosis to fix → re-dispatch `validator`. Max 3 rounds total.
 
 ### Stage 11: knowledge-manager checkpoint
 
@@ -138,6 +152,16 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Present**: Sub-spec result summary — what was implemented, review findings, validation result
 - **Purpose**: User confirms the sub-spec is complete
 - **Next**: If more sub-specs in the current phase, return to Stage 6. If phase is complete and more phases exist, return to Stage 5.
+
+### Phase Closure (after all SS in a Phase complete)
+
+When all sub-specs in a Phase have passed validator, the Orchestrator executes the Phase Closure Protocol (defined in orchestrator.md):
+
+1. Collect all SS Deviations/Known Gaps + should-fix items + CapabilityClaims
+2. Generate `specs/phases/<phase-id>/scope-gap-report.md` (using template)
+3. Determine Exit Verdict: PASS / PASS_WITH_CONDITIONS / BLOCK
+4. Human Gate (Phase Exit): present verdict to user
+5. If BLOCK: do NOT proceed. If PASS_WITH_CONDITIONS: user decides.
 
 ---
 

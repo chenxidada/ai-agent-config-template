@@ -55,6 +55,7 @@ Review the implementation against the agreed scope and design, focusing on code 
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` (especially the Validation Plan and Completion Criteria)
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - **Original design document** (path provided by orchestrator — for verifying implementation matches design constraints, struct layouts, and performance targets. MUST read when available.)
 - Relevant changed files or diff context
 
 ## Output

@@ -42,6 +42,21 @@ Implement the approved current `sub-spec` completely and with production quality
 - Do not skip implementation notes for downstream review and validation
 - **Do not skip writing tests** — if a Validation Plan scenario cannot be tested automatically, explain why in the implementation summary
 
+## Workflow
+
+1. Read the approved sub-spec + solution-design + original design document (if provided)
+2. Load `project-build` skill (if exists in `.opencode/skills/project-build/SKILL.md`) for build knowledge
+3. Implement code changes according to the sub-spec
+4. Build/compile the project
+5. **Build succeeded → Check if `project-build` skill needs updating**:
+   - Read the current `.opencode/skills/project-build/SKILL.md` content in full
+   - Compare with what you just did (new commands, new flags, new dependencies, new error resolutions)
+   - If there is new knowledge → read the existing content, merge new knowledge into it, and write back the complete updated file. NEVER discard existing entries unless they are factually wrong.
+   - If skill is already current → skip
+6. Write automated tests for Validation Plan scenarios
+7. Run tests to verify they pass
+8. Write implementation-summary.md
+
 ## Browser-Backed UI Self-Check (Optional but Encouraged)
 
 涉及 UI 实现时，**可以也鼓励**在写测试之前先通过 Playwright MCP（`browser_navigate` / `browser_snapshot` / `browser_click` / `browser_take_screenshot` 等结构化 `browser_*` 工具）启动 dev server 后立即在 headless 浏览器中自检渲染与交互，用浏览器观察到的实际行为驱动后续单元 / 集成 / e2e 测试的设计。Playwright MCP 由 `opencode.jsonc` 中的 `playwright` server 提供，复用本机 Chrome，无需在目标项目内安装 playwright 依赖。
@@ -52,6 +67,7 @@ Implement the approved current `sub-spec` completely and with production quality
 - Upstream files to read:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - **Original design document** (path provided by orchestrator — for struct definitions, static_asserts, interface contracts, and design decisions. MUST read when available.)
 - Existing codebase context
 
 ## Output
