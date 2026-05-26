@@ -6,6 +6,8 @@
   Be specific and concrete — vague summaries lead to poor reviews and missed validations.
 -->
 
+> **Append mode**: see `unified-pipeline.md` §"Loop Document Append Mode".
+
 ## Scope Implemented
 
 <!-- 
@@ -80,6 +82,23 @@
   - Why the change was necessary
   - Impact on acceptance criteria
 -->
+
+### 偏差记录格式
+
+每个偏差必须包含：
+- **偏差描述**：做了什么不同的
+- **影响范围**：sub-spec.md §X.Y / solution-design.md §X.Y
+- **原因**：为什么需要偏差
+- **影响**：对下游的影响
+
+示例：
+```markdown
+### 偏差 D1：CSV 库更换
+- **偏差**：使用 csv-stringify 替代 Papa Parse
+- **影响范围**：sub-spec.md §3.3 / solution-design.md §4.2
+- **原因**：Papa Parse 不支持 UTF-8 BOM 处理
+- **影响**：导出接口不变，但依赖项和错误处理略有不同
+```
 
 ## Known Gaps
 

@@ -79,7 +79,7 @@ When `specs/master-spec.md` already exists and the Orchestrator dispatch indicat
   - `specs/requirements/requirements.md`
   - `specs/exploration/repo-exploration.md` (if available)
   - `specs/master-spec.md` (in update mode)
-  - **Original design document** (path provided by orchestrator — MUST read in full for interface definitions and constraints)
+  - **Original design document** (path provided by orchestrator; read in full)
 
 ## Output
 

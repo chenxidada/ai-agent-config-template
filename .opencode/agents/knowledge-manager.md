@@ -45,9 +45,11 @@ Preferred flow:
 
 1. Resolve the project and object folder dynamically by logical path
 2. Decide which knowledge object best fits the new information
-3. Read the existing document first when the object is appendable
-4. Extract only the new high-value information
-5. Append, update, or create without overwriting unrelated knowledge
+3. Determine the sync mode (see Sync Mode below)
+4. Read the existing document first when the object is appendable
+5. In full mode: preserve the complete content structure from source files
+   In summary mode: extract only the new high-value information
+6. Append, update, or create without overwriting unrelated knowledge
 
 ### Fallback Path: Local File
 
@@ -238,8 +240,10 @@ Do NOT include the full synced content in your return message.
 
 - Resolve the target folder dynamically by logical path
 - Read existing task, topic, decision, or daily docs before updating them
-- Save only high-value information: decisions, rationale, blockers, milestones, verification, follow-ups
-- Keep sync content concise, actionable, and future-friendly
+- Respect sync mode: full mode preserves complete content; summary mode keeps content concise
+- In summary mode: save only high-value information: decisions, rationale, blockers, milestones, verification, follow-ups
+- In summary mode: keep sync content concise, actionable, and future-friendly
+- In full mode: read source files completely and sync their full content with proper markdown structure
 - Write synced summaries and durable KB content in Chinese by default unless the user explicitly asks for another language
 - Use structured object sync for explicit objects and runtime event sync for trigger-driven sync
 - Treat explicit user requests to summarize-and-sync as an immediate trigger
@@ -250,10 +254,30 @@ Do NOT include the full synced content in your return message.
 - Do not spam the knowledge base with trivial noise
 - Do not overwrite existing summaries without merging
 - Do not force unrelated topics into one shared project note
-- Do not store raw output unless it is necessary for future work
+- Do not store raw output in summary mode unless it is necessary for future work
+- In full mode, raw content should be preserved as-is
 - Do not collapse compression output into one catch-all daily note
 
-## Recommended Structure
+## Sync Mode
+
+Two sync modes control content fidelity:
+
+### Full Mode (default for Task Doc, Topic Doc, Decision Doc)
+
+- Preserve complete document content and structure from source files
+- Do NOT summarize, do NOT "extract key points", do NOT reduce content
+- Only omit truly redundant or duplicate information
+- Follow the source document's own structure with minimal restructuring
+- The orchestrator can override with explicit `syncMode: summary`
+
+### Summary Mode (default for Daily Digest, Snapshot Doc)
+
+- Extract key points: decisions, rationale, blockers, milestones, next actions
+- Keep content concise, actionable, and future-friendly
+- Use the Recommended Structure template below
+- The orchestrator can override with explicit `syncMode: full`
+
+## Recommended Structure (Summary Mode Only)
 
 - Metadata: `objectType`, `objectKey`, `project`, `trigger`, `sourceType`, `updatedAt`
 - Objective

@@ -51,3 +51,26 @@
 - Why changed:
 - What changed:
 - Impact:
+
+## Amendments
+
+<!-- 
+  Amendments记录实现过程中经reviewer批准的偏差。
+  由reviewer在批准implementer偏差后填写。
+  每个amendment标注：原计划章节、修改后方案、批准日期、审核人、偏差来源。
+-->
+
+| # | 日期 | 原计划章节 | 修改为 | 批准人 | 偏差来源 |
+|---|------|-----------|--------|--------|---------|
+| — | — | — | — | — | — |
+
+### 如何填写Amendments
+
+1. **implementer** 在 `implementation-summary.md` 的 Deviations 章节中记录偏差，标注影响的 sub-spec 章节编号
+2. **reviewer** 审查偏差：如批准，在本表增加一行，填写：
+   - 序号（A1, A2...）
+   - 日期
+   - 原计划内容（引用 sub-spec.md 的章节号）
+   - 修改后方案（简要描述）
+   - 批准人（reviewer）
+   - 偏差来源（implementation-summary.md 的 Deviations 章节）

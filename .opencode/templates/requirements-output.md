@@ -37,63 +37,9 @@
 
 ## Module Contracts
 
-<!--
-  CRITICAL SECTION — This is the most important output in extract mode.
-  
-  For each implementable module extracted from the design document, define a hard contract.
-  Every module contract MUST include ALL of the following subsections.
-  
-  ### Module Contract: M{XX} — {Module Name}
-  
-  **Layer**: (which architectural layer)
-  **Design Doc Reference**: (exact section numbers, e.g., §3.1, §5.2)
-  **Dependencies**: (which other modules this depends on)
-  
-  #### 1. Hard Interface Definitions
-  
-  Preserve exact struct definitions, method signatures, enum values, and type constraints
-  from the design document. Use code blocks. Do NOT paraphrase into prose.
-  
-  Example:
-  ```cpp
-  struct MessageHeader {
-      uint64_t timestamp_ns;
-      uint32_t sequence;
-      uint16_t msg_type;
-      uint16_t flags;
-  };
-  static_assert(sizeof(MessageHeader) == 16);
-  ```
-  
-  #### 2. Compile-Time Acceptance Criteria
-  
-  Checklist of compile-time verifiable conditions:
-  - [ ] `static_assert(sizeof(MessageHeader) == 16)` compiles
-  - [ ] All headers compile under `-Wall -Wextra -Werror` with zero warnings
-  
-  #### 3. Runtime Acceptance Criteria
-  
-  Quantitative targets with measurement method:
-  - [ ] Request-response latency < 50ms (P99) — measured by: client sends request, measures time to response callback
-  - [ ] Memory usage < 100MB under load — measured by: RSS after 1000 concurrent connections
-  
-  Must specify:
-  - Target value (from design document)
-  - Measurement method (how to test)
-  - Test environment (which hardware/OS, or "any x86_64 Linux" if not hardware-specific)
-  - Acceptable deviation (e.g., "first cold run may exceed by 2x")
-  
-  #### 4. Downstream Commitments
-  
-  What this module promises to modules that depend on it:
-  - Interface changes after freeze date require CR (Change Request) review
-  - New methods can only be added on designated extension interfaces
-  
-  #### 5. Source Traceability
-  
-  Exact paragraph-level references to the design document that serve as the authoritative
-  specification for any dispute about requirements.
--->
+> **Module Contracts** must follow the format defined in `.opencode/snippets/module-contract-format.md`.
+> Copy the template from there — do NOT redefine the format here.
+> Below, list the module contracts for this requirement following that format.
 
 ## Interface Freeze Order
 

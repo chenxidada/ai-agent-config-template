@@ -72,9 +72,20 @@ This agent has `edit: allow` **limited to writing analysis output files**:
 
 - `specs/analysis/code-analysis-*.md` (analysis reports)
 - `specs/analysis/.analysis-progress.json` (progress tracking)
+- `specs/phases/*/code-analysis.md` (per-phase analysis)
 - `specs/phases/*/slices/*/failure-diagnosis.md` (diagnosis mode output)
 
 **Do NOT edit any other files.** This permission exists solely so the agent can write its analysis output, progress tracking, and failure diagnosis.
+
+## Per-Phase Analysis Mode
+
+When dispatched within the unified pipeline for a specific phase:
+
+1. Read the phase's `repo-exploration.md` at `specs/phases/<phase-id>/repo-exploration.md`
+2. Analyze the codebase as it currently exists (post-previous-phase changes)
+3. Focus analysis scope on modules relevant to this phase
+4. Note architecture changes from the previously known state
+5. Write results to `specs/phases/<phase-id>/code-analysis.md`
 
 ## Incremental Analysis Mode
 
@@ -195,6 +206,7 @@ Write your complete analysis report following `templates/code-analysis-output.md
 Output file naming convention:
 - Full repo analysis: `specs/analysis/code-analysis-full.md`
 - Scoped analysis: `specs/analysis/code-analysis-<scope-slug>.md` where `<scope-slug>` is a short, filesystem-safe identifier derived from the scope (e.g., `src-auth`, `payment-module`, `dataflow`, `error-handling`)
+- Per-phase analysis: `specs/phases/<phase-id>/code-analysis.md` (when dispatched within unified pipeline)
 - Diagnosis report: `specs/phases/<phase-id>/slices/<sub-spec-id>/failure-diagnosis.md`
 
 Create the `specs/analysis/` directory if it does not exist.

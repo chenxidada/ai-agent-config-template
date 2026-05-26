@@ -16,6 +16,8 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - reviewer must-fix triggers auto-loop to implementer (max 3 rounds)
 - validator fail triggers auto-loop to implementer (max 3 rounds)
 - Exceed max rounds -> escalate to user
+- **Phase Preparation**: Before each new Phase (Phase 2+), run repo-explorer (Stage 4.5) to re-explore the now-modified codebase, writing to `specs/phases/<phase-id>/repo-exploration.md`. Optionally run code-analyst (Stage 4.6) for deep per-phase analysis.
+- **First phase uses global exploration**: Phase 1 uses `specs/exploration/repo-exploration.md` from initial exploration. Subsequent phases each get their own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`.
 
 ### Subagent Rules
 
@@ -99,7 +101,10 @@ These skills start as empty skeletons. Agents update them after successful opera
 - Agents MUST check and load the relevant skill before performing build/test operations
 - Agents MUST update the skill after successful operations if new knowledge was gained
 - Skills are project-specific — each downstream project generates its own content
-- Never delete accumulated knowledge from skills — only add or correct
+- **Correction over accumulation**: If an agent finds a wrong entry in a skill, it MUST correct or deprecate it. Wrong knowledge actively harms downstream agents.
+- **Verification state**: Every knowledge entry in a skill should have a verification status (verified / deprecated / unverified) and a last-verified timestamp.
+- **Cross-agent verification**: validator may update project-build skill; implementer may update project-test skill. Skills are not single-agent silos.
+- Never delete accumulated knowledge from skills — mark deprecated entries as ⚠️ 已过期 with a reason instead of deleting them
 
 ## Preferred Tool Categories
 

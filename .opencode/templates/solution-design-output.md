@@ -219,6 +219,17 @@
   - Maximum export size: 10MB or unlimited with pagination?
 -->
 
+## Design Amendments
+
+<!-- 
+  记录实现过程中对设计方案的批准变更。
+  由reviewer在批准设计变更后填写。
+-->
+
+| # | 日期 | 原设计章节 | 修改为 | 批准人 | 偏差来源 |
+|---|------|-----------|--------|--------|---------|
+| — | — | — | — | — | — |
+
 ## Recommended Next Step
 
 <!-- 

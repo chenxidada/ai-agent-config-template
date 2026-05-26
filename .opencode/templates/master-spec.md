@@ -51,54 +51,9 @@
 
 ## Top-Level Modules with Contracts
 
-<!--
-  CRITICAL SECTION — This is the core of the master-spec.
-  
-  List ALL modules with their FULL contracts carried forward from requirements.md.
-  Every module entry MUST include the subsections below. Do NOT summarize into prose.
-  
-  ### M{XX}: {Module Name} ({English ID})
-  
-  **Layer**: {architectural layer}
-  **Design Doc Reference**: {exact section numbers}
-  **Dependencies**: {module IDs this depends on}
-  **Phase**: {which delivery phase}
-  
-  #### Hard Interface Definitions
-  
-  ```cpp
-  // Exact struct/class/enum definitions from design document
-  // Do NOT paraphrase — copy verbatim
-  struct MessageHeader {
-      uint64_t timestamp_ns;
-      uint32_t sequence;
-      uint16_t msg_type;
-      uint16_t flags;
-  };
-  static_assert(sizeof(MessageHeader) == 16);
-  ```
-  
-  #### Compile-Time Acceptance
-  
-  - [ ] {static_assert or compile condition}
-  - [ ] {header compiles under -Wall -Wextra -Werror}
-  
-  #### Runtime Acceptance
-  
-  | Criterion | Target | Measurement Method | Test Environment |
-  |-----------|--------|-------------------|-----------------|
-  | {metric} | {value} | {how to measure} | {hardware/OS} |
-  
-  #### Downstream Commitments
-  
-  - {what this module promises to dependents}
-  - {interface change rules after freeze}
-  
-  #### Source Traceability
-  
-  - Design document: {§X.Y paragraph Z}
-  - Requirements: {AC-N, Module Contract M{XX}}
--->
+> **Module Contracts** must follow the format defined in `.opencode/snippets/module-contract-format.md`.
+> Carry forward module contracts from `requirements.md` verbatim. Do NOT redefine them.
+> For new modules introduced by added phases, create contracts following that format.
 
 ## Interface Freeze Order
 

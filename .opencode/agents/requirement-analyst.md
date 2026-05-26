@@ -91,7 +91,7 @@ When `specs/requirements/requirements.md` already exists and the Orchestrator di
 - Existing requirement docs
 - Prior notes from the knowledge base
 - Upstream file to read: `specs/exploration/repo-exploration.md` (if available)
-- **Original design document path** (if provided by orchestrator — MUST read in full, not just summary)
+- **Original design document path** (if provided by orchestrator; read in full)
 - Existing file to read (append mode): `specs/requirements/requirements.md`
 
 ## Output

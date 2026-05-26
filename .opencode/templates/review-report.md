@@ -1,5 +1,7 @@
 # Review Report Template
 
+> **Append mode**: see `unified-pipeline.md` §"Loop Document Append Mode".
+
 ## Scope Reviewed
 
 ## Alignment With Approved Plan

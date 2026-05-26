@@ -143,7 +143,29 @@ Your prompt to each subagent must include:
 - **Pipeline mode context** (first-time vs append, intent: feature/bugfix/rebuild)
 - Clear instruction: **"Return ONLY a 3-5 sentence summary + output file path"**
 - If prior analysis reports exist: include as optional reference context
-- **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
+  - **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
+
+### Phase Preparation (Before Stage 5: task-planner)
+
+When starting a NEW phase (not the first phase, and not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
+
+1. **repo-explorer (Phase Preparation)**:
+   - Dispatch with `phase_id` and phase scope
+   - Output: `specs/phases/<phase-id>/repo-exploration.md`
+   - Read first-time exploration `specs/exploration/repo-exploration.md` as background (if exists)
+   - This ensures all downstream agents in this phase see the current codebase, not a stale snapshot
+
+2. **code-analyst (Phase Preparation, OPTIONAL)**:
+   - Dispatch when the phase involves modifying existing modules or requires architecture understanding
+   - Skip when the phase only creates new modules without touching existing code
+   - Output: `specs/phases/<phase-id>/code-analysis.md`
+
+**First phase exception**: The first phase uses `specs/exploration/repo-exploration.md` (from initial exploration) for initial planning. Starting from Phase 2 onward, each phase gets its own `specs/phases/<phase-id>/repo-exploration.md` via Stage 4.5.
+
+**Per-phase file reading rules**:
+- `requirement-analyst`: reads `specs/exploration/repo-exploration.md` (first-time) OR `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
+- `solution-architect`: reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
+- `implementer`: reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
 
 ## After Each Stage
 

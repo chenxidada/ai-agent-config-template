@@ -44,20 +44,35 @@ Build a fast, reality-based understanding of the repository before planning, des
 
 ### File Output
 
-Write your complete exploration result following `templates/repo-exploration-output.md` format to: `specs/exploration/repo-exploration.md`
+Write your complete exploration result following `templates/repo-exploration-output.md` format.
 
-Create the `specs/exploration/` directory if it does not exist.
+Output path depends on the dispatch context:
+- **Per-phase dispatch**: Write to the path provided by the Orchestrator (typically `specs/phases/<phase-id>/repo-exploration.md`). Create the directory if it doesn't exist.
+- **First-time exploration** (unified pipeline initial run): `specs/exploration/repo-exploration.md`
+- **Short flow / idea pipeline**: `specs/exploration/repo-exploration.md`
+
+Create the `specs/exploration/` directory if it does not exist (first-time and short-flow cases).
 
 ### Return to Orchestrator
 
 Return ONLY:
 
 - A 3-5 sentence summary of the most relevant modules, entry points, and impact surface
-- The output file path: `specs/exploration/repo-exploration.md`
+- The **actual output file path** (use the path you wrote to — either `specs/exploration/repo-exploration.md` or `specs/phases/<phase-id>/repo-exploration.md` as directed by the Orchestrator)
 - Key risks or unknowns that downstream agents should watch for
 - Whether a human gate is needed (yes/no)
 
 Do NOT include the full exploration document in your return message.
+
+## Re-Exploration (Per-Phase Mode)
+
+When dispatched for a specific phase with an existing `specs/exploration/repo-exploration.md`:
+
+1. Read the first-time exploration as background context
+2. Focus on areas relevant to THIS phase's scope
+3. Identify what has changed since the first-time exploration (or since the previous phase)
+4. Mark findings as "unchanged from initial exploration" vs "updated for Phase <N>"
+5. Highlight new modules, changed entry points, and modified call paths
 
 ## Handoff
 

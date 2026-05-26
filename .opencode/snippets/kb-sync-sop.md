@@ -93,7 +93,8 @@ For updateable objects, use the object status query tool or object metadata sear
 If the target updateable document already exists:
 
 1. read the existing document
-2. extract only the new high-value information
+2. in full mode: merge the complete new content incrementally
+   in summary mode: extract only the new high-value information
 3. merge incrementally
 4. preserve unrelated existing sections
 
@@ -143,7 +144,8 @@ When the trigger is compression, reset, or handoff:
 When the trigger is a workflow checkpoint:
 
 1. identify which checkpoint was just completed
-2. extract only the new high-value result from that stage
+2. in full mode: read source files completely and prepare full content for sync
+   in summary mode: extract only the new high-value result from that stage
 3. choose the matching object type
 4. if the object is updateable, read before merge
 5. execute the structured object sync entry
@@ -167,6 +169,20 @@ When the user explicitly asks to summarize and sync:
 
 ## Step 9: Quality bar
 
+Apply different quality standards based on sync mode:
+
+### Full Mode (default for Task Doc, Topic Doc, Decision Doc)
+
+Sync the complete content from source files:
+
+- Preserve the full document structure and all meaningful content
+- Do NOT summarize or reduce — sync the complete information
+- Only omit truly redundant/duplicate information or raw terminal logs with no future value
+- Follow the source document's own heading structure with minimal restructuring
+- When merging into an existing document, preserve all existing sections and append new content
+
+### Summary Mode (default for Daily Digest, Snapshot Doc)
+
 Only sync high-value information:
 
 - decisions and rationale
@@ -176,12 +192,16 @@ Only sync high-value information:
 - next actions
 - important discoveries worth reusing later
 
-Avoid:
+Avoid in summary mode:
 
 - raw logs
 - repetitive chatter
 - full command output unless future work depends on it
 - mixing unrelated topics into one document
+
+### Mode Override
+
+The orchestrator can override the default mode by passing `syncMode: full` or `syncMode: summary` in the dispatch. Always respect the explicit override.
 
 ## Step 10: Failure handling
 

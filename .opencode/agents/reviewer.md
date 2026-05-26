@@ -31,6 +31,11 @@ Review the implementation against the agreed scope and design, focusing on code 
 - Review the actual diff or implementation result, not just the summary
 - Tie findings back to the task scope and solution design
 - **For each acceptance criterion in the sub-spec, explicitly state whether the code correctly implements it**
+- When reviewing against sub-spec.md and solution-design.md:
+  - Check the Amendments section of each document first
+  - If an approved amendment exists that changes the section you're reviewing,
+    judge the code against the AMENDED plan, not the original plan
+  - Report any deviation that does NOT have a corresponding amendment
 - Classify findings clearly as must-fix, should-fix, or optional
 - **List any test scenarios missing from the Validation Plan that you discovered during review**
 - **Include recommended validation commands for the validator**
@@ -44,6 +49,19 @@ Review the implementation against the agreed scope and design, focusing on code 
 - Do not hide structural or readability concerns just because tests pass
 - Do not duplicate validator output when the issue is really about design or code quality
 
+## Amendment Tracking (NEW)
+
+After reviewing implementation and approving any deviations from plan:
+
+1. Read `implementation-summary.md` Deviations section in full
+2. For each approved deviation:
+   a. Open `sub-spec.md` → navigate to the Amendments section
+   b. Add a new row: # (A1, A2...), date, original plan section, what changed, "reviewer", deviation source
+   c. If the deviation also affects the design document:
+      - Open `solution-design.md` → navigate to Design Amendments section
+      - Add the corresponding amendment entry
+3. In `review-report.md`, list all Amendments processed in this review cycle
+
 ## Browser-Backed Review (Optional but Encouraged for UI changes)
 
 审查涉及 UI 的 PR 时，**可以**通过 Playwright MCP（`browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_console_messages` 等结构化 `browser_*` 工具）打开实际页面对照代码 review，验证组件渲染、交互、无 console error。Playwright MCP 由 `opencode.jsonc` 中的 `playwright` server 提供，复用本机 Chrome，零安装成本。注意：reviewer 的 `edit` 仅用于写 `specs/` 报告，不要因浏览器观察结果直接改源码——发现问题写进 review-report.md 的 must-fix / should-fix。
@@ -55,7 +73,7 @@ Review the implementation against the agreed scope and design, focusing on code 
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` (especially the Validation Plan and Completion Criteria)
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-  - **Original design document** (path provided by orchestrator — for verifying implementation matches design constraints, struct layouts, and performance targets. MUST read when available.)
+  - **Original design document** (path provided by orchestrator; read in full)
 - Relevant changed files or diff context
 
 ## Output
@@ -67,6 +85,8 @@ The `edit` permission is granted solely for writing spec documents to the `specs
 ### File Output
 
 Write your review report following `templates/review-report.md` format to: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
+
+Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 
 ### Return to Orchestrator
 

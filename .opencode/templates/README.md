@@ -6,7 +6,7 @@ Output format templates used by subagents. Each template defines the structure a
 
 | Template | Used By | Output Path |
 |----------|---------|-------------|
-| `repo-exploration-output.md` | repo-explorer | `specs/exploration/repo-exploration.md` |
+| `repo-exploration-output.md` | repo-explorer | `specs/exploration/repo-exploration.md` (first-time) or `specs/phases/<phase-id>/repo-exploration.md` (per-phase) |
 | `requirements-output.md` | requirement-analyst | `specs/requirements/requirements.md` |
 | `master-spec.md` | program-planner | `specs/master-spec.md` |
 | `phase-requirements.md` | program-planner | `specs/phases/<phase-id>/requirements.md` |
@@ -21,7 +21,7 @@ Output format templates used by subagents. Each template defines the structure a
 
 | Template | Used By | Output Path |
 |----------|---------|-------------|
-| `code-analysis-output.md` | code-analyst | `specs/analysis/code-analysis-*.md` |
+| `code-analysis-output.md` | code-analyst | `specs/analysis/code-analysis-*.md` (standalone) or `specs/phases/<phase-id>/code-analysis.md` (per-phase) |
 | `analysis-progress.md` | code-analyst | `specs/analysis/.analysis-progress.json` |
 
 ## Infrastructure Templates

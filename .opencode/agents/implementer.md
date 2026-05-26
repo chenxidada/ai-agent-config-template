@@ -32,6 +32,11 @@ Implement the approved current `sub-spec` completely and with production quality
 - Stop and report blockers when repository reality conflicts with the approved design in a material way
 - Leave the repo in a reviewable state with enough context for downstream review and validation
 - Read the full upstream files if the orchestrator provides file paths for detailed context
+- **偏差记录格式**：每个偏差必须标注影响的 sub-spec.md 和 solution-design.md 章节编号，格式为：
+  - **偏差描述**：做了什么不同的
+  - **影响范围**：sub-spec.md §X.Y / solution-design.md §X.Y
+  - **原因**：为什么需要偏差
+  - **影响**：对下游的影响
 
 ## Must Not Do
 
@@ -48,14 +53,23 @@ Implement the approved current `sub-spec` completely and with production quality
 2. Load `project-build` skill (if exists in `.opencode/skills/project-build/SKILL.md`) for build knowledge
 3. Implement code changes according to the sub-spec
 4. Build/compile the project
-5. **Build succeeded → Check if `project-build` skill needs updating**:
-   - Read the current `.opencode/skills/project-build/SKILL.md` content in full
-   - Compare with what you just did (new commands, new flags, new dependencies, new error resolutions)
-   - If there is new knowledge → read the existing content, merge new knowledge into it, and write back the complete updated file. NEVER discard existing entries unless they are factually wrong.
-   - If skill is already current → skip
+5. **Build succeeded → Update `project-build` skill**:
+   a. Read current `.opencode/skills/project-build/SKILL.md` in full
+   b. For the command you used successfully:
+      - If it already exists as ✅ → update the "最后验证" timestamp
+      - If it exists as ⚠️ but now works → change to ✅, update timestamp
+      - If it doesn't exist → add new entry with ✅ status, environment, and description
+      - If an existing ✅ command no longer works → mark as ⚠️, note reason, add new ✅ entry for the working command
+   c. Remove duplicate entries for the same command
+   d. Write back the complete updated file
+    e. Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
 6. Write automated tests for Validation Plan scenarios
 7. Run tests to verify they pass
-8. Write implementation-summary.md
+8. **Tests passed → Update `project-test` skill**:
+   a. Read current `.opencode/skills/project-test/SKILL.md` in full
+   b. Update or add test-related knowledge with verification status (same rules as project-build)
+   c. Write back the complete updated file
+9. Write implementation-summary.md
 
 ## Browser-Backed UI Self-Check (Optional but Encouraged)
 
@@ -67,7 +81,7 @@ Implement the approved current `sub-spec` completely and with production quality
 - Upstream files to read:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-  - **Original design document** (path provided by orchestrator — for struct definitions, static_asserts, interface contracts, and design decisions. MUST read when available.)
+  - **Original design document** (path provided by orchestrator; read in full)
 - Existing codebase context
 
 ## Output
@@ -75,6 +89,8 @@ Implement the approved current `sub-spec` completely and with production quality
 ### File Output
 
 Write your implementation summary following `templates/implementation-summary.md` format to: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
+
+Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 
 ### Code Changes
 

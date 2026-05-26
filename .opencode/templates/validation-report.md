@@ -1,5 +1,7 @@
 # Validation Report Template
 
+> **Append mode**: see `unified-pipeline.md` §"Loop Document Append Mode".
+
 ## Scope Validated
 
 ## Test Execution Matrix

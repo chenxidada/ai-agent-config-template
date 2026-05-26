@@ -41,7 +41,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - First-time from design doc: "Extract implementable requirements from this completed design document" (extract mode)
   - Append: "Append new requirements to the existing `specs/requirements/requirements.md`" (append mode)
 - **Read upstream**: `specs/exploration/repo-exploration.md`
-- **Read original design document**: (path provided by Orchestrator — MUST read in full in extract mode)
+- **Read original design document**: (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Read existing** (append mode): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
 - **Expect back**: Summary of goals, intended scope, module contract count, acceptance criteria count, open questions
@@ -53,7 +53,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - First-time: "Create a new master-spec with phase breakdown"
   - Append: "Update the existing `specs/master-spec.md` — add new phases for the new requirements. Do NOT modify completed phases."
 - **Read upstream**: `specs/requirements/requirements.md`, `specs/exploration/repo-exploration.md` (if available)
-- **Read original design document**: (path provided by Orchestrator — MUST read for interface definitions and constraints)
+- **Read original design document**: (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Read existing** (append mode): `specs/master-spec.md`
 - **Output files**:
   - `specs/master-spec.md` (create or update)
@@ -72,13 +72,25 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 
 ---
 
+### Stage 4.5: Phase Preparation — repo-explorer (per phase)
+
+See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
+- **Output file**: `specs/phases/<phase-id>/repo-exploration.md`
+
+### Stage 4.6: Phase Preparation — code-analyst (per phase, OPTIONAL)
+
+See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
+- **Output file**: `specs/phases/<phase-id>/code-analysis.md`
+
+---
+
 ### Stage 5: task-planner (per phase)
 
 - **Dispatch**: Pass program-planner summary + which phase to plan
 - **Read upstream**:
   - `specs/master-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
-  - **Original design document** (path provided by Orchestrator — for interface definitions and acceptance criteria)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/phase-spec.md`
 - **Expect back**: Summary of sub-specs, recommended first sub-spec, dependencies within the phase
 
@@ -88,7 +100,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**:
   - `specs/phases/<phase-id>/phase-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
-  - **Original design document** (path provided by Orchestrator — authoritative source for interface definitions, struct layouts, design decisions)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output files**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
@@ -112,7 +124,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read upstream**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-  - **Original design document** (path provided by Orchestrator — for struct definitions, static_asserts, and interface contracts)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
 - **Code changes**: Actual code modifications + automated tests for Validation Plan scenarios
 - **Expect back**: Summary of what was implemented, key files changed, deviations from plan
@@ -124,19 +136,21 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-  - **Original design document** (path provided by Orchestrator — for verifying implementation matches design constraints)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
 - **Expect back**: Overall verdict (pass/must-fix/should-fix), finding counts, test coverage assessment
+- **Amendment Tracking**: After approving deviations, reviewer updates sub-spec.md and solution-design.md Amendments sections
 - **Loop**: If must-fix -> auto-dispatch implementer to fix -> re-review (max 3 rounds)
 
 ### Stage 10: validator (per slice)
 
 - **Dispatch**: Pass implementer + reviewer summaries
+- **Amendment Awareness**: Reads sub-spec.md Amendments section before building Test Execution Matrix — test scenarios affected by approved amendments use amended criteria
 - **Read upstream**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
-  - **Original design document** (path provided by Orchestrator — for verifying performance targets and acceptance criteria)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
 - **Expect back**: Overall result (pass/partial/fail), scenarios tested, pass/fail counts
 - **Loop**: If fail → dispatch `code-analyst` (diagnosis mode: read validation-report + relevant code → produce failure diagnosis to `specs/phases/<phase-id>/slices/<sub-spec-id>/failure-diagnosis.md`) → dispatch `implementer` with diagnosis to fix → re-dispatch `validator`. Max 3 rounds total.
@@ -155,19 +169,20 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 
 ### Phase Closure (after all SS in a Phase complete)
 
-When all sub-specs in a Phase have passed validator, the Orchestrator executes the Phase Closure Protocol (defined in orchestrator.md):
+When all sub-specs in a Phase have passed validator, the Orchestrator executes the Phase Closure Protocol.
+See `orchestrator.md` §"Phase Closure Protocol" for the full procedure.
 
-1. Collect all SS Deviations/Known Gaps + should-fix items + CapabilityClaims
-2. Generate `specs/phases/<phase-id>/scope-gap-report.md` (using template)
-3. Determine Exit Verdict: PASS / PASS_WITH_CONDITIONS / BLOCK
-4. Human Gate (Phase Exit): present verdict to user
-5. If BLOCK: do NOT proceed. If PASS_WITH_CONDITIONS: user decides.
+**After Phase Closure and before the next Phase's task-planner**, the Phase Preparation stages run: repo-explorer (Stage 4.5) to re-explore the now-modified codebase, and optionally code-analyst (Stage 4.6) to re-analyze. This ensures the next phase starts with fresh knowledge of the current codebase state.
 
 ---
 
 ## Loop Counter Reset
 
 When moving from one sub-spec to the next, or from one phase to the next, the reviewer/validator loop counters reset to 0.
+
+## Loop Document Append Mode
+
+In reviewer must-fix or validator fail loops, `implementation-summary.md`, `review-report.md`, and `validation-report.md` use **APPEND mode** (timestamped rounds) rather than OVERWRITE mode. This preserves the history of what was tried and why across all loop cycles.
 
 ## Expected Output Structure
 
@@ -178,13 +193,16 @@ specs/
 |-- current-status.md
 |-- master-spec.md
 |-- exploration/
-|   +-- repo-exploration.md
+|   +-- repo-exploration.md          ← first-time exploration only
 |-- requirements/
 |   +-- requirements.md
 +-- phases/
     |-- <phase-1>/
+    |   |-- repo-exploration.md       ← phase-specific (NEW)
+    |   |-- code-analysis.md          ← phase-specific, optional (NEW)
     |   |-- requirements.md
     |   |-- phase-spec.md
+    |   |-- scope-gap-report.md
     |   +-- slices/
     |       +-- <sub-spec-id>/
     |           |-- sub-spec.md
@@ -193,6 +211,8 @@ specs/
     |           |-- review-report.md
     |           +-- validation-report.md
     |-- <phase-2>/
+    |   |-- repo-exploration.md       ← re-explored for this phase (NEW)
+    |   |-- code-analysis.md          ← re-analyzed for this phase (NEW)
     |   +-- ...
     +-- ...
 ```
