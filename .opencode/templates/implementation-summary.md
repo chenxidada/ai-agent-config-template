@@ -109,6 +109,25 @@
   - Error message localization deferred to phase 2
 -->
 
+## Placeholders / Stubs（有意创建的桩代码）
+
+<!--
+  记录本 sub-spec 创建但未完整实现的代码。
+  类型占位 / 流程骨架 / 空实现框架 / 假返回值 / 条件桩
+  每个桩必须同步到 specs/tech-debt-registry.md
+-->
+
+| # | 文件:函数:行号 | 当前行为 | 预期行为 | 桩类型 | 延期目标 | 影响范围 |
+|---|---------------|---------|---------|--------|---------|---------|
+| — | — | — | — | — | — | — |
+
+### 和 Known Gaps 的区别
+- **Known Gaps**：功能完全没写
+- **Placeholders/Stubs**：代码存在、编译通过、但逻辑不完整
+
+### 同步要求
+本表的每一项必须同步到 `specs/tech-debt-registry.md`。
+
 ## Handoff Notes For Reviewer
 
 <!-- 

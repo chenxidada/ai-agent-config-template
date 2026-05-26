@@ -145,6 +145,26 @@ Your prompt to each subagent must include:
 - If prior analysis reports exist: include as optional reference context
   - **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
 
+### Phase Entry Gate (NEW — before Phase Preparation)
+
+Before starting a NEW phase (Phase 2+), the Orchestrator MUST:
+
+1. Read `specs/tech-debt-registry.md` §活跃债务
+2. Filter entries where:
+   - `目标Phase` = current phase, OR
+   - `阻塞` = 🔴 (critical blockers regardless of target phase)
+3. Present to user at a Human Gate:
+   ```
+   Phase N 继承了以下技术债（共 X 项）：
+   - [STUB-001] someip-gateway deliver_inbound — 空实现，需实现SOME/IP转发，目标Phase 3
+   - [STUB-002] UserService.getUserPermissions — 返回[]，需RBAC权限解析，目标Phase 3
+   - [GAP-001]   dds-gateway 条件桩 — 无DDS_REAL_TRANSPORT时不可用，阻塞🔴
+   
+   这些是否已纳入 Phase N 计划？
+   ```
+4. User must confirm before proceeding to Phase Preparation
+5. If user declines → Phase N must be re-scoped to include these items
+
 ### Phase Preparation (Before Stage 5: task-planner)
 
 When starting a NEW phase (not the first phase, and not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
@@ -231,8 +251,12 @@ After all sub-specs in a Phase have completed (passed validator + Human Gate 2):
 2. **Generate**: `specs/phases/<phase-id>/scope-gap-report.md` — cross-reference CapabilityClaims vs actual delivery, classify gaps as Deferred/Degraded/Missed
 3. **Exit Verdict**: PASS (all claims met) / PASS_WITH_CONDITIONS (partial claims, non-blocking) / BLOCK (unknown-impact gaps or blocking should-fix)
 4. **Human Gate (Phase Exit)**: Present CapabilityClaim summary + deferred items + verdict. BLOCK = do not proceed. PASS_WITH_CONDITIONS = user decides.
-5. **Update**: `specs/current-status.md` Phase Deferred Items Tracker
-6. **KM checkpoint**: Sync Phase completion as Decision Doc
+5. **Sync to tech-debt-registry.md**:
+   - For each new deferred item from scope-gap-report → add entry to registry §活跃债务 (if not already there)
+   - For items resolved in this phase → move from §活跃债务 to §已解决
+   - For items that became obsolete → update status with ⚠️ reason
+6. **Update**: `specs/current-status.md` Phase Deferred Items Tracker
+7. **KM checkpoint**: Sync Phase completion as Decision Doc
 
 ## Short Flow
 

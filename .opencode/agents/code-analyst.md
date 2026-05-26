@@ -44,6 +44,9 @@ When the Orchestrator dispatches you with a review focus angle:
 When the Orchestrator dispatches you with a failure to investigate:
 
 - Read the failure report (validation-report.md, build output, or error logs) in full
+- Read `specs/tech-debt-registry.md` before analyzing the failure — the root cause may be a known stub
+- If the failing function is in the registry → report it as "known stub — implementation deferred to Phase X"
+- If the failing function is NOT in the registry but behaves like a stub → flag it for registry addition
 - Identify the specific files, functions, and logic paths involved in the failure
 - Determine root cause: is it a logic error, missing implementation, wrong assumption, environment issue, or test issue?
 - Produce a concise, actionable diagnosis that tells implementer exactly what to fix and where

@@ -68,6 +68,22 @@
   - `packages/shared/src/types/` — new type definitions
 -->
 
+## Inherited Obligations（继承的技术债）
+
+<!--
+  task-planner 从 tech-debt-registry.md 和 Deferred Items Tracker 中提取。
+  处理方式：纳入本Phase / 继续延期 / 已过时
+-->
+
+| ID | 来源 | 描述 | 处理方式 | 对应 Sub-Spec |
+|----|------|------|---------|:---------:|
+| — | — | — | — | — |
+
+### 处理方式说明
+- **纳入本 Phase**：创建对应的 sub-spec，在 backlog 中体现
+- **继续延期**：更新 tech-debt-registry.md 中的目标 Phase，注明原因
+- **已过时**：接口已变/不再适用，在 tech-debt-registry.md 标记 ⚠️
+
 ## Sub-Spec Backlog
 
 <!--

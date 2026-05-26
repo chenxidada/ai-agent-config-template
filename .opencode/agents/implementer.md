@@ -32,6 +32,8 @@ Implement the approved current `sub-spec` completely and with production quality
 - Stop and report blockers when repository reality conflicts with the approved design in a material way
 - Leave the repo in a reviewable state with enough context for downstream review and validation
 - Read the full upstream files if the orchestrator provides file paths for detailed context
+- Classify any intentionally incomplete code as a Placeholder/Stub, distinct from Deviations (done differently) and Known Gaps (not done at all)
+- Register every stub in `specs/tech-debt-registry.md` with precise file:function:line location
 - **偏差记录格式**：每个偏差必须标注影响的 sub-spec.md 和 solution-design.md 章节编号，格式为：
   - **偏差描述**：做了什么不同的
   - **影响范围**：sub-spec.md §X.Y / solution-design.md §X.Y
@@ -52,8 +54,11 @@ Implement the approved current `sub-spec` completely and with production quality
 1. Read the approved sub-spec + solution-design + original design document (if provided)
 2. Load `project-build` skill (if exists in `.opencode/skills/project-build/SKILL.md`) for build knowledge
 3. Implement code changes according to the sub-spec
-4. Build/compile the project
-5. **Build succeeded → Update `project-build` skill**:
+4. **After writing or modifying code:**
+   - If you created stub/placeholder code → add entry to `specs/tech-debt-registry.md` §活跃债务
+   - If you filled in a previously registered stub → move it from `specs/tech-debt-registry.md` §活跃债务 to §已解决
+5. Build/compile the project
+6. **Build succeeded → Update `project-build` skill**:
    a. Read current `.opencode/skills/project-build/SKILL.md` in full
    b. For the command you used successfully:
       - If it already exists as ✅ → update the "最后验证" timestamp
@@ -63,13 +68,13 @@ Implement the approved current `sub-spec` completely and with production quality
    c. Remove duplicate entries for the same command
    d. Write back the complete updated file
     e. Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
-6. Write automated tests for Validation Plan scenarios
-7. Run tests to verify they pass
-8. **Tests passed → Update `project-test` skill**:
+7. Write automated tests for Validation Plan scenarios
+8. Run tests to verify they pass
+9. **Tests passed → Update `project-test` skill**:
    a. Read current `.opencode/skills/project-test/SKILL.md` in full
    b. Update or add test-related knowledge with verification status (same rules as project-build)
    c. Write back the complete updated file
-9. Write implementation-summary.md
+10. Write implementation-summary.md
 
 ## Browser-Backed UI Self-Check (Optional but Encouraged)
 
@@ -81,6 +86,7 @@ Implement the approved current `sub-spec` completely and with production quality
 - Upstream files to read:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - `specs/tech-debt-registry.md` — check which interfaces are known stubs before depending on them
   - **Original design document** (path provided by orchestrator; read in full)
 - Existing codebase context
 
@@ -89,6 +95,8 @@ Implement the approved current `sub-spec` completely and with production quality
 ### File Output
 
 Write your implementation summary following `templates/implementation-summary.md` format to: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
+
+**`implementation-summary.md`**: summary of what was implemented, key files changed, deviations from plan, and **Placeholders/Stubs** created (in §Placeholders/Stubs section)
 
 Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 

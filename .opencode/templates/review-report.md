@@ -28,6 +28,24 @@
 
 ## Hidden Risks / Edge Cases
 
+## Stubs Identified（检测到的桩代码）
+
+<!--
+  判定：
+  🔴 BLOCKER → 未标注的桩，must-fix（实现或补注册）
+  ⚠️ 已知桩 → implementer 已标注，确认延期目标正确
+  🟡 条件桩 → 有条件编译，标注可用/不可用场景
+-->
+
+| # | 判定 | 文件:函数:行号 | 当前行为 | 已注册？ | 动作 |
+|---|:---:|---------------|---------|:---:|------|
+| — | — | — | — | — | — |
+
+### 处理说明
+- 已注册于 tech-debt-registry.md 的桩 → ⚠️ 确认分类正确
+- 未注册的桩 → 🔴 must-fix：要求 implementer 补注册或补实现
+- 已解决的历史桩 → 确认后在 tech-debt-registry.md 移到 §已解决
+
 ## Additional Test Scenarios
 
 <!-- New scenarios discovered during review that are NOT in the original Validation Plan -->

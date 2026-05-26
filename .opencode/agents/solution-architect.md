@@ -45,6 +45,8 @@ From Orchestrator dispatch prompt:
 Upstream files to read:
 - `specs/phases/<phase-id>/phase-spec.md` — the phase plan from task-planner
 - `specs/requirements/requirements.md` — original requirements (if needed for context)
+- `specs/tech-debt-registry.md` — verify that interfaces your design depends on are not known stubs
+- Previous phases' `scope-gap-report.md` and `implementation-summary.md` (path provided by Orchestrator)
 - **Original design document** (path provided by orchestrator — authoritative source for interface definitions, struct layouts, performance targets, and design decisions. MUST read when available.)
 
 **Files you must NOT expect to exist (you will create them):**

@@ -62,6 +62,23 @@ After reviewing implementation and approving any deviations from plan:
       - Add the corresponding amendment entry
 3. In `review-report.md`, list all Amendments processed in this review cycle
 
+### Stub Detection（桩识别）
+
+Before approving the implementation, scan for stub code that implementer may not have flagged:
+
+**Detection signals** (lightweight, do not require line-by-line analysis):
+1. Function body is only `(void)args` or empty `{}`
+2. Function body is a single `return` with hardcoded constant: `return [];`, `return true;`, `return Ok(0);`
+3. Function has `#ifdef`-guarded real implementation but no corresponding real `#else` branch
+4. Function calls another function that is already registered as a stub in `specs/tech-debt-registry.md`
+
+**Processing**:
+- Already registered in tech-debt-registry.md → confirm the classification and target phase are correct → write to review-report.md §Stubs Identified as ⚠️ Known
+- NOT registered → mark as 🔴 must-fix:
+  a. If intentionally deferred → implementer must add it to tech-debt-registry.md + implementation-summary.md
+  b. If accidentally omitted → implementer must implement
+- Confirmed previously-registered stub is now resolved → move entry to tech-debt-registry.md §已解决
+
 ## Browser-Backed Review (Optional but Encouraged for UI changes)
 
 审查涉及 UI 的 PR 时，**可以**通过 Playwright MCP（`browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_console_messages` 等结构化 `browser_*` 工具）打开实际页面对照代码 review，验证组件渲染、交互、无 console error。Playwright MCP 由 `opencode.jsonc` 中的 `playwright` server 提供，复用本机 Chrome，零安装成本。注意：reviewer 的 `edit` 仅用于写 `specs/` 报告，不要因浏览器观察结果直接改源码——发现问题写进 review-report.md 的 must-fix / should-fix。
@@ -73,6 +90,7 @@ After reviewing implementation and approving any deviations from plan:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` (especially the Validation Plan and Completion Criteria)
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
+  - `specs/tech-debt-registry.md` — check which functions are known stubs before flagging them as issues
   - **Original design document** (path provided by orchestrator; read in full)
 - Relevant changed files or diff context
 
@@ -85,6 +103,8 @@ The `edit` permission is granted solely for writing spec documents to the `specs
 ### File Output
 
 Write your review report following `templates/review-report.md` format to: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
+
+**`review-report.md`**: overall verdict, finding counts, test coverage assessment, and **Stubs Identified** (§Stubs Identified)
 
 Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 

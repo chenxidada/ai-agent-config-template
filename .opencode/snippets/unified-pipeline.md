@@ -72,6 +72,22 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 
 ---
 
+### Phase Entry Gate (NEW — before Stage 4.5, Phase 2+ only)
+
+Before Phase Preparation for Phase N (N >= 2), the Orchestrator MUST:
+
+1. Read `specs/tech-debt-registry.md` §活跃债务
+2. Filter entries where target phase = N or blocking = 🔴
+3. Present inherited debt to user at a Human Gate:
+   ```
+   Phase N inherits the following technical debt (X items):
+   - [ID] description — current behavior → expected, target Phase N
+   Are these included in Phase N's plan?
+   ```
+4. User must confirm before proceeding to Stage 4.5
+
+---
+
 ### Stage 4.5: Phase Preparation — repo-explorer (per phase)
 
 See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
@@ -91,6 +107,9 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/master-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
   - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
+  - `specs/tech-debt-registry.md` — inherited technical debt from previous phases
+  - `specs/current-status.md` — Phase Deferred Items Tracker
+  - Previous phases' `scope-gap-report.md` (path provided by Orchestrator)
 - **Output file**: `specs/phases/<phase-id>/phase-spec.md`
 - **Expect back**: Summary of sub-specs, recommended first sub-spec, dependencies within the phase
 
@@ -101,6 +120,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/phases/<phase-id>/phase-spec.md`
   - `specs/phases/<phase-id>/requirements.md`
   - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
+  - `specs/tech-debt-registry.md` — verify dependency interfaces are not known stubs
 - **Output files**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
@@ -125,6 +145,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
   - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
+  - `specs/tech-debt-registry.md` — check which interfaces are known stubs before depending on them
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
 - **Code changes**: Actual code modifications + automated tests for Validation Plan scenarios
 - **Expect back**: Summary of what was implemented, key files changed, deviations from plan
@@ -141,6 +162,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 - **Expect back**: Overall verdict (pass/must-fix/should-fix), finding counts, test coverage assessment
 - **Amendment Tracking**: After approving deviations, reviewer updates sub-spec.md and solution-design.md Amendments sections
 - **Loop**: If must-fix -> auto-dispatch implementer to fix -> re-review (max 3 rounds)
+- **Stub Detection**: Reviews code for unregistered stubs using detection signals (empty bodies, hardcoded returns, one-way #ifdef). Known stubs confirmed; unknown stubs flagged as must-fix.
 
 ### Stage 10: validator (per slice)
 
@@ -154,6 +176,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
 - **Expect back**: Overall result (pass/partial/fail), scenarios tested, pass/fail counts
 - **Loop**: If fail → dispatch `code-analyst` (diagnosis mode: read validation-report + relevant code → produce failure diagnosis to `specs/phases/<phase-id>/slices/<sub-spec-id>/failure-diagnosis.md`) → dispatch `implementer` with diagnosis to fix → re-dispatch `validator`. Max 3 rounds total.
+- **Stub-Aware Validation**: Reads tech-debt-registry.md — known stubs excluded from behavioral checks. Unregistered critical-path functions subjected to parameter variation tests.
 
 ### Stage 11: knowledge-manager checkpoint
 
@@ -171,6 +194,9 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 
 When all sub-specs in a Phase have passed validator, the Orchestrator executes the Phase Closure Protocol.
 See `orchestrator.md` §"Phase Closure Protocol" for the full procedure.
+
+**Phase Closure steps include**:
+5. Sync deferred items from scope-gap-report to `specs/tech-debt-registry.md`
 
 **After Phase Closure and before the next Phase's task-planner**, the Phase Preparation stages run: repo-explorer (Stage 4.5) to re-explore the now-modified codebase, and optionally code-analyst (Stage 4.6) to re-analyze. This ensures the next phase starts with fresh knowledge of the current codebase state.
 
@@ -190,6 +216,7 @@ After a complete run, the specs/ directory will contain:
 
 ```
 specs/
+|-- tech-debt-registry.md              ← unified tech debt registry (NEW)
 |-- current-status.md
 |-- master-spec.md
 |-- exploration/

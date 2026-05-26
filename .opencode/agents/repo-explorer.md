@@ -71,8 +71,20 @@ When dispatched for a specific phase with an existing `specs/exploration/repo-ex
 1. Read the first-time exploration as background context
 2. Focus on areas relevant to THIS phase's scope
 3. Identify what has changed since the first-time exploration (or since the previous phase)
-4. Mark findings as "unchanged from initial exploration" vs "updated for Phase <N>"
-5. Highlight new modules, changed entry points, and modified call paths
+4. **Stub detection scan**:
+   a. Read `specs/tech-debt-registry.md` §活跃债务 — know which functions are already registered as stubs
+   b. Search for unregistered stub signals:
+      - Function bodies with only `(void)args` or empty `{}`
+      - Single-line return with hardcoded constants
+      - `#ifdef` with real code but no corresponding real `#else` branch
+      - Comments containing TODO/FIXME/空实现/占位/@STUB
+   c. Cross-validate: for each registered stub, check if the code still exists and still matches the registry description
+   d. Report findings in `repo-exploration.md`:
+      - ✅ Confirmed stubs: match registry
+      - ⚠️ Registry mismatch: code changed but registry not updated
+      - 🔴 Unregistered stubs: found in code but not in registry
+5. Mark findings as "unchanged from initial exploration" vs "updated for Phase <N>"
+6. Highlight new modules, changed entry points, and modified call paths
 
 ## Handoff
 

@@ -18,6 +18,8 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - Exceed max rounds -> escalate to user
 - **Phase Preparation**: Before each new Phase (Phase 2+), run repo-explorer (Stage 4.5) to re-explore the now-modified codebase, writing to `specs/phases/<phase-id>/repo-exploration.md`. Optionally run code-analyst (Stage 4.6) for deep per-phase analysis.
 - **First phase uses global exploration**: Phase 1 uses `specs/exploration/repo-exploration.md` from initial exploration. Subsequent phases each get their own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`.
+- **Phase Entry Gate**: Before Phase Preparation for Phase 2+, read `specs/tech-debt-registry.md` and present inherited debt to user for confirmation
+- **Tech Debt Registry**: All agents read and write `specs/tech-debt-registry.md` as the single source of truth for outstanding technical debt. New stubs are registered; resolved stubs are moved to resolved section.
 
 ### Subagent Rules
 
@@ -35,6 +37,12 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - `/analyze <desc>` - Codebase/module analysis (human-readable report, no code changes)
 
 `/feature`, `/bugfix`, and `/rebuild` share the same unified pipeline structure. The intent tag determines scope and emphasis, not the pipeline shape. See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
+
+### Delegation Matrix
+
+| Responsibility | Agents | Notes |
+|---------------|--------|-------|
+| Maintain tech-debt-registry | `implementer`, `reviewer`, `validator`, Orchestrator | Update registry when creating/detecting/resolving stubs |
 
 ## Knowledge Base MCP
 
@@ -105,6 +113,19 @@ These skills start as empty skeletons. Agents update them after successful opera
 - **Verification state**: Every knowledge entry in a skill should have a verification status (verified / deprecated / unverified) and a last-verified timestamp.
 - **Cross-agent verification**: validator may update project-build skill; implementer may update project-test skill. Skills are not single-agent silos.
 - Never delete accumulated knowledge from skills — mark deprecated entries as ⚠️ 已过期 with a reason instead of deleting them
+
+## Tech Debt Registry
+
+`specs/tech-debt-registry.md` is the unified technical debt registry. All phases share one file.
+
+### Rules
+
+- **Single source of truth**: No agent should maintain a separate debt list — everything goes through the registry
+- **Write on creation**: When creating stub/placeholder code, immediately register it
+- **Read before trusting**: Before depending on an existing interface, check if it's in the registry
+- **Update on resolution**: When a stub is filled in, move it from "active" to "resolved"
+- **Cross-reference on review**: Reviewer compares code against registry to catch unregistered stubs
+- **Validate on verification**: Validator uses registry to skip known stubs and flag suspected new ones
 
 ## Preferred Tool Categories
 

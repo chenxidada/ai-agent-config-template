@@ -51,6 +51,7 @@ Verify that the implemented slice works by designing and executing test cases, r
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md` (especially: Additional Test Scenarios, Recommended Validation Commands, Test Coverage Assessment)
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` (especially: Validation Plan, Completion Criteria)
+  - `specs/tech-debt-registry.md` — known stubs excluded from behavioral checks
   - **Original design document** (path provided by orchestrator; read in full)
 - Acceptance criteria from the current sub-spec and phase plan
 
@@ -59,17 +60,24 @@ Verify that the implemented slice works by designing and executing test cases, r
 1. **Load test skill + Read Amendments**:
    - Read sub-spec.md Amendments section — test scenarios affected by approved amendments should use the amended criteria
    - Read `.opencode/skills/project-test/SKILL.md` for test knowledge
-2. **Collect all test scenarios**: Merge scenarios from sub-spec Validation Plan + reviewer Additional Test Scenarios + your own findings
-3. **Run build and lint** — if build fails:
+2. **Stub-aware validation**:
+   - Read `specs/tech-debt-registry.md` — known stubs are excluded from behavioral verification
+   - For critical-path functions NOT in the registry: perform a **parameter variation test**
+     - Call the function with at least 2 different sets of inputs
+     - If all inputs produce identical output → flag as "suspected stub"
+     - If output varies with input → function likely has real logic
+   - Suspected stubs → write to `specs/tech-debt-registry.md` §活跃债务 + report as validation failure
+3. **Collect all test scenarios**: Merge scenarios from sub-spec Validation Plan + reviewer Additional Test Scenarios + your own findings
+4. **Run build and lint** — if build fails:
    a. Check `.opencode/skills/project-build/SKILL.md` — is the build command wrong?
    b. If the skill has a wrong/outdated build command, correct it and try the corrected command
    c. Update project-build skill with the fix
-4. **Run existing automated tests** relevant to the change
-5. **Execute each test scenario** — use existing tests, manual commands, or write temporary scripts
-6. **Frontend visual validation** — if the change involves UI, follow the Frontend Validation Strategy below
-7. **Record evidence** for every scenario: command output, test results, screenshots, pass/fail
-8. **Assess acceptance criteria** — map each criterion to test results
-9. **Update test skill**:
+5. **Run existing automated tests** relevant to the change
+6. **Execute each test scenario** — use existing tests, manual commands, or write temporary scripts
+7. **Frontend visual validation** — if the change involves UI, follow the Frontend Validation Strategy below
+8. **Record evidence** for every scenario: command output, test results, screenshots, pass/fail
+9. **Assess acceptance criteria** — map each criterion to test results
+10. **Update test skill**:
    a. Read current `.opencode/skills/project-test/SKILL.md` in full
    b. For the test commands and framework you used successfully:
       - If already exists as ✅ → update "最后验证" timestamp
@@ -79,7 +87,7 @@ Verify that the implemented slice works by designing and executing test cases, r
    c. Remove duplicates, merge related entries
    d. Write back the complete file
     e. Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
-10. **Write the validation report** with the complete Test Execution Matrix
+11. **Write the validation report** with the complete Test Execution Matrix
 
 ## Frontend Validation Strategy
 

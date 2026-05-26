@@ -37,12 +37,26 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
 - Do not invent product scope
 - Do not jump into code changes
 
+### Inherited Obligations
+
+Before creating the sub-spec backlog:
+1. Read `specs/tech-debt-registry.md` §活跃债务 — filter items where target=this phase or blocking=🔴
+2. Read `specs/current-status.md` Phase Deferred Items Tracker
+3. For each inherited obligation, decide:
+   - **Include in this phase** → create a sub-spec in the backlog
+   - **Defer further** → update the registry entry with new target phase + reason
+   - **Obsolete** → mark as ⚠️ in registry (code changed, no longer applicable)
+4. Fill the `§Inherited Obligations` section in the phase-spec output
+
 ## Input
 
 - Program-planner summary from orchestrator, including which phase to plan
 - Upstream files to read:
   - `specs/master-spec.md` (always — for global context and phase definitions)
   - `specs/phases/<phase-id>/requirements.md` (always — for phase-specific requirements)
+  - `specs/tech-debt-registry.md` — inherited technical debt from previous phases
+  - `specs/current-status.md` — Phase Deferred Items Tracker
+  - Previous phases' `scope-gap-report.md` (path provided by Orchestrator)
   - **Original design document** (path provided by orchestrator — for interface definitions, struct layouts, and acceptance criteria. MUST read when available.)
 
 ## Output
