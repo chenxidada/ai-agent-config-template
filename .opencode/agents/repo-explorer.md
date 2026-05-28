@@ -26,6 +26,7 @@ Build a fast, reality-based understanding of the repository before planning, des
 - Trace the relevant paths from user-facing entry points to core implementation areas, covering the full impact surface
 - Distinguish confirmed facts from hypotheses
 - Highlight files and directories that downstream agents should read first
+- Before deep-reading files, use code2prompt (if available) to generate a file inventory. Don't waste time browsing directories — let the tool tell you what files exist and their sizes.
 - **Verification standard**: A "confirmed fact" requires more than file/function existence.
   - ✅ Confirmed: Function body has been read and contains real logic (not just (void), return [], return Ok(0))
   - ⚠️ Uncertain: Function signature exists, compiles, but body was not verified
@@ -44,7 +45,7 @@ Build a fast, reality-based understanding of the repository before planning, des
 - User task or requirement description
 - Repository path
 - Any existing requirement or issue context
-- **Repository map output** (optional): When the Orchestrator provides a code map file (generated via tree-sitter + PageRank), use it as the starting point for exploration. The map lists Top N most relevant files ranked by structural importance.
+- **Repository map output** (optional): When the Orchestrator notes that `code2prompt` is available, the agent should generate a structured file inventory (source tree + file list with token counts) using `.opencode/templates/repo-map.hbs` and use it as the starting point for exploration.
 
 ## Output
 
@@ -76,10 +77,12 @@ Do NOT include the full exploration document in your return message.
 
 When dispatched for a specific phase with an existing `specs/exploration/repo-exploration.md`:
 
-0. Read the repository map file if provided by the Orchestrator. The map contains:
-   - Top N files ranked by PageRank, weighted by Phase keywords
-   - Reference graph edges (file A references file B)
-   Use this list as the starting point for exploration — focus on map-recommended files first, then supplement with manual discoveries.
+0. **Generate codebase map with code2prompt**:
+   - If `code2prompt` is available (check with `which code2prompt`):
+     a. Run: `code2prompt src/ --include="*.cpp,*.h,*.hpp" --exclude="tests/*,third_party/*,build/*" --template .opencode/templates/repo-map.hbs --output-file <output-dir>/repo-map.md`
+     b. Read `repo-map.md` — use the file inventory to plan which files to explore in depth
+     c. Prioritize: large files with high token count may be core implementation; small files may be headers or configs
+   - If `code2prompt` is NOT available: proceed with manual directory exploration as before
 1. Read the first-time exploration as background context
 2. Focus on areas relevant to THIS phase's scope
 3. Identify what has changed since the first-time exploration (or since the previous phase)

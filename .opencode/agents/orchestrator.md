@@ -185,15 +185,9 @@ Before starting a NEW phase (Phase 2+), the Orchestrator MUST:
 
 When starting a NEW phase (not the first phase, and not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
 
-#### Stage 4.4 — Code Map (per phase)
+### repo-explorer tools
 
-Before dispatching repo-explorer for Phase N (N >= 1):
-1. If the project uses C/C++ and has >50 source files:
-   - Generate a repository map using tree-sitter + PageRank
-   - Weight by Phase N keywords from phase-spec.md
-   - Output to specs/phases/<phase-id>/repo-map.md
-2. Pass the map path to repo-explorer in the dispatch prompt
-3. Repo-explorer uses the map as its starting point, supplements with manual discovery
+Before dispatching repo-explorer, check if `code2prompt` is available on the system path. If yes, note this in the dispatch prompt so repo-explorer knows to use it. If no, repo-explorer will fall back to manual directory exploration.
 
 1. **repo-explorer (Phase Preparation)**:
    - Dispatch with `phase_id` and phase scope

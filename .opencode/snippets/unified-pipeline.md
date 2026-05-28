@@ -88,16 +88,9 @@ Before Phase Preparation for Phase N (N >= 2), the Orchestrator MUST:
 
 ---
 
-### Stage 4.4: Code Map Generation (NEW — before Stage 4.5, per phase)
-
-Generate a repository map using tree-sitter parsing + PageRank ranking to identify the most structurally relevant files for this phase.
-
-- **What it does**: Parse all C++ source files (.cpp, .h, .hpp) with tree-sitter, extract symbol definitions and call relationships, build a reference graph, run PageRank, weight by Phase keywords, output Top N files.
-- **Output file**: `specs/phases/<phase-id>/repo-map.md` — ranked file list with relevance scores and reference edges
-- **Pass to**: repo-explorer (Stage 4.5) as input
-- **When to skip**: Skip if the project language doesn't have a tree-sitter parser, or if the codebase has fewer than ~50 source files (repo-explorer can handle it manually)
-
 ### Stage 4.5: Phase Preparation — repo-explorer (per phase)
+
+- **code2prompt**: The repo-explorer may use the code2prompt tool (see `.opencode/skills/code2prompt/SKILL.md`) to generate a structured file index before deep exploration.
 
 See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 - **Output file**: `specs/phases/<phase-id>/repo-exploration.md`
