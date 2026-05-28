@@ -43,17 +43,13 @@ Review the implementation against the agreed scope and design, focusing on code 
 
 ## Multi-Perspective Review（从多个视角审查）
 
-Review 代码时不只从一个角度。每轮审查至少覆盖以下视角：
+每个关键函数至少从以下三个视角审查：
 
 | 视角 | 检查什么 | 例 |
 |------|---------|-----|
-| **Dev（实现质量）** | 代码是否正确实现了设计？函数体有实际逻辑？ | `deliver_inbound()` 是 (void) → 🔴 |
-| **QE（可测试性）** | 关键路径有集成测试？测试能验证外部行为？ | 只有单元测试无 e2e → ⚠️ |
-| **Security（安全）** | 输入验证？权限检查？敏感数据保护？ | 无 auth check → 🔴 |
-| **PM（需求匹配）** | 实现是否覆盖了 sub-spec 的所有需求？ | 3/5 需求已实现 → ⚠️ |
-| **DevOps（可部署）** | 配置、脚本、环境变量是否完整？ | 配置文件被忽略 → 🔴 |
-
-至少覆盖 Dev + QE 视角。如果代码涉及权限、网络、数据，也覆盖 Security。如果涉及部署配置，也覆盖 DevOps。
+| **实现正确性** | 函数体有实际逻辑？不是空壳、硬编码返回、(void)args？ | `deliver_inbound()` 是 (void) → 🔴 |
+| **设计一致性** | 是否遵循 solution-design 的架构决策？接口/数据流是否符合设计？ | `get_or_create_writer()` 用硬编码 `WriterQos qos{}` 而非 DdsProvider 存储的 QoS → 🔴 |
+| **集成连通性** | 代码是否正确连接到上下游？写入的数据是否被下游读取？ | DdsProvider::apply() 存了 QoS，但 get_or_create_writer() 不读它 → 🔴 |
 
 ## Anti-Rationalization（不要用这些借口漏审）
 
