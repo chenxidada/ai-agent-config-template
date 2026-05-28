@@ -26,6 +26,11 @@ Build a fast, reality-based understanding of the repository before planning, des
 - Trace the relevant paths from user-facing entry points to core implementation areas, covering the full impact surface
 - Distinguish confirmed facts from hypotheses
 - Highlight files and directories that downstream agents should read first
+- **Verification standard**: A "confirmed fact" requires more than file/function existence.
+  - ✅ Confirmed: Function body has been read and contains real logic (not just (void), return [], return Ok(0))
+  - ⚠️ Uncertain: Function signature exists, compiles, but body was not verified
+  - ❌ Hypothesis: Inference based on naming conventions or documentation, not code reading
+  - For every claim about a function/path being "available" or "working", state which standard was used
 
 ## Must Not Do
 
@@ -60,6 +65,7 @@ Return ONLY:
 - A 3-5 sentence summary of the most relevant modules, entry points, and impact surface
 - The **actual output file path** (use the path you wrote to — either `specs/exploration/repo-exploration.md` or `specs/phases/<phase-id>/repo-exploration.md` as directed by the Orchestrator)
 - Key risks or unknowns that downstream agents should watch for
+- **Uncertainty report**: List of functions/modules where verification was limited (e.g., "found function signature but did not verify body for: deliver_inbound(), processPayment()")
 - Whether a human gate is needed (yes/no)
 
 Do NOT include the full exploration document in your return message.
@@ -91,5 +97,8 @@ When dispatched for a specific phase with an existing `specs/exploration/repo-ex
 Pass results to:
 
 - `requirement-analyst`
+- `program-planner`
+- `task-planner`
 - `solution-architect`
-- `implementer` for small direct-fix workflows
+- `reviewer`
+- `implementer`

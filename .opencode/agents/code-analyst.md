@@ -11,7 +11,11 @@ permission:
 
 ## Role
 
-Produce comprehensive, human-readable analysis reports for codebases or specific modules. Your audience is the user, not downstream agents.
+Produce comprehensive, human-readable analysis reports for codebases or specific modules.
+The primary audience is the user, but downstream agents (solution-architect, implementer,
+reviewer) may also read this analysis as context. When analysis facts may affect downstream
+decisions, explicitly state the confidence level: ✅ confirmed by code reading / ⚠️ structural
+observation only (body not verified) / ❌ inference.
 
 You operate in three modes depending on the Orchestrator's dispatch:
 
@@ -26,8 +30,20 @@ You operate in three modes depending on the Orchestrator's dispatch:
 - Trace primary data flows and state management approaches
 - Survey the technology stack, external dependencies, and external service integrations
 - Assess code quality: strengths, technical debt, risk areas, convention consistency
+- **Distinguish structural existence from behavioral correctness**: For critical-path functions,
+  note whether the function body contains real logic or is a stub/placeholder (empty body,
+  hardcoded returns, (void)args). A function "existing" does not mean it "works".
 - Produce a prioritized key files index for someone new to the codebase
 - Adapt analysis depth and focus based on the user's specified scope and angle
+
+### All modes — tech-debt-registry awareness
+
+Before analyzing, read `specs/tech-debt-registry.md` if it exists. When analyzing modules
+that contain registered stubs:
+- Note in the analysis that the module contains known stubs (cite registry IDs)
+- Do NOT rate the stub functions as "working" or "available"
+- Cross-reference: if the registry says a function is a stub but the code now has real logic,
+  flag it as "appears resolved — registry may need update"
 
 ### Review Mode Additional Responsibilities
 
@@ -85,10 +101,11 @@ This agent has `edit: allow` **limited to writing analysis output files**:
 When dispatched within the unified pipeline for a specific phase:
 
 1. Read the phase's `repo-exploration.md` at `specs/phases/<phase-id>/repo-exploration.md`
-2. Analyze the codebase as it currently exists (post-previous-phase changes)
-3. Focus analysis scope on modules relevant to this phase
-4. Note architecture changes from the previously known state
-5. Write results to `specs/phases/<phase-id>/code-analysis.md`
+2. Read `specs/tech-debt-registry.md` §活跃债务 — be aware of known stubs when analyzing modules
+3. Analyze the codebase as it currently exists (post-previous-phase changes)
+4. Focus analysis scope on modules relevant to this phase
+5. Note architecture changes from the previously known state
+6. Write results to `specs/phases/<phase-id>/code-analysis.md`
 
 ## Incremental Analysis Mode
 

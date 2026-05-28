@@ -35,6 +35,14 @@ Verify that the implemented slice works by designing and executing test cases, r
 - Separate verified items from items not tested or not testable in current environment
 - Explain whether the result is ready to treat as completed
 - Read the full upstream files if the orchestrator provides file paths for detailed context
+- **End-to-end behavioral verification**: Before reporting PASS, identify the primary external behavior this sub-spec should change and verify it directly. Does enabling the feature change what goes on the wire / in the log / on the screen? Use real (non-mock) components for at least one integration path.
+- **Do not trust the implementer's tests alone**: The implementer's tests verify what the implementer thought to test. You must independently verify at least one end-to-end path that the implementer did NOT test, and write at least one verification script of your own.
+- **Data flow connectivity check**: For framework/middleware implementations, trace the chain Producer → Framework → Consumer. Verify each link actually passes data. Look for default-constructed objects where configured values should be, and `(void)args` patterns that silently discard inputs.
+- **Severity rating standard** for residual risks found during validation:
+  - 🔴 CRITICAL: Primary external behavior may differ from spec under normal usage
+  - 🟡 MEDIUM: Works in normal path but edge cases or secondary features unverified
+  - 🟢 LOW: Cosmetic, logging, documentation, or purely non-functional gaps
+  - "No end-to-end verification of the primary behavior" is NEVER Low — it is at minimum MEDIUM
 
 ## Must Not Do
 
@@ -43,6 +51,9 @@ Verify that the implemented slice works by designing and executing test cases, r
 - Do not treat code-quality review as a substitute for validation evidence
 - Do not mark a task as fully validated when important checks were skipped or unavailable
 - Do not modify implementation code (only create test/verification scripts)
+- Do not mark a validation as PASS when the only verification is isolated unit tests written by the implementer. If the implementation is part of a pipeline, verify at least one integration scenario with real components.
+- Do not mark a validation as PASS when Known Gaps include unverified behavioral changes in the primary feature path. If the gap means "we don't know if the feature actually works," the verdict is PARTIAL, not PASS.
+- Do not rate the absence of end-to-end verification as "Low" severity. If the feature's purpose is to change external behavior and this was never verified, the finding is at least MEDIUM severity.
 
 ## Input
 
@@ -60,6 +71,7 @@ Verify that the implemented slice works by designing and executing test cases, r
 1. **Load test skill + Read Amendments**:
    - Read sub-spec.md Amendments section — test scenarios affected by approved amendments should use the amended criteria
    - Read `.opencode/skills/project-test/SKILL.md` for test knowledge
+1a. **Design your own verification**: Before running any tests, identify the PRIMARY external behavior this sub-spec should change. Design at least one verification scenario of your own that the implementer did NOT write. This is your independent check.
 2. **Stub-aware validation**:
    - Read `specs/tech-debt-registry.md` — known stubs are excluded from behavioral verification
    - For critical-path functions NOT in the registry: perform a **parameter variation test**
@@ -72,11 +84,11 @@ Verify that the implemented slice works by designing and executing test cases, r
    a. Check `.opencode/skills/project-build/SKILL.md` — is the build command wrong?
    b. If the skill has a wrong/outdated build command, correct it and try the corrected command
    c. Update project-build skill with the fix
-5. **Run existing automated tests** relevant to the change
+5. **Run existing tests BUT do not trust them alone**: Run the implementer's tests and record results. However, passing tests do NOT prove the feature works — they only prove the implementer's tests pass. The verdict must be based on your independent verification (Step 1a), not just on the implementer's test results.
 6. **Execute each test scenario** — use existing tests, manual commands, or write temporary scripts
 7. **Frontend visual validation** — if the change involves UI, follow the Frontend Validation Strategy below
 8. **Record evidence** for every scenario: command output, test results, screenshots, pass/fail
-9. **Assess acceptance criteria** — map each criterion to test results
+9. **Assess acceptance criteria with severity** — map each criterion to test results using the severity rating standard. Acceptance criteria verified only by the implementer's isolated tests without independent end-to-end verification → mark as PARTIAL, not PASS.
 10. **Update test skill**:
    a. Read current `.opencode/skills/project-test/SKILL.md` in full
    b. For the test commands and framework you used successfully:

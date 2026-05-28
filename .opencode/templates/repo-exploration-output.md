@@ -6,7 +6,10 @@
   
   Downstream consumers:
   - requirement-analyst: understands what already exists before defining requirements
+  - program-planner: understands module landscape for phase planning
+  - task-planner: knows the codebase context when creating sub-specs
   - solution-architect: knows the codebase conventions before designing
+  - reviewer: cross-references reported findings during code review
   - implementer: knows where to put new code and what patterns to follow
   
   Quality bar: requirement-analyst should be able to read this document and
@@ -111,6 +114,26 @@
   - [HYPOTHESIS] The Document model may need a `status` field for export state tracking
   - [CONFIRMED] Current Prisma schema has no migration for vector columns
   - [UNKNOWN] Whether the frontend build pipeline supports dynamic imports for code splitting
+-->
+
+## Uncertain / Unverified
+
+<!--
+  Functions, modules, or call paths that were observed to EXIST (signatures present, compiles)
+  but whose behavior was NOT verified by reading function bodies.
+  
+  Main reasons for listing here:
+  - Function body was not read (too many functions, common utility, etc.)
+  - Function signature is complex but body logic not traced
+  - Path involves multiple hops and intermediate steps were skipped
+  
+  Format:
+  | Location | What was observed | Why unverified | Potential risk |
+  |----------|------------------|---------------|----------------|
+  | someip_gateway.cpp:81 | deliver_inbound() signature exists | Body not read | May be a (void) stub |
+  
+  ⚠️ Downstream agents: treat items in this section as "existence confirmed, behavior unknown."
+  Do not assume these functions work without further verification.
 -->
 
 ## Recommended Next Reads
