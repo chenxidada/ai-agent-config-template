@@ -145,6 +145,22 @@ Your prompt to each subagent must include:
 - If prior analysis reports exist: include as optional reference context
   - **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
 
+### Skill Progressive Loading
+
+Skills use 3-level progressive disclosure to avoid system prompt bloat:
+
+**Level 1 — Metadata only (always injected, ~100 tokens per skill)**:
+- Inject each skill's name + description into <available_skills> block
+- Include the file path so agents know where to read full content
+- Do NOT inject skill body, references/, or scripts/
+
+**Level 2 — On-demand expansion (agent actively loads, <5000 tokens per skill)**:
+- Agent uses read tool to load full SKILL.md when description matches current task
+- Triggered by description keywords matching the task context
+
+**Level 3 — Resource reference (loaded only when skill body references them)**:
+- references/, scripts/, assets/ files loaded only when explicitly referenced by the skill body
+
 ### Phase Entry Gate (NEW — before Phase Preparation)
 
 Before starting a NEW phase (Phase 2+), the Orchestrator MUST:
@@ -168,6 +184,16 @@ Before starting a NEW phase (Phase 2+), the Orchestrator MUST:
 ### Phase Preparation (Before Stage 5: task-planner)
 
 When starting a NEW phase (not the first phase, and not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
+
+#### Stage 4.4 — Code Map (per phase)
+
+Before dispatching repo-explorer for Phase N (N >= 1):
+1. If the project uses C/C++ and has >50 source files:
+   - Generate a repository map using tree-sitter + PageRank
+   - Weight by Phase N keywords from phase-spec.md
+   - Output to specs/phases/<phase-id>/repo-map.md
+2. Pass the map path to repo-explorer in the dispatch prompt
+3. Repo-explorer uses the map as its starting point, supplements with manual discovery
 
 1. **repo-explorer (Phase Preparation)**:
    - Dispatch with `phase_id` and phase scope
@@ -225,6 +251,10 @@ Format:
 - **partial pass**: Report to user. User decides.
 - **pass**: Proceed to next stage.
 
+For implementer loop-back scenarios, the implementer uses Git branch isolation:
+- Directional error → branch deleted, new branch from main
+- Specific fix → continue on same branch
+
 ### Loop Counter Reset
 
 When moving from one sub-spec to the next, or from one phase to the next, reset the reviewer/validator loop counters to 0.
@@ -252,11 +282,17 @@ After all sub-specs in a Phase have completed (passed validator + Human Gate 2):
 3. **Exit Verdict**: PASS (all claims met) / PASS_WITH_CONDITIONS (partial claims, non-blocking) / BLOCK (unknown-impact gaps or blocking should-fix)
 4. **Human Gate (Phase Exit)**: Present CapabilityClaim summary + deferred items + verdict. BLOCK = do not proceed. PASS_WITH_CONDITIONS = user decides.
 5. **Sync to tech-debt-registry.md**:
-   - For each new deferred item from scope-gap-report → add entry to registry §活跃债务 (if not already there)
-   - For items resolved in this phase → move from §活跃债务 to §已解决
-   - For items that became obsolete → update status with ⚠️ reason
+   - New deferred items from scope-gap-report → add to registry §活跃债务 with module:/type: tags
+   - Resolved items → move from §活跃债务 to §已解决
+   - Obsolete items → check file paths still valid, update tags if interface changed, mark ⚠️ if unused
+   - Group related items by module: tag for the user's review
 6. **Update**: `specs/current-status.md` Phase Deferred Items Tracker
 7. **KM checkpoint**: Sync Phase completion as Decision Doc
+8. **Git branch cleanup**: After all sub-specs pass validation:
+   - Present a summary of which branches were created for this phase
+   - User decides: merge (squash) to main, keep branches for manual review, or discard
+   - Orchestrator executes user's decision
+   - NEVER push to remote unless user explicitly says "push" or "提交"
 
 ## Short Flow
 

@@ -44,6 +44,16 @@ Verify that the implemented slice works by designing and executing test cases, r
   - 🟢 LOW: Cosmetic, logging, documentation, or purely non-functional gaps
   - "No end-to-end verification of the primary behavior" is NEVER Low — it is at minimum MEDIUM
 
+## Anti-Rationalization（不要用这些借口通过验证）
+
+| 你可能想这么说 | 为什么不对 | 正确的是 |
+|--------------|-----------|---------|
+| "215 个测试通过，通过率 99.5%" | 这些测试是 implementer 写的。Phase 19 的 215 个测试全过但框架从未连接传输层 | 自己设计至少一个验证场景，独立于 implementer |
+| "构建通过、lint 通过" | 构建和 lint 是静态检查，不验证运行时行为 | 运行至少一个端到端场景 |
+| "无 e2e 测试是低严重性" | 如果 feature 的目的是改变外部行为，e2e 缺失是至少中等严重性 | 标注为核心缺失，不能降级为 Low |
+| "Known Gaps 里已经写了" | 文档记录 ≠ 问题解决 | 有未解决的 gap → 不能给 PASS，给 PARTIAL |
+| "这些失败是 pre-existing 的" | pre-existing 失败仍然影响功能。Phase 19 把 someip_gateway_test 标为 pre-existing 跳过了，但它是已知空壳 | pre-existing 如果是阻塞性的，仍然影响 PASS 判定 |
+
 ## Must Not Do
 
 - Do not redesign the feature unless validation reveals a blocking flaw

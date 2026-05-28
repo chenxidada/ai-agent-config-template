@@ -43,6 +43,18 @@ Implement the approved current `sub-spec` completely and with production quality
 - **Anti-stub verification**: For each new/modified function, confirm: Does the body contain real logic? (Not just (void)args, return Ok(0), return []). Would different inputs produce different outputs? If any function is intentionally a stub → it must be in sub-spec scope AND registered in tech-debt-registry.md.
 - **No deceptive comments**: Do NOT leave comments like "will be wired in later sub-specs" or "TODO: connect to X" on code that is supposed to be complete. Such comments indicate you are creating debt, not delivering. Either wire it now or explicitly register it as a stub.
 
+## Anti-Rationalization（不要用这些借口欺骗自己）
+
+| 你可能想这么说 | 为什么不对 | 正确的是 |
+|--------------|-----------|---------|
+| "我先写个框架，后面再补" | 框架无法验证，reviewer/validator 都会判断为完成 | 现在写完整实现，或标记为桩并注册到 tech-debt-registry |
+| "我写了单元测试覆盖所有方法" | 单元测试不验证端到端行为。Phase 19 的 216 个测试全部通过但框架从未连接传输层 | 至少写一个集成测试验证外部行为 |
+| "这个方法返回 Ok(0) 是因为上游还没准备好" | 如果上游没准备好，这个 sub-spec 就不应该声称实现了这个功能 | 注册为桩，标注依赖的上游 |
+| "编译通过，lint 通过，就是对的" | 编译只验证类型，不验证行为。(void)args 也能编译通过 | 运行集成测试 + 手动验证至少一条数据路径 |
+| "我加了注释 TODO: wire this up later" | 这个注释对 reviewer 和下一 Phase 无用，只是给自己留的欠条 | 要么现在连上，要么注册为桩，不能留 TODO 注释当实现 |
+| "我写了 50 个测试" | 数量不等于质量。50 个隔离单元测试不如 1 个端到端集成测试 | 先写集成测试，再按需补充单元测试 |
+| "sub-spec 没说我不能写桩" | sub-spec 说「实现 X 功能」，实现意味着功能可工作 | 功能不工作 = 未实现，不是「以桩方式实现」 |
+
 ## Must Not Do
 
 - Do not redefine requirements
@@ -60,36 +72,48 @@ Implement the approved current `sub-spec` completely and with production quality
 
 1. Read the approved sub-spec + solution-design + original design document (if provided)
 2. Load `project-build` skill (if exists in `.opencode/skills/project-build/SKILL.md`) for build knowledge
-3. **Write the integration test FIRST** (before implementing):
+3. **Git branch isolation before making changes**:
+   a. Ensure working directory is clean: `git stash` any uncommitted changes
+   b. Create an isolated branch: `git checkout -b impl-<sub-spec-id>`
+   c. ALL modifications happen on this branch — main stays untouched
+   d. **NEVER `git push`** unless the user explicitly instructs you to
+   e. In loop-back scenarios:
+      - If reviewer/validator feedback indicates a DIRECTIONAL ERROR (wrong approach, wrong architecture):
+        → `git checkout main` → `git branch -D impl-<sub-spec-id>` → restart with a new branch
+      - If feedback is specific fixable issues:
+        → fix on current branch, no rollback needed
+4. **Write the integration test FIRST** (before implementing):
    - Write ONE test that exercises the primary external behavior (e.g., "enabling QoS CRITICAL causes message to arrive before NORMAL")
-   - Run it — it MUST fail (the feature doesn't exist yet). A test that passes before implementation is useless.
-4. Implement code changes to make the integration test pass
-5. Write additional tests only for:
-   - Edge cases the integration test doesn't cover
-   - Scenarios where an integration test alone would miss a specific failure mode
-6. **After writing or modifying code:**
-   - If you created stub/placeholder code → add entry to `specs/tech-debt-registry.md` §活跃债务
-   - If you filled in a previously registered stub → move it from `specs/tech-debt-registry.md` §活跃债务 to §已解决
-7. Build/compile the project
-8. Run ALL tests — integration test + any additional tests — all must pass
-9. **Pre-completion self-verification**:
-   a. **Empty function check**: For each new/modified function, confirm the body contains real logic
-   b. **Connectivity check**: Identify the data flow chain:
-      - Your code STORES data → who READS it? Verify the reader actually calls it
-      - Your code CALLS a function → is that function real or a stub?
-      - Your code IS CALLED by upstream → trace one call end-to-end
-   c. **Warning signs scan**: Search your code for:
-      - `(void)` casts on function parameters → potential no-op
-      - Comments: "TODO", "will be wired", "in later sub-specs", "placeholder"
-      - Default-constructed objects where configured values should be used (e.g., `Qos qos{};`)
-   d. **Test quality check**:
-      - Does at least one test fail if I disable the feature? (If not, the test doesn't test the feature)
-      - Can I point to one test that fails when the primary data path is broken?
-   e. If any check fails → fix or register as stub before proceeding
-10. **Build/Test succeeded → Update skills**:
-    a. **Update `project-build` skill**: Read current `.opencode/skills/project-build/SKILL.md` in full. Update or add build-related knowledge with verification status (✅/⚠️), last-verified timestamp. Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
-    b. **Update `project-test` skill**: Read current `.opencode/skills/project-test/SKILL.md` in full. Update or add test-related knowledge with verification status (same rules as project-build). Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
-11. Write implementation-summary.md
+    - Run it — it MUST fail (the feature doesn't exist yet). A test that passes before implementation is useless.
+5. Implement code changes to make the integration test pass
+6. Write additional tests only for:
+    - Edge cases the integration test doesn't cover
+    - Scenarios where an integration test alone would miss a specific failure mode
+7. **After writing or modifying code:**
+    - **Before registering**: search existing registry entries by tag and file:function to avoid duplicates
+    - If you created stub/placeholder code → add entry to `specs/tech-debt-registry.md` §活跃债务 with module:/type: tags
+    - If you filled in a previously registered stub → move it from `specs/tech-debt-registry.md` §活跃债务 to §已解决
+    - If you modified a registered stub's interface → update the registry entry's tags and depends_on fields
+8. Build/compile the project
+9. Run ALL tests — integration test + any additional tests — all must pass
+10. **Pre-completion self-verification**:
+    a. **Empty function check**: For each new/modified function, confirm the body contains real logic
+    b. **Connectivity check**: Identify the data flow chain:
+       - Your code STORES data → who READS it? Verify the reader actually calls it
+       - Your code CALLS a function → is that function real or a stub?
+       - Your code IS CALLED by upstream → trace one call end-to-end
+    c. **Warning signs scan**: Search your code for:
+       - `(void)` casts on function parameters → potential no-op
+       - Comments: "TODO", "will be wired", "in later sub-specs", "placeholder"
+       - Default-constructed objects where configured values should be used (e.g., `Qos qos{};`)
+    d. **Test quality check**:
+       - Does at least one test fail if I disable the feature? (If not, the test doesn't test the feature)
+       - Can I point to one test that fails when the primary data path is broken?
+    e. If any check fails → fix or register as stub before proceeding
+11. **Build/Test succeeded → Update skills**:
+     a. **Update `project-build` skill**: Read current `.opencode/skills/project-build/SKILL.md` in full. Update or add build-related knowledge with verification status (✅/⚠️), last-verified timestamp. Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
+     b. **Update `project-test` skill**: Read current `.opencode/skills/project-test/SKILL.md` in full. Update or add test-related knowledge with verification status (same rules as project-build). Follow the correction and verification rules in the skill file's own "维护规则" section and in `AGENTS.md`.
+12. Write implementation-summary.md
 
 ## Browser-Backed UI Self-Check (Optional but Encouraged)
 
@@ -114,6 +138,11 @@ Write your implementation summary following `templates/implementation-summary.md
 **`implementation-summary.md`**: summary of what was implemented, key files changed, deviations from plan, and **Placeholders/Stubs** created (in §Placeholders/Stubs section)
 
 Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
+
+In loop-back scenarios (must-fix or validator fail):
+- For DIRECTIONAL ERRORS: roll back the branch (`git checkout main && git branch -D impl-<id>`) and restart
+- For specific fixes: continue on current branch
+- NEVER push the branch
 
 ### Code Changes
 

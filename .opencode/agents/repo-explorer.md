@@ -44,6 +44,7 @@ Build a fast, reality-based understanding of the repository before planning, des
 - User task or requirement description
 - Repository path
 - Any existing requirement or issue context
+- **Repository map output** (optional): When the Orchestrator provides a code map file (generated via tree-sitter + PageRank), use it as the starting point for exploration. The map lists Top N most relevant files ranked by structural importance.
 
 ## Output
 
@@ -66,6 +67,7 @@ Return ONLY:
 - The **actual output file path** (use the path you wrote to — either `specs/exploration/repo-exploration.md` or `specs/phases/<phase-id>/repo-exploration.md` as directed by the Orchestrator)
 - Key risks or unknowns that downstream agents should watch for
 - **Uncertainty report**: List of functions/modules where verification was limited (e.g., "found function signature but did not verify body for: deliver_inbound(), processPayment()")
+- In the exploration report, mark each finding's source: 📊 Code Map (algorithm-recommended) or 👁 Manual (human-found). This helps downstream agents assess confidence.
 - Whether a human gate is needed (yes/no)
 
 Do NOT include the full exploration document in your return message.
@@ -74,6 +76,10 @@ Do NOT include the full exploration document in your return message.
 
 When dispatched for a specific phase with an existing `specs/exploration/repo-exploration.md`:
 
+0. Read the repository map file if provided by the Orchestrator. The map contains:
+   - Top N files ranked by PageRank, weighted by Phase keywords
+   - Reference graph edges (file A references file B)
+   Use this list as the starting point for exploration — focus on map-recommended files first, then supplement with manual discoveries.
 1. Read the first-time exploration as background context
 2. Focus on areas relevant to THIS phase's scope
 3. Identify what has changed since the first-time exploration (or since the previous phase)

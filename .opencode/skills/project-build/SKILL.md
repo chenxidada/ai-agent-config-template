@@ -1,6 +1,10 @@
 ---
 name: project-build
-description: "Project build/compile knowledge: build commands, flags, dependency installation, environment setup, common build errors and solutions. Auto-loaded when building, compiling, or packaging. 项目编译构建知识。"
+description: >-
+  Build/compile knowledge: commands, flags, dependency install, environment setup,
+  common build errors and solutions. Use when: building, compiling, encountering
+  build errors, changing build configuration, or installing dependencies.
+  Trigger words: cmake, build, compile, make, ninja, gcc, clang, link, library, dependency.
 ---
 
 ## 项目构建技能

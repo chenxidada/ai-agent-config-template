@@ -50,12 +50,19 @@
   For each area, explain WHY it matters and what it contains.
   
   Example:
-  | Path | What It Contains | Relevance |
-  |------|-----------------|-----------|
+   | Path | What It Contains | Relevance | Source |
+   |------|-----------------|-----------|:------:|
   | `apps/api/src/modules/documents/` | Document CRUD service + controller | Direct modification target |
   | `apps/api/prisma/schema.prisma` | Database schema definitions | Need to add new fields/tables |
   | `apps/web/components/documents/` | Document list and editor components | UI modification target |
-  | `packages/shared/src/types/document.ts` | Shared TypeScript types | Must update for new fields |
+   | `packages/shared/src/types/document.ts` | Shared TypeScript types | Must update for new fields |
+
+<!--
+  Source: 📊 = Code Map recommendation / 👁 = Manual discovery
+  Code Map files are algorithm-ranked by structural importance (PageRank + keyword weighting).
+  Manual files are discovered by the agent's own exploration.
+  Map-recommended files have higher confidence of being genuinely relevant.
+-->
 -->
 
 ## Key Entry Points / Call Paths

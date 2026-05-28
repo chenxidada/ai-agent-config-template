@@ -1,6 +1,10 @@
 ---
 name: project-test
-description: "Project test knowledge: test framework, run commands, test environment setup, coverage tools, common test issues and solutions. Auto-loaded when running or writing tests. 项目测试运行知识。"
+description: >-
+  Test knowledge: test framework, run commands, test environment, coverage tools,
+  common test issues. Use when: running tests, writing tests, debugging test failures,
+  setting up test environment. Trigger words: test, ctest, gtest, vitest, coverage,
+  mock, stub, assert, expect.
 ---
 
 ## 项目测试技能

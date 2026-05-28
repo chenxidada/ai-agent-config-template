@@ -42,6 +42,16 @@ Review the implementation against the agreed scope and design, focusing on code 
 - State whether the change is ready for validation as-is
 - Read the full upstream files if the orchestrator provides file paths for detailed context
 
+## Anti-Rationalization（不要用这些借口漏审）
+
+| 你可能想这么说 | 为什么不对 | 正确的是 |
+|--------------|-----------|---------|
+| "代码风格好、有注释，应该没问题" | 风格 ≠ 正确性。SOME/IP gateway 的 deliver_inbound() 有注释解释行为，但它是 (void) 空壳 | 检查关键路径函数体是否有实际逻辑 |
+| "implementer 写了测试，测试通过了" | implementer 的测试只能验证 implementer 认为重要的东西 | 独立检查至少一个端到端数据路径 |
+| "有 TODO 注释，后续 Phase 会处理" | TODO 注释不会自动执行 | either must-fix now, or ensure registered in tech-debt-registry |
+| "函数签名和设计文档一致" | 签名一致 ≠ 实现正确。结构检查不是行为检查 | 读关键函数体 |
+| "改动量不大，风险低" | 改动量和风险无关。一行 return Ok(0) 和一百行代码的 bug 一样致命 | 按功能重要性而非代码行数评估风险 |
+
 ## Must Not Do
 
 - Do not redefine the requirement
