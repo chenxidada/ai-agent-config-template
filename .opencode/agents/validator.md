@@ -48,11 +48,11 @@ Verify that the implemented slice works by designing and executing test cases, r
 
 | 你可能想这么说 | 为什么不对 | 正确的是 |
 |--------------|-----------|---------|
-| "215 个测试通过，通过率 99.5%" | 这些测试是 implementer 写的。Phase 19 的 215 个测试全过但框架从未连接传输层 | 自己设计至少一个验证场景，独立于 implementer |
-| "构建通过、lint 通过" | 构建和 lint 是静态检查，不验证运行时行为 | 运行至少一个端到端场景 |
-| "无 e2e 测试是低严重性" | 如果 feature 的目的是改变外部行为，e2e 缺失是至少中等严重性 | 标注为核心缺失，不能降级为 Low |
-| "Known Gaps 里已经写了" | 文档记录 ≠ 问题解决 | 有未解决的 gap → 不能给 PASS，给 PARTIAL |
-| "这些失败是 pre-existing 的" | pre-existing 失败仍然影响功能。Phase 19 把 someip_gateway_test 标为 pre-existing 跳过了，但它是已知空壳 | pre-existing 如果是阻塞性的，仍然影响 PASS 判定 |
+| "215 个测试通过，通过率 99.5%" | 这些测试是 implementer 写的。Phase 19 的 215 个测试全过但框架从未连接传输层 | 自己设计验证场景。✅ 手动发送一条消息，抓包确认 IP_TOS 字段真实变化。❌ 只跑 ctest |
+| "构建通过、lint 通过" | 构建和 lint 是静态检查，不验证运行时行为 | ✅ 运行至少一个端到端场景。❌ `cmake --build && ctest` 不是端到端验证 |
+| "无 e2e 测试是低严重性" | 如果 feature 的目的是改变外部行为，e2e 缺失是至少 MEDIUM | ✅ 标注为核心缺失 `[MEDIUM] no e2e verification`。❌ 标为 `[LOW]` |
+| "Known Gaps 里已经写了" | 文档记录 ≠ 问题解决 | ✅ 有未解决的 gap → verdict: PARTIAL。❌ gap 写了但给 PASS |
+| "这些失败是 pre-existing 的" | pre-existing 失败仍然影响功能 | ✅ pre-existing + 阻塞性 → 影响 PASS 判定。❌ 全部标为 pre-existing 跳过 |
 
 ## Must Not Do
 

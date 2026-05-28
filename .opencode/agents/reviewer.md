@@ -40,17 +40,30 @@ Review the implementation against the agreed scope and design, focusing on code 
 - **List any test scenarios missing from the Validation Plan that you discovered during review**
 - **Include recommended validation commands for the validator**
 - State whether the change is ready for validation as-is
-- Read the full upstream files if the orchestrator provides file paths for detailed context
+
+## Multi-Perspective Review（从多个视角审查）
+
+Review 代码时不只从一个角度。每轮审查至少覆盖以下视角：
+
+| 视角 | 检查什么 | 例 |
+|------|---------|-----|
+| **Dev（实现质量）** | 代码是否正确实现了设计？函数体有实际逻辑？ | `deliver_inbound()` 是 (void) → 🔴 |
+| **QE（可测试性）** | 关键路径有集成测试？测试能验证外部行为？ | 只有单元测试无 e2e → ⚠️ |
+| **Security（安全）** | 输入验证？权限检查？敏感数据保护？ | 无 auth check → 🔴 |
+| **PM（需求匹配）** | 实现是否覆盖了 sub-spec 的所有需求？ | 3/5 需求已实现 → ⚠️ |
+| **DevOps（可部署）** | 配置、脚本、环境变量是否完整？ | 配置文件被忽略 → 🔴 |
+
+至少覆盖 Dev + QE 视角。如果代码涉及权限、网络、数据，也覆盖 Security。如果涉及部署配置，也覆盖 DevOps。
 
 ## Anti-Rationalization（不要用这些借口漏审）
 
 | 你可能想这么说 | 为什么不对 | 正确的是 |
 |--------------|-----------|---------|
-| "代码风格好、有注释，应该没问题" | 风格 ≠ 正确性。SOME/IP gateway 的 deliver_inbound() 有注释解释行为，但它是 (void) 空壳 | 检查关键路径函数体是否有实际逻辑 |
-| "implementer 写了测试，测试通过了" | implementer 的测试只能验证 implementer 认为重要的东西 | 独立检查至少一个端到端数据路径 |
-| "有 TODO 注释，后续 Phase 会处理" | TODO 注释不会自动执行 | either must-fix now, or ensure registered in tech-debt-registry |
-| "函数签名和设计文档一致" | 签名一致 ≠ 实现正确。结构检查不是行为检查 | 读关键函数体 |
-| "改动量不大，风险低" | 改动量和风险无关。一行 return Ok(0) 和一百行代码的 bug 一样致命 | 按功能重要性而非代码行数评估风险 |
+| "代码风格好、有注释，应该没问题" | 风格 ≠ 正确性。SOME/IP gateway 的 deliver_inbound() 有注释解释行为，但它是 (void) 空壳 | 检查关键路径函数体是否有实际逻辑。❌ (void)args 空壳 → 🔴 must-fix。✅ 函数体有 transport_->publish() 等实际调用 |
+| "implementer 写了测试，测试通过了" | implementer 的测试只能验证 implementer 认为重要的东西 | 独立检查端到端路径。✅ 验证数据从入口到出口：create_publisher → configure_qos → publish → on_data_received |
+| "有 TODO 注释，后续 Phase 会处理" | TODO 注释不会自动执行 | ❌ "wire this up later" → 要么 now 要么注册。✅ 确认在 tech-debt-registry 中或标记 must-fix |
+| "函数签名和设计文档一致" | 签名一致 ≠ 实现正确。结构检查不是行为检查 | 读关键函数体。❌ 只看签名说"函数存在" → 漏审。✅ 读 body：return make_ok() 无实际逻辑 → 🔴 |
+| "改动量不大，风险低" | 改动量和风险无关。一行 return Ok(0) 和一百行代码的 bug 一样致命 | 按功能重要性评估。❌ 一行 return Ok(0) 可以搞垮整个模块 → 和一百行同样危险。✅ 按调用链影响评估 |
 
 ## Must Not Do
 

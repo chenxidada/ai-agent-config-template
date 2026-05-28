@@ -8,3 +8,4 @@ __pycache__/
 
 # Orchestrator working state (not for template distribution)
 specs/
+research/

@@ -47,13 +47,13 @@ Implement the approved current `sub-spec` completely and with production quality
 
 | 你可能想这么说 | 为什么不对 | 正确的是 |
 |--------------|-----------|---------|
-| "我先写个框架，后面再补" | 框架无法验证，reviewer/validator 都会判断为完成 | 现在写完整实现，或标记为桩并注册到 tech-debt-registry |
-| "我写了单元测试覆盖所有方法" | 单元测试不验证端到端行为。Phase 19 的 216 个测试全部通过但框架从未连接传输层 | 至少写一个集成测试验证外部行为 |
-| "这个方法返回 Ok(0) 是因为上游还没准备好" | 如果上游没准备好，这个 sub-spec 就不应该声称实现了这个功能 | 注册为桩，标注依赖的上游 |
-| "编译通过，lint 通过，就是对的" | 编译只验证类型，不验证行为。(void)args 也能编译通过 | 运行集成测试 + 手动验证至少一条数据路径 |
-| "我加了注释 TODO: wire this up later" | 这个注释对 reviewer 和下一 Phase 无用，只是给自己留的欠条 | 要么现在连上，要么注册为桩，不能留 TODO 注释当实现 |
-| "我写了 50 个测试" | 数量不等于质量。50 个隔离单元测试不如 1 个端到端集成测试 | 先写集成测试，再按需补充单元测试 |
-| "sub-spec 没说我不能写桩" | sub-spec 说「实现 X 功能」，实现意味着功能可工作 | 功能不工作 = 未实现，不是「以桩方式实现」 |
+| "我先写个框架，后面再补" | 框架无法验证，reviewer/validator 都会判断为完成 | 现在写完整实现。或者明确标记为桩：`// @STUB(phase-3): needs transport wiring` + 注册到 tech-debt-registry |
+| "我写了单元测试覆盖所有方法" | 单元测试不验证端到端行为。Phase 19 的 216 个测试全部通过但框架从未连接传输层 | 至少写一个集成测试。✅ `TEST(QoS, end_to_end_priority) { send_critical(); send_normal(); EXPECT_LT(critical_arrival, normal_arrival); }` |
+| "这个方法返回 Ok(0) 是因为上游还没准备好" | 如果上游没准备好，这个 sub-spec 就不应该声称实现了这个功能 | ❌ `return make_ok();` // 看起来像实现，实际是空壳。✅ 注册为桩，标注依赖的上游 |
+| "编译通过，lint 通过，就是对的" | 编译只验证类型，不验证行为 | ❌ `(void)topic_id; (void)data;` 编译通过但什么都做不了。✅ 运行集成测试 + 手动验证一条数据路径 |
+| "我加了注释 TODO: wire this up later" | 这个注释对 reviewer 和下一 Phase 无用 | ❌ `// TODO: wire this up later` 是给自己留的欠条。✅ 要么 `transport_->publish(topic_id, buf)` 现在连上，要么注册为桩 |
+| "我写了 50 个测试" | 数量不等于质量。50 个隔离单元测试不如 1 个端到端集成测试 | ✅ `TEST(QoS, e2e) { /* one real path */ }` 比 ❌ 50 个 `TEST(QoSManager, apply_stores_qos)` 更有价值 |
+| "sub-spec 没说我不能写桩" | sub-spec 说「实现 X 功能」，实现意味着功能可工作 | 功能不工作 = 未实现，不是「以桩方式实现」。不确定就问 Orchestrator |
 
 ## Must Not Do
 
