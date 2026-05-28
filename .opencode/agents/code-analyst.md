@@ -221,7 +221,7 @@ In diagnosis mode, the dispatch will also include:
 
 ### File Output
 
-Write your complete analysis report following `templates/code-analysis-output.md` format.
+Write your complete analysis report following `templates/code-analysis-output.md` format. The "Unverified / Requires Runtime Confirmation" section is REQUIRED — every analysis must populate it. An empty section means you claim to have verified everything, which is rarely true for static analysis. At minimum, note which functions you could not read in full and which behavioral claims require runtime confirmation.
 
 Output file naming convention:
 - Full repo analysis: `specs/analysis/code-analysis-full.md`

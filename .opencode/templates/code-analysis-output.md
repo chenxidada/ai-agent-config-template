@@ -77,9 +77,37 @@
 
 <!-- Files a new developer should read first, in recommended order, with 1-line explanation each -->
 
-## Open Questions
+## Unverified / Requires Runtime Confirmation
 
-<!-- Things the analysis could not determine from code alone -->
+<!--
+  静态代码分析无法确认的内容。这是分析报告最重要的部分之一 —— 告诉读者"这里是分析的边界，不要假设以下内容正确"。
+  分为三类，每类需要不同的验证方式。
+  必须填写 —— 空章节意味着你声称已验证一切，这对静态分析几乎不可能。
+-->
+
+### Needs Runtime Verification（需要运行时验证）
+
+<!-- 代码逻辑存在，但静态分析无法确认是否正确工作。例如：并发安全、性能假设、超时处理、网络行为 -->
+
+| # | 描述 | 涉及代码 | 需要什么验证 |
+|---|------|---------|-------------|
+| — | — | — | — |
+
+### Structural Observations Only（仅结构观察，未验证函数体）
+
+<!-- 函数签名存在、编译通过，但函数体未被完整阅读。不要假设这些函数工作正确 -->
+
+| # | 文件:函数 | 观察到的 | 未验证的 |
+|---|----------|---------|---------|
+| — | — | — | — |
+
+### Inferences / Hypotheses（推测，未从代码确认）
+
+<!-- 基于命名约定、文档注释、调用模式的推测，未找到明确的代码证据 -->
+
+| # | 推测 | 依据 | 风险 |
+|---|------|------|------|
+| — | — | — | — |
 
 ## Code Review Findings
 
