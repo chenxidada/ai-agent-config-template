@@ -73,16 +73,16 @@ Write your phase spec following `templates/phase-spec.md` format to: `specs/phas
 
 Create the directory if it does not exist. Use the phase-id provided by the Orchestrator (e.g., `phase-1-user-export`).
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: phase goal, number of sub-specs, recommended first sub-spec, key dependencies
 - The output file path: `specs/phases/<phase-id>/phase-spec.md`
-- Recommended sub-spec to start with and why
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full phase-spec document in your return message.
+Do NOT include the full phase-spec document in your return message. Do NOT summarize the phase-spec content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

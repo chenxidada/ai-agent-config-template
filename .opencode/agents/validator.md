@@ -234,17 +234,17 @@ Use APPEND mode for loop documents per template instructions — see `unified-pi
 
 Any verification scripts created go to: `specs/phases/<phase-id>/slices/<sub-spec-id>/test-scripts/`
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: overall result (pass/partial/fail), number of scenarios tested, pass/fail counts, key findings
 - The output file path: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
-- Whether the result is fail (triggers automatic implementer loop) or partial (needs user decision)
-- Unverified items that need follow-up
+- Verdict: pass / partial / fail
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full validation report in your return message.
+Do NOT include the full validation report in your return message. Do NOT summarize the validation content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

@@ -223,11 +223,10 @@ Default strategy by checkpoint:
 
 Return ONLY:
 
-- A 2-3 sentence summary: what was synced, which object types were written, any sync failures
 - Whether the sync succeeded or failed
 - Whether a human gate is needed (no, unless sync failed)
 
-Do NOT include the full synced content in your return message.
+Do NOT include the full synced content in your return message. Do NOT summarize the sync content — the orchestrator reads the output file directly when it needs content.
 
 ## Preferred Tools
 
@@ -303,3 +302,5 @@ When rebuilding or replicating the knowledge-base product itself, sync these agg
 ## Output Template
 
 Use `templates/knowledge-sync-note.md` when creating or updating durable records.
+
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.

@@ -95,17 +95,16 @@ For each new phase, write phase-specific requirements following `templates/phase
 
 Create directories if they do not exist. Use a kebab-case phase-id derived from the phase name (e.g., `phase-1-user-export`).
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: top-level modules, number of phases (new + existing), recommended starting phase, critical dependencies
 - The output file paths: `specs/master-spec.md` + list of new `specs/phases/<phase-id>/requirements.md` files
-- Key decisions that shaped the decomposition
-- Whether operating in create or update mode
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full master-spec document in your return message.
+Do NOT include the full master-spec document in your return message. Do NOT summarize the master-spec content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

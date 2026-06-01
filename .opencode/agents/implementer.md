@@ -139,6 +139,8 @@ Write your implementation summary following `templates/implementation-summary.md
 
 Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 In loop-back scenarios (must-fix or validator fail):
 - For DIRECTIONAL ERRORS: roll back the branch (`git checkout main && git branch -D impl-<id>`) and restart
 - For specific fixes: continue on current branch
@@ -154,12 +156,10 @@ Make the actual code changes in the repository as specified by the sub-spec and 
 
 Return ONLY:
 
-- A 3-5 sentence summary: what was implemented, key files changed, any deviations from plan, test coverage status
 - The output file path: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
-- Known gaps or deviations from the approved design
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full implementation summary in your return message.
+Do NOT include the full implementation summary in your return message. Do NOT summarize the implementation content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

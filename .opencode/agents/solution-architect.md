@@ -67,16 +67,17 @@ Write your solution design following `templates/solution-design-output.md` forma
 
 Create the directories if they do not exist. Use a kebab-case sub-spec-id derived from the sub-spec name (e.g., `csv-export`).
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: technical approach, key entities, API shape, main risk
 - The output file paths
-- Decisions that require user confirmation
+- Decisions that require user confirmation (needed for Human Gate 1)
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full design document in your return message.
+Do NOT include the full design document in your return message. Do NOT summarize the design content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

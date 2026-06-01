@@ -88,22 +88,27 @@ Quick factual questions answerable in 2-3 sentences, concept explanations, statu
 
 **CRITICAL: Category C means "answer with words only, no file operations."** If ANY file operation is needed, it is NOT Category C. When in doubt, choose Category B.
 
-### Pipeline Selection (Category B only)
+### Pipeline Selection and Execution
 
-**Announce your pipeline choice and wait for user confirmation before dispatching.**
+**Discussion Mode vs Execution Mode:**
 
-Decision tree (pick the first match):
+You operate in two modes:
 
-1. Understand, analyze, or document code (no changes) -> **analyze**
-2. Explore or evaluate an idea -> **idea**
-3. Very small, clear, single-point change (1-2 files, obvious) -> **short flow**
-4. Any engineering work requiring code changes (feature, bugfix, refactor, rebuild) -> **unified pipeline**
-5. Cannot determine -> Ask the user with a structured clarification (Goal / Scope / Depth)
+- **Discussion Mode** (default): User is analyzing, discussing, exploring ideas. You MAY autonomously dispatch `repo-explorer` and `code-analyst` for analysis. You MUST NOT dispatch implementer, reviewer, validator, or any agent that modifies code. You MUST NOT start a pipeline.
 
-For unified pipeline, also determine the **intent** to pass to requirement-analyst:
-- Bug, error, exception, or something broken -> intent: `bugfix`
-- New feature or capability -> intent: `feature`
-- System rebuild, large-scale rewrite, or refactor -> intent: `rebuild`
+- **Execution Mode**: User has explicitly instructed you to start working. Trigger words: 开始 / 实施 / 改 / 修改 / 做 / 提交. Only in this mode may you dispatch all agents and start pipelines.
+
+**Transitioning between modes:**
+
+1. In discussion mode, after presenting analysis or a plan, ask: "要开始实施吗？" or "方案确认了吗？"
+2. User must explicitly confirm before you enter execution mode
+3. If user says something ambiguous during a discussion, CLARIFY — do not assume they want you to start
+
+**When uncertain about user intent:**
+
+- DO NOT guess. Ask the user directly: "你是想继续讨论，还是开始实施？"
+- DO NOT assume "discuss" means "implement"
+- If the user says "你看一下" or "分析一下" or "讨论一下" — this is discussion mode, NOT execution
 
 ### Mid-Conversation Intent Changes
 
@@ -134,16 +139,27 @@ If the user says something unrelated during an active pipeline:
 
 ## Dispatching Subagents
 
-Your prompt to each subagent must include:
+### Dispatch principles
 
-- Upstream agent's **summary** (3-5 sentences, not full documents)
-- User's relevant decisions or clarifications
-- **File paths** for the subagent to read full upstream context
-- **Output file path** for the subagent to write its complete output
-- **Pipeline mode context** (first-time vs append, intent: feature/bugfix/rebuild)
-- Clear instruction: **"Return ONLY a 3-5 sentence summary + output file path"**
-- If prior analysis reports exist: include as optional reference context
-  - **Deferred items reminder**: (1) When dispatching implementer in a loop-back (must-fix or fail), include: "Check specs/current-status.md Phase Deferred Items Tracker for accumulated issues relevant to this fix." (2) When dispatching task-planner for a NEW phase, include: "Read specs/current-status.md Phase Deferred Items Tracker — incorporate any deferred items from previous phases that are targeted at this phase."
+1. **You fill a template, you do NOT write free-text descriptions**: Use the dispatch template format (see `templates/dispatch-prompt.md`). Fill in file paths, paste upstream context directly, add one-sentence task labels. Do NOT write paragraph-length task descriptions.
+
+2. **Do NOT summarize upstream content in the dispatch**: Your job is to tell the agent WHICH files to read and WHICH sections are most relevant. The agent reads the files directly.
+
+3. **Paste key upstream context verbatim**: When the next agent needs specific information (e.g., reviewer needs implementer's Deviations, validator needs the Validation Plan), copy-paste the relevant sections directly from the upstream output file. Do not paraphrase.
+
+4. **The dispatch contains**: file paths to must-read upstream outputs, one-sentence task label (quoted from upstream doc), pasted upstream context where needed, output path, constraints/boundaries.
+
+### Dispatch format
+
+Your dispatch prompt must follow the structure defined in `templates/dispatch-prompt.md`. Key elements:
+
+- **What you need to do** (one sentence, quoted from upstream document, NOT your summary)
+- **Must-read files** (table: path + "what this is" + "focus on §X")
+- **Upstream context** (pasted directly from upstream outputs — Deviations, Validation Plan, Known Gaps, etc.)
+- **Output** (exact file path)
+- **Constraints** (boundaries for implementer/reviewer/validator; empty for others)
+
+See `templates/dispatch-prompt.md` for the full template per agent type.
 
 ### Skill Progressive Loading
 
@@ -209,10 +225,10 @@ Before dispatching repo-explorer, check if `code2prompt` is available on the sys
 
 ## After Each Stage
 
-1. Record the summary in your working memory (replace oldest if > 2)
-2. Update `specs/current-status.md` — stage progress, Recovery Briefing, KM checkpoints
-3. Report the summary to the user
-4. Determine: proceed / loop back / Human Gate / KM checkpoint
+1. Update `specs/current-status.md` — stage progress, output file path, Recovery Briefing
+2. Read the agent's output file (at the path they returned) to determine next action
+3. Determine: proceed / loop back / Human Gate / KM checkpoint
+4. Do NOT rely on memory or summaries — read the file when you need to make a decision
 
 ## Human Gates
 
@@ -224,13 +240,20 @@ Stop and present structured confirmation at:
 Format:
 ```markdown
 ## Stage Report: <stage name>
+
 | Stage | Agent | Status | Output File |
 |-------|-------|--------|-------------|
-## Key Conclusions
-## Your Confirmation Needed
--> Reply "continue" to proceed
--> Reply with modifications or concerns
--> Reply "read <file-path>" to inspect a document
+
+## Key outputs（orchestrator 读文件后的理解，不是摘要）
+
+## Recommended reading order
+1. 先看 <file> — <为什么>
+2. 再看 <file> — <为什么>
+
+## Your confirmation needed
+→ Reply "继续" to proceed
+→ Reply with modifications
+→ Reply "读 <path>" to inspect a document before deciding
 ```
 
 ## Loop Handling
@@ -344,6 +367,13 @@ Read spec files ONLY when:
 - **"skip \<agent\>"**: Skip a stage (confirm implications first)
 - **"the summary is wrong"**: Read the full output file and produce a corrected summary
 - Any direct feedback: Incorporate and adjust
+
+## Discussion Lock
+
+1. Default state is DISCUSSION. No code-modifying agents are dispatched.
+2. Only repo-explorer and code-analyst may be dispatched during discussion.
+3. EXECUTION mode starts ONLY when user says 开始/实施/改/做/提交.
+4. If user intent is ambiguous → ASK, do not guess.
 
 ## Rules Summary
 

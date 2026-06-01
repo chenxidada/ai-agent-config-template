@@ -60,18 +60,16 @@ Output path depends on the dispatch context:
 
 Create the `specs/exploration/` directory if it does not exist (first-time and short-flow cases).
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary of the most relevant modules, entry points, and impact surface
-- The **actual output file path** (use the path you wrote to — either `specs/exploration/repo-exploration.md` or `specs/phases/<phase-id>/repo-exploration.md` as directed by the Orchestrator)
-- Key risks or unknowns that downstream agents should watch for
-- **Uncertainty report**: List of functions/modules where verification was limited (e.g., "found function signature but did not verify body for: deliver_inbound(), processPayment()")
-- In the exploration report, mark each finding's source: 📊 Code Map (algorithm-recommended) or 👁 Manual (human-found). This helps downstream agents assess confidence.
+- The output file path
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full exploration document in your return message.
+Do NOT include the full exploration document in your return message. Do NOT summarize the exploration content — the orchestrator reads the output file directly when it needs content.
 
 ## Re-Exploration (Per-Phase Mode)
 

@@ -106,18 +106,16 @@ Write your complete requirement definition following `templates/requirements-out
 
 Create the `specs/requirements/` directory if it does not exist.
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: intended scope, key functional areas, acceptance criteria count
 - The output file path: `specs/requirements/requirements.md`
-- Whether operating in create or append mode
-- Open questions that need human confirmation (list them explicitly)
-- Key risks
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full requirements document in your return message.
+Do NOT include the full requirements document in your return message. Do NOT summarize the requirements content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

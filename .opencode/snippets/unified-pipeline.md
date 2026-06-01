@@ -28,7 +28,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 
 - **Dispatch**: Pass the user's requirement description and any existing system context
 - **Output file**: `specs/exploration/repo-exploration.md`
-- **Expect back**: Summary of relevant repository areas, constraints, and risks
+- **Expect back**: Output file path
 
 ### Stage 2: requirement-analyst
 
@@ -44,7 +44,7 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Read original design document**: (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Read existing** (append mode): `specs/requirements/requirements.md`
 - **Output file**: `specs/requirements/requirements.md`
-- **Expect back**: Summary of goals, intended scope, module contract count, acceptance criteria count, open questions
+- **Expect back**: Output file path
 
 ### Stage 3: program-planner
 
@@ -58,13 +58,13 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 - **Output files**:
   - `specs/master-spec.md` (create or update)
   - `specs/phases/<phase-id>/requirements.md` (one per new phase — phase-specific requirements with module contracts)
-- **Expect back**: Summary of modules, number of phases, interface freeze groups, recommended starting phase, critical dependencies
+- **Expect back**: Output file path
 
 ### Stage 4: knowledge-manager checkpoint
 
 - **Dispatch**: Pass requirement + planning summaries
 - **Action**: Sync requirement and architecture milestones as Topic Doc and/or Decision Doc
-- **Expect back**: Confirmation of sync
+- **Expect back**: Output file path
 
 ---
 
@@ -113,7 +113,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/current-status.md` — Phase Deferred Items Tracker
   - Previous phases' `scope-gap-report.md` (path provided by Orchestrator)
 - **Output file**: `specs/phases/<phase-id>/phase-spec.md`
-- **Expect back**: Summary of sub-specs, recommended first sub-spec, dependencies within the phase
+- **Expect back**: Output file path
 
 ### Stage 6: solution-architect (per slice)
 
@@ -126,7 +126,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 - **Output files**:
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
-- **Expect back**: Summary of technical design, key decisions, validation plan overview
+- **Expect back**: Output file path
 
 ### Human Gate 1 (before implementation)
 
@@ -138,7 +138,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 
 - **Dispatch**: Pass design decision summary
 - **Action**: Sync architecture/design decisions as Decision Doc
-- **Expect back**: Confirmation of sync
+- **Expect back**: Output file path
 
 ### Stage 8: implementer (per slice)
 
@@ -150,7 +150,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/tech-debt-registry.md` — check which interfaces are known stubs before depending on them
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/implementation-summary.md`
 - **Code changes**: Actual code modifications + automated tests for Validation Plan scenarios
-- **Expect back**: Summary of what was implemented, key files changed, deviations from plan
+- **Expect back**: Output file path
 
 ### Stage 9: reviewer (per slice)
 
@@ -161,7 +161,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md`
   - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
-- **Expect back**: Overall verdict (pass/must-fix/should-fix), finding counts, test coverage assessment
+- **Expect back**: Verdict (pass/must-fix/should-fix) + output file path
 - **Amendment Tracking**: After approving deviations, reviewer updates sub-spec.md and solution-design.md Amendments sections
 - **Loop**: If must-fix -> auto-dispatch implementer to fix -> re-review (max 3 rounds)
 - **Stub Detection**: Reviews code for unregistered stubs using detection signals (empty bodies, hardcoded returns, one-way #ifdef). Known stubs confirmed; unknown stubs flagged as must-fix.
@@ -176,7 +176,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
   - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md`
   - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Output file**: `specs/phases/<phase-id>/slices/<sub-spec-id>/validation-report.md`
-- **Expect back**: Overall result (pass/partial/fail), scenarios tested, pass/fail counts
+- **Expect back**: Verdict (pass/partial/fail) + output file path
 - **Loop**: If fail → dispatch `code-analyst` (diagnosis mode: read validation-report + relevant code → produce failure diagnosis to `specs/phases/<phase-id>/slices/<sub-spec-id>/failure-diagnosis.md`) → dispatch `implementer` with diagnosis to fix → re-dispatch `validator`. Max 3 rounds total.
 - **Stub-Aware Validation**: Reads tech-debt-registry.md — known stubs excluded from behavioral checks. Unregistered critical-path functions subjected to parameter variation tests.
 
@@ -184,7 +184,7 @@ See `orchestrator.md` §"Phase Preparation" for dispatch instructions.
 
 - **Dispatch**: Pass implementation + validation summaries
 - **Action**: Sync implementation result as Task Doc
-- **Expect back**: Confirmation of sync
+- **Expect back**: Output file path
 
 ### Human Gate 2 (sub-spec completion)
 

@@ -231,6 +231,8 @@ Output file naming convention:
 
 Create the `specs/analysis/` directory if it does not exist.
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Incremental Output
 
 In incremental mode, write output progressively:
@@ -246,12 +248,9 @@ In incremental mode, write output progressively:
 
 Return ONLY:
 
-- A 3-5 sentence summary of the most important findings
 - The output file path
-- Key observations that may be surprising or important for the user
-- Any areas where the analysis was limited (e.g., could not determine without runtime context)
 
-Do NOT include the full analysis document in your return message.
+Do NOT include the full analysis document in your return message. Do NOT summarize the analysis content — the orchestrator reads the output file directly when it needs content.
 
 **Context pressure / partial completion:**
 
@@ -260,6 +259,5 @@ Return:
 - Status: "context_pressure" or "partial_completion"
 - Progress file path: `specs/analysis/.analysis-progress.json`
 - Completed percentage (e.g., "5/12 modules analyzed, ~40% complete")
-- Summary of findings so far
 - What remains to be analyzed
 - Explicit instruction: "Re-dispatch with resume: true to continue"

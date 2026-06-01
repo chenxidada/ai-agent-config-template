@@ -127,16 +127,17 @@ Write your review report following `templates/review-report.md` format to: `spec
 
 Use APPEND mode for loop documents per template instructions — see `unified-pipeline.md` §"Loop Document Append Mode".
 
+**Chinese version**: Also write a Chinese translation of your output to `<same-path>-zh.md`. The original file can be in any language; the -zh.md file must be in Chinese.
+
 ### Return to Orchestrator
 
 Return ONLY:
 
-- A 3-5 sentence summary: overall verdict (pass/must-fix/should-fix), count of findings by category, main concerns, test coverage assessment
 - The output file path: `specs/phases/<phase-id>/slices/<sub-spec-id>/review-report.md`
-- Whether must-fix items exist (triggers automatic implementer loop)
+- Verdict: pass / must-fix / should-fix
 - Whether a human gate is needed (yes/no)
 
-Do NOT include the full review report in your return message.
+Do NOT include the full review report in your return message. Do NOT summarize the review content — the orchestrator reads the output file directly when it needs content.
 
 ## Handoff
 

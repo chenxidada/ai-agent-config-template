@@ -20,13 +20,16 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - **First phase uses global exploration**: Phase 1 uses `specs/exploration/repo-exploration.md` from initial exploration. Subsequent phases each get their own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`.
 - **Phase Entry Gate**: Before Phase Preparation for Phase 2+, read `specs/tech-debt-registry.md` and present inherited debt to user for confirmation
 - **Tech Debt Registry**: All agents read and write `specs/tech-debt-registry.md` as the single source of truth for outstanding technical debt. New stubs are registered; resolved stubs are moved to resolved section.
+- **Pipeline iron rule**: Every sub-spec MUST go through the full implementer → reviewer → validator cycle. The orchestrator has NO authority to skip any stage. The ONLY exception is when the user explicitly says "跳过审查" or "跳过验证".
+- **Agent outputs are direct**: Agents no longer return content summaries to the orchestrator. They return only file paths. The orchestrator reads output files directly when it needs to make decisions. Agents read upstream output files directly — no information passes through orchestrator summarization.
 
 ### Subagent Rules
 
 - Each subagent writes its complete output to the designated file in `specs/`
-- Each subagent returns only a summary to the Orchestrator, not the full document
-- Each subagent reads upstream files from `specs/` as needed based on its Input definition
-- Subagents must not expand scope beyond what the Orchestrator dispatched
+- Each subagent also writes a Chinese translation to `<path>-zh.md`
+- Each subagent returns ONLY the output file path (plus verdict signals for reviewer/validator) to the Orchestrator
+- Each subagent reads upstream output files directly from `specs/` based on its Input definition
+- Subagents must not expand scope beyond what upstream documents define
 
 ### Pipeline Commands
 
