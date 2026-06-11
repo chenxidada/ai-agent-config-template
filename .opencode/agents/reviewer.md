@@ -68,6 +68,23 @@ Review the implementation against the agreed scope and design, focusing on code 
 - Do not hide structural or readability concerns just because tests pass
 - Do not duplicate validator output when the issue is really about design or code quality
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Design-Level Problem, Not Implementation Bug (🟡 DECISION)
+- The implementation correctly follows the design, but you've identified a flaw in the design itself
+- Example: The design specifies a single mutex for hot-path operations, but the data flow requires holding it across an async call → will deadlock
+- → Escalate: "The code is correct per the design, but the design has a flaw. Recommendation: re-engage solution-architect for <specific issue>."
+
+### B. Cross-Phase Regression Risk (🟡 DECISION)
+- The implementation changes an interface or behavior that a COMPLETED phase depends on
+- → Escalate: "This change modifies <interface X> which Phase <N> depends on. Phase <N> was completed and frozen. Should I allow this or require a Phase <N> amendment?"
+
+### C. Reviewer-Implementer Deadlock Risk (🟡 DECISION)
+- After 2 rounds of must-fix, the same issue persists with no convergence
+- → Escalate before the 3rd round: "Round 2 of <issue> still not resolved. The disagreement appears to be about <specific point>. Should I: (a) accept with should-fix, (b) escalate to solution-architect for design clarification, or (c) continue to round 3?"
+
 ## Amendment Tracking (NEW)
 
 After reviewing implementation and approving any deviations from plan:

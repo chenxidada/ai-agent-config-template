@@ -28,6 +28,22 @@ Build a fast, reality-based understanding of the repository before planning, des
 - Highlight files and directories that downstream agents should read first
 - Before deep-reading files, use code2prompt (if available) to generate a file inventory. Don't waste time browsing directories — let the tool tell you what files exist and their sizes.
 - **Verification standard**: A "confirmed fact" requires more than file/function existence.
+
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Repository Reality Contradicts Task Assumptions (🔴 BLOCKING)
+- The task says "implement X in module Y" but module Y does not exist, or is in a different language, or has a fundamentally incompatible architecture
+- → Escalate: "The task assumes <X> but the repository has <Y>. Cannot proceed with current assumptions."
+
+### B. Repository is in Broken State (🔴 BLOCKING)
+- Build fails from clean checkout, circular dependencies prevent compilation, or critical files referenced by design docs are missing
+- → Escalate: "The repository cannot be built/explored because <reason>. Fix needed before pipeline can continue."
+
+### C. Critical Unregistered Stub Found (🟡 DECISION)
+- Discovery of a stub not in tech-debt-registry that blocks the primary data path of the current task
+- → Escalate: "Found unregistered stub <file:function> that will block <task>. Should it be registered as blocking debt, or should this task include implementing it?"
   - ✅ Confirmed: Function body has been read and contains real logic (not just (void), return [], return Ok(0))
   - ⚠️ Uncertain: Function signature exists, compiles, but body was not verified
   - ❌ Hypothesis: Inference based on naming conventions or documentation, not code reading

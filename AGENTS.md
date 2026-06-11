@@ -23,6 +23,49 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - **Pipeline iron rule**: Every sub-spec MUST go through the full implementer → reviewer → validator cycle. The orchestrator has NO authority to skip any stage. The ONLY exception is when the user explicitly says "跳过审查" or "跳过验证".
 - **Agent outputs are direct**: Agents no longer return content summaries to the orchestrator. They return only file paths. The orchestrator reads output files directly when it needs to make decisions. Agents read upstream output files directly — no information passes through orchestrator summarization.
 
+### Escalation Rules
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy, output format, and conflict resolution rules.
+
+- **When in doubt, STOP. Do NOT guess.** An agent that guesses is worse than an agent that escalates.
+- Every agent has role-specific Stop & Escalate Conditions in its definition. These are not optional — they are part of the agent's contract.
+- An agent escalates by returning output in the escalation format (`## ⚠️ ESCALATION — <Level>`) INSTEAD OF its normal output.
+- The Orchestrator MUST check every agent return for escalation before proceeding to the next stage.
+
+#### ⚫ CRITICAL — Stop the World
+
+If ANY agent discovers a finding that meets ALL of these criteria:
+1. Affects the correctness, security, or data integrity of COMPLETED phases
+2. Cannot be contained within the current phase/sub-spec
+3. Would cause incorrect behavior if the pipeline continues without addressing it
+
+→ The agent MUST escalate as ⚫ CRITICAL. The Orchestrator MUST halt ALL active pipelines. No new agents may be dispatched. The user decides whether to continue, re-scope, or abort.
+
+Examples of ⚫ CRITICAL triggers:
+- Security vulnerability in a frozen interface (Phase 1 interface has a buffer overflow)
+- Data corruption pattern that silently produces wrong results across phases
+- Fundamental architectural violation (e.g., no-exceptions codebase discovers exception-throwing path in frozen layer)
+- Build system regression that prevents ALL phases from compiling
+
+#### Conflict Resolution Precedence
+
+When two authoritative sources disagree, resolve by this hierarchy (highest wins):
+1. Original design document (user-provided)
+2. User verbal/written confirmation during pipeline
+3. `specs/requirements/requirements.md`
+4. `specs/master-spec.md`
+5. `specs/phases/<phase-id>/requirements.md`
+6. `specs/phases/<phase-id>/phase-spec.md`
+7. `specs/phases/<phase-id>/slices/<id>/sub-spec.md`
+
+When two agents disagree on facts (not design decisions):
+1. `repo-explorer` wins on repository reality
+2. `validator` wins on empirical test results
+3. `requirement-analyst` wins on requirements interpretation
+4. `reviewer` and `implementer` disagreement → escalate to Orchestrator for deadlock resolution
+
+**NEVER default to "the agent that ran later wins."**
+
 ### Subagent Rules
 
 - Each subagent writes its complete output to the designated file in `specs/`

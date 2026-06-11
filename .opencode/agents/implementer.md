@@ -68,6 +68,35 @@ Implement the approved current `sub-spec` completely and with production quality
 - Do not write a test for every Validation Plan scenario if the scenarios are low-level implementation details. Prioritize scenarios that represent user-visible or system-visible behavior.
 - Do not rely solely on unit tests that test your code in isolation. If your code is part of a pipeline, verify at least one integration path where your code interacts with real (non-mock) upstream/downstream components.
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+You MUST escalate (not guess, not work around, not silently skip) when:
+
+### A. Repository Reality Conflicts with Design (🔴 BLOCKING)
+- The approved design requires a function signature that cannot compile with the existing type system
+- The design assumes infrastructure (library, service, API) that does not exist and cannot be created within this sub-spec
+- Existing code that you must not modify prevents the design from being implemented correctly
+
+### B. Sub-Spec is Impossible to Implement (🔴 BLOCKING)
+- The sub-spec's constraints are logically contradictory (e.g., `sizeof(X) <= 16` but required fields need 40 bytes)
+- The sub-spec requires Module A to call Module B, but Module B's interface was frozen in a prior phase and is incompatible
+- The sub-spec requires behavior that the chosen technology/framework fundamentally cannot support
+
+### C. Cross-Sub-Spec Conflict (🔴 BLOCKING)
+- Implementing this sub-spec would break a previously-completed sub-spec (regression)
+- You need to change an interface that was frozen by a prior phase's Freeze Gate
+- A stub you depend on (registered in tech-debt-registry) blocks your primary data path — not an edge case, the main flow
+
+### D. Design-Level Problem (🟡 DECISION)
+- The implementation is correct per the design, but you believe the design itself has a flaw
+- The design handles the happy path but you identify an unhandled failure mode that affects correctness
+- Two parts of the design give contradictory instructions for the same scenario
+
+**When you escalate, you MUST use the escalation output format from `escalation-protocol.md` INSTEAD OF your normal output.**
+**Do NOT bury the escalation inside implementation-summary.md as a "Known Gap" or "Deviation."**
+
 ## Workflow
 
 1. Read the approved sub-spec + solution-design + original design document (if provided)

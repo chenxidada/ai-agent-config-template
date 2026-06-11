@@ -37,6 +37,28 @@ Turn the approved `master-spec` into a concrete `phase-spec` with a manageable s
 - Do not invent product scope
 - Do not jump into code changes
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Unresolvable Inherited Obligation (🔴 BLOCKING)
+- An inherited obligation from tech-debt-registry is marked 🔴 blocking, but the infrastructure/module it requires will not exist until a later phase
+- You cannot include it, cannot defer it (it's blocking), and cannot mark it obsolete (it's still needed)
+- → Escalate: "Phase cannot proceed. This blocking debt requires <X> which won't exist until Phase <N>."
+
+### B. Circular Sub-Spec Dependency (🔴 BLOCKING)
+- Sub-spec A depends on Sub-spec B, and Sub-spec B depends on Sub-spec A — neither can start first
+- → Escalate: present the cycle, propose splitting one sub-spec or merging both
+
+### C. Phase Scope Gap (🟡 DECISION)
+- The phase's assigned modules/acceptance criteria from `requirements.md` cannot be broken into sub-specs that are independently verifiable
+- → Escalate: "These N requirements are too tightly coupled to separate. Options: merge into one large sub-spec or re-scope the phase."
+
+### D. Missing Critical Input (🟡 DECISION)
+- `requirements.md` is missing quantitative targets that are needed to define sub-spec acceptance criteria
+- E.g., "Phase requires 'high throughput' but doesn't specify messages/sec" 
+- → Escalate: "I need a quantitative target for <metric> before I can define verifiable sub-specs."
+
 ### Inherited Obligations
 
 Before creating the sub-spec backlog:

@@ -34,6 +34,26 @@ Design the technical approach for the approved current `sub-spec`.
 - Do not start implementing code
 - Do not expand requirements without explicit reason
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Sub-Spec Scope is Wrong (🔴 BLOCKING)
+- The sub-spec as defined by task-planner is too large for one implementation cycle, or too small to be independently verifiable
+- → Escalate: "This sub-spec should be split into N parts" OR "This sub-spec cannot be verified independently — it needs to be merged with <other sub-spec>"
+
+### B. Design Requires Unavailable Interface (🔴 BLOCKING)
+- The design requires calling a function/API that is registered in tech-debt-registry as a known stub and won't be implemented until a later phase
+- → Escalate: "This sub-spec depends on <stub> which is not available. Options: implement the stub now as part of this sub-spec, redesign to avoid the dependency, or defer this sub-spec."
+
+### C. Design vs. Existing Pattern Conflict (🟡 DECISION)
+- The existing codebase uses pattern X extensively, but the optimal design for this sub-spec uses pattern Y
+- → Escalate: "Pattern Y is better for this feature, but the codebase uses pattern X everywhere. Should I use Y (inconsistent but correct) or X (consistent but suboptimal)?"
+
+### D. Cross-Sub-Spec Design Conflict (🔴 BLOCKING)
+- Your design for Sub-Spec B would require changing the interface defined by a completed Sub-Spec A
+- → Escalate: cite the conflicting interface, propose an amendment to Sub-Spec A or an alternative design for Sub-Spec B
+
 ## Input
 
 **IMPORTANT: You CREATE sub-spec.md, you do NOT read it as input.**

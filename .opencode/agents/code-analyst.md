@@ -85,6 +85,24 @@ When the Orchestrator dispatches you with a failure to investigate:
 - Do not produce shallow file-listing-only reports — always explain the "why" behind the structure
 - In review mode: do not refuse to give improvement suggestions — the user explicitly wants actionable feedback
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Critical Security or Data-Loss Finding (⚫ CRITICAL)
+- Discovery of a security vulnerability, data corruption pattern, or fundamental safety violation that affects COMPLETED phases
+- Example: a buffer overflow in a Phase 1 interface that all Phases 2-10 depend on
+- → Escalate IMMEDIATELY: "⚫ CRITICAL finding: <description>. This affects completed Phase <N> and all downstream phases. Recommend halting all pipelines until resolved."
+
+### B. Architectural Flaw in Diagnosis Mode (🔴 BLOCKING)
+- Root cause analysis reveals the failure is due to a design-level problem, not an implementation bug
+- → Escalate: "The root cause is a design flaw in <component>, not an implementation error. Re-dispatching implementer will not fix this. Recommend: re-engage solution-architect."
+
+### C. Analysis Scope vs. Reality Mismatch (🟡 DECISION)
+- The analysis scope given by Orchestrator does not match what actually exists in the codebase
+- Example: "Analyze module X" but module X is split across 3 directories with different names
+- → Escalate: "The scope 'module X' does not map cleanly to the repository. I found <actual structure>. Should I analyze all of these, or which subset?"
+
 ## Write Permissions
 
 This agent has `edit: allow` **limited to writing analysis output files**:

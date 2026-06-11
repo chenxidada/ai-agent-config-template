@@ -4,6 +4,12 @@ This is the standard pipeline for all development workflows: `/feature`, `/bugfi
 
 The only difference between `/feature`, `/bugfix`, and `/rebuild` is the context passed to the requirement-analyst (describing the nature of the change). The pipeline structure is identical.
 
+## Escalation Awareness
+
+**Every stage may produce an escalation instead of normal output.** The Orchestrator checks every agent return for the escalation signal (`## ⚠️ ESCALATION`) before proceeding to the next stage. When an escalation occurs, the pipeline PAUSES until the Orchestrator resolves it per the Escalation Handling Protocol in `orchestrator.md`.
+
+Agents escalate per the Stop & Escalate Conditions in their definitions and the shared taxonomy in `.opencode/snippets/escalation-protocol.md`. The pipeline does NOT define additional stop conditions — it references the agent definitions and the escalation protocol.
+
 ## Design Document as Authoritative Source
 
 When the user provides a completed design document as input (rather than a raw idea), the design document becomes the **authoritative source** for all interface definitions, constraints, and acceptance criteria. ALL downstream agents MUST read the original design document directly — not just the intermediate specs/ artifacts.
@@ -50,15 +56,34 @@ The Orchestrator detects the mode automatically by checking for `specs/master-sp
 
 - **Dispatch**: Pass requirement-analyst summary + user decisions on open questions
 - **Mode context**:
-  - First-time: "Create a new master-spec with phase breakdown"
-  - Append: "Update the existing `specs/master-spec.md` — add new phases for the new requirements. Do NOT modify completed phases."
+  - First-time: "Create a new master-spec with phase breakdown — assign modules to phases, define dependencies, do NOT write per-phase requirements"
+  - Append: "Update the existing `specs/master-spec.md` — add new phases for the new requirements. Do NOT modify completed phases. Do NOT write per-phase requirements."
 - **Read upstream**: `specs/requirements/requirements.md`, `specs/exploration/repo-exploration.md` (if available)
 - **Read original design document**: (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
 - **Read existing** (append mode): `specs/master-spec.md`
 - **Output files**:
   - `specs/master-spec.md` (create or update)
-  - `specs/phases/<phase-id>/requirements.md` (one per new phase — phase-specific requirements with module contracts)
-- **Expect back**: Output file path
+  - For each new phase: create the directory `specs/phases/<phase-id>/` and write a **Phase Assignment Summary** to `specs/phases/<phase-id>/phase-assignment.md` — a lightweight document recording which modules/requirements are assigned to this phase and why. This is a planning artifact, NOT a full requirements document.
+- **Expect back**: Output file paths + list of new phase-ids
+
+### Stage 3.5: requirement-analyst (per-phase extract) ← NEW
+
+- **Dispatch**: For EACH new phase, dispatch requirement-analyst in **per-phase extract mode**
+- **Mode context**: "per-phase-extract: Extract the full requirements for Phase `<phase-id>` from the overall requirements and design document. This phase covers modules <list>. Focus ONLY on what this phase must deliver."
+- **Read upstream**:
+  - `specs/requirements/requirements.md` (overall requirements — extract relevant sections)
+  - `specs/phases/<phase-id>/phase-assignment.md` (program-planner's module assignment for this phase)
+  - **Original design document** (path provided by Orchestrator; read in full — see §Design Document as Authoritative Source)
+- **Output files**:
+  - `specs/phases/<phase-id>/requirements.md` (following `templates/phase-requirements.md` — full standard with Module Contracts, NFR, Risks, Source Traceability)
+  - `specs/phases/<phase-id>/requirements-zh.md` (MANDATORY Chinese translation)
+- **Compliance check** (Orchestrator verifies before proceeding):
+  - [ ] All REQUIRED sections present?
+  - [ ] Module Contracts present (if parent requirements has them for this phase)?
+  - [ ] Quantitative constraints preserved verbatim (not summarized into prose)?
+  - [ ] `requirements-zh.md` exists?
+  - [ ] Source traceability table filled?
+- **Expect back**: Output file paths
 
 ### Stage 4: knowledge-manager checkpoint
 
@@ -218,18 +243,21 @@ After a complete run, the specs/ directory will contain:
 
 ```
 specs/
-|-- tech-debt-registry.md              ← unified tech debt registry (NEW)
+|-- tech-debt-registry.md              ← unified tech debt registry
 |-- current-status.md
 |-- master-spec.md
 |-- exploration/
 |   +-- repo-exploration.md          ← first-time exploration only
 |-- requirements/
 |   +-- requirements.md
+|   +-- requirements-zh.md
 +-- phases/
     |-- <phase-1>/
-    |   |-- repo-exploration.md       ← phase-specific (NEW)
-    |   |-- code-analysis.md          ← phase-specific, optional (NEW)
-    |   |-- requirements.md
+    |   |-- phase-assignment.md       ← program-planner: module→phase assignment (NEW)
+    |   |-- requirements.md           ← requirement-analyst: per-phase extract (NEW owner)
+    |   |-- requirements-zh.md        ← MANDATORY Chinese translation
+    |   |-- repo-exploration.md       ← phase-specific
+    |   |-- code-analysis.md          ← phase-specific, optional
     |   |-- phase-spec.md
     |   |-- scope-gap-report.md
     |   +-- slices/
@@ -240,8 +268,11 @@ specs/
     |           |-- review-report.md
     |           +-- validation-report.md
     |-- <phase-2>/
-    |   |-- repo-exploration.md       ← re-explored for this phase (NEW)
-    |   |-- code-analysis.md          ← re-analyzed for this phase (NEW)
+    |   |-- phase-assignment.md
+    |   |-- requirements.md
+    |   |-- requirements-zh.md
+    |   |-- repo-exploration.md       ← re-explored for this phase
+    |   |-- code-analysis.md          ← re-analyzed for this phase
     |   +-- ...
     +-- ...
 ```

@@ -227,8 +227,132 @@ Before dispatching repo-explorer, check if `code2prompt` is available on the sys
 
 1. Update `specs/current-status.md` — stage progress, output file path, Recovery Briefing
 2. Read the agent's output file (at the path they returned) to determine next action
-3. Determine: proceed / loop back / Human Gate / KM checkpoint
-4. Do NOT rely on memory or summaries — read the file when you need to make a decision
+3. **Check for escalation**: If the agent returned an escalation (output starts with `## ⚠️ ESCALATION`) → follow the Escalation Handling Protocol below. Do NOT proceed to the next stage.
+4. Determine: proceed / loop back / Human Gate / KM checkpoint / escalation
+5. Do NOT rely on memory or summaries — read the file when you need to make a decision
+
+## Escalation Handling Protocol
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` — read this for the full taxonomy and conflict resolution rules.
+
+When ANY agent returns an escalation instead of normal output, you MUST stop the pipeline and handle it. Do NOT dispatch the next agent. Do NOT assume the escalation is minor.
+
+### Recognizing an Escalation
+
+An agent output is an escalation if it starts with:
+```
+## ⚠️ ESCALATION — <🟢FYI / 🟡DECISION / 🔴BLOCKING / ⚫CRITICAL>
+```
+
+Or if the agent returns `human-gate-needed: yes` with a reason that matches a Stop Condition Trigger from the escalation protocol.
+
+### Response by Level
+
+#### 🟢 FYI
+1. Read the escalation
+2. Record in `specs/current-status.md` §Escalation Log: timestamp, level, agent, summary
+3. Continue to next stage
+
+#### 🟡 DECISION
+1. **STOP the pipeline** — do not dispatch next agent
+2. Present to user with Human Gate format, plus:
+   ```
+   ## ⚠️ Decision Required
+   **From:** <agent-name>
+   **I cannot proceed until you choose.**
+   
+   <agent's escalation content>
+   
+   ## Your options
+   → Reply "A", "B", or "C"
+   → Reply with new option
+   → Reply "read <path>" to inspect context before deciding
+   ```
+3. Wait for user response
+4. Record user's decision in `specs/current-status.md` §User Decisions
+5. **Re-dispatch the SAME agent** — include the user's decision as additional context in the dispatch prompt
+6. The agent resumes from where it stopped
+
+#### 🔴 BLOCKING
+1. **STOP the pipeline** — do not dispatch next agent
+2. Present to user with Human Gate format:
+   ```
+   ## ⚠️ Pipeline Blocked
+   **From:** <agent-name>
+   **Cannot proceed due to:** <reason>
+   
+   <agent's escalation content>
+   
+   ## Resolution options
+   → Provide missing info → I re-dispatch the same agent
+   → Modify upstream spec → I re-dispatch an earlier agent
+   → Accept constraint → agent works within it
+   → Abort this phase/sub-spec
+   ```
+3. User's choice determines next action:
+   - "Provide info" → re-dispatch same agent with new context
+   - "Modify upstream" → re-dispatch the earlier agent (e.g., solution-architect if design is wrong, requirement-analyst if requirements are wrong)
+   - "Accept constraint" → re-dispatch same agent with instruction to work within constraint
+   - "Abort" → close phase/sub-spec, update status
+4. Record decision + rationale in `specs/current-status.md`
+
+#### ⚫ CRITICAL
+1. **HALT ALL PIPELINES** — do not dispatch ANY agents for ANY pipeline
+2. Present to user IMMEDIATELY:
+   ```
+   ## ⚫ CRITICAL — All Pipelines Halted
+   **From:** <agent-name>
+   **Impact:** <scope of impact — which phases/modules affected>
+   
+   <agent's escalation content>
+   
+   ## Affected Work
+   - Active pipeline: <name> at stage <stage>
+   - Completed phases that may be affected: <list>
+   - Other active pipelines: <list>
+   
+   ## Your options
+   → Continue despite risk → I record the decision and resume
+   → Re-scope affected phases → I update specs and resume
+   → Abort all pipelines → I close everything
+   ```
+3. Do NOT resume until user explicitly says "continue" or "resume"
+4. Record decision with rationale in `specs/current-status.md`
+
+### Conflict Resolution
+
+When two agents disagree on the same fact or design point:
+
+1. Read BOTH agents' full output files (not summaries)
+2. Identify the exact point of disagreement — exact claim, not paraphrased
+3. Check the Source Authority Hierarchy in `escalation-protocol.md`
+4. If the hierarchy resolves it → apply the higher source's position, note in current-status.md
+5. If the hierarchy does NOT resolve it → 🔴 BLOCKING escalation to user, present both positions
+6. **NEVER default to "the agent that ran later wins"**
+
+### Deadlock Resolution
+
+When the reviewer↔implementer loop reaches 3 rounds without resolution:
+
+1. Do NOT blindly escalate to user with "X says A, Y says B"
+2. Read both `implementation-summary.md` and all `review-report.md` rounds
+3. Determine the nature of the deadlock:
+   - **Design disagreement** (implementer followed design, reviewer thinks design is wrong) → re-dispatch `solution-architect` for adjudication
+   - **Implementation quality** (reviewer finds the same bug class repeatedly) → re-dispatch `code-analyst` for diagnosis, then `implementer` with diagnosis
+   - **Spec ambiguity** (both are right under different interpretations) → escalate to user with both interpretations
+4. Record the deadlock resolution path in `specs/current-status.md` §Escalation Log
+
+### Design-Level Problem Escalation
+
+When `reviewer`, `validator`, or `implementer` discovers that an implementation issue is actually a design-level problem:
+
+1. Do NOT loop the `implementer` (they cannot fix design problems)
+2. Do NOT dismiss the finding
+3. Re-dispatch `solution-architect` with the finding as additional context
+4. If `solution-architect` confirms the design flaw → update `sub-spec.md` Amendments section
+5. If `solution-architect` says the design is correct → re-dispatch `implementer` with clarification
+
+This breaks the implementer↔reviewer loop when the root cause is NOT implementation quality.
 
 ## Human Gates
 

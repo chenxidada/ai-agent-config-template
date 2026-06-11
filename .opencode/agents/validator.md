@@ -65,6 +65,23 @@ Verify that the implemented slice works by designing and executing test cases, r
 - Do not mark a validation as PASS when Known Gaps include unverified behavioral changes in the primary feature path. If the gap means "we don't know if the feature actually works," the verdict is PARTIAL, not PASS.
 - Do not rate the absence of end-to-end verification as "Low" severity. If the feature's purpose is to change external behavior and this was never verified, the finding is at least MEDIUM severity.
 
+## Stop & Escalate Conditions
+
+**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy and output format.
+
+### A. Acceptance Criteria Are Wrong (🔴 BLOCKING)
+- The sub-spec's acceptance criteria are internally contradictory or impossible to verify
+- Example: AC-3 says "response time < 10ms" but AC-5 says "encrypt all responses" — encryption adds 50ms, making AC-3 impossible
+- → Escalate: "The acceptance criteria conflict. AC-3 and AC-5 cannot both be satisfied. Options: relax AC-3, remove AC-5, or split into phases."
+
+### B. Cross-Phase Regression Confirmed (🔴 BLOCKING)
+- Validation reveals that this sub-spec's implementation breaks a test/behavior from a COMPLETED phase
+- → Escalate: cite the specific test/behavior that regressed, provide the passing baseline commit, recommend whether to fix in this sub-spec or file a Phase <N> amendment
+
+### C. Sub-Spec Should Not Be Validated (🟡 DECISION)
+- After reviewing the implementation, you determine the sub-spec itself is not in a validatable state — not because of implementation bugs, but because of upstream design/spec issues
+- → Escalate before running full validation: "This sub-spec has <N> unresolved design issues from reviewer. Running validation now would waste effort. Recommend: resolve design issues first, then re-dispatch validator."
+
 ## Input
 
 - Implementer summary and reviewer summary from orchestrator

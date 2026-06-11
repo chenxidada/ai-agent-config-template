@@ -62,7 +62,35 @@ code2prompt 可用：yes / no
 
 ## Output
 → `specs/master-spec.md`
-→ `specs/phases/<id>/requirements.md`
+→ `specs/phases/<id>/phase-assignment.md`（每个新 Phase 一份 — 轻量模块分配记录）
+```
+
+---
+
+## requirement-analyst (per-phase extract) ← NEW
+
+```markdown
+## What you need to do（从上游文档引用，不作概括）
+提取 Phase `<phase-id>` 的完整需求
+
+## Mode
+per-phase-extract
+
+## Phase scope
+Phase ID：`<phase-id>`
+分配的模块：<list from phase-assignment.md>
+分配的验收标准：<list from phase-assignment.md>
+
+## Must-read files
+| 文件 | 这是什么 | 重点读 |
+|------|---------|-------|
+| `specs/requirements/requirements.md` | 整体需求文档 | 与本 Phase 相关的模块契约、NFR、验收标准 |
+| `specs/phases/<id>/phase-assignment.md` | 模块分配记录 | 全文 — 这是本 Phase 的范围边界 |
+| `<design document path>` | 原始设计文档（如有） | 与本 Phase 模块相关的接口定义 |
+
+## Output
+→ `specs/phases/<id>/requirements.md`（按 `templates/phase-requirements.md` 完整标准）
+→ `specs/phases/<id>/requirements-zh.md`（MANDATORY — 缺失则 Stage 被拒绝）
 ```
 
 ---

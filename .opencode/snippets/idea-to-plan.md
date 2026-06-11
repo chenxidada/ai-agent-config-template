@@ -29,8 +29,18 @@ The Orchestrator dispatches each stage via the Task tool.
 - **Read existing** (if append): `specs/master-spec.md`
 - **Output files**:
   - `specs/master-spec.md` (create or update)
-  - `specs/phases/<phase-id>/requirements.md` (per new phase)
-- **Expect back**: Summary of modules, phases, recommended starting phase
+  - `specs/phases/<phase-id>/phase-assignment.md` (per new phase — lightweight module→phase assignment)
+- **Expect back**: Summary of modules, phases, recommended starting phase + list of new phase-ids
+
+### Stage 3.5: requirement-analyst (per-phase extract)
+
+- **Dispatch**: For EACH new phase, dispatch requirement-analyst in per-phase-extract mode
+- **Read upstream**: `specs/requirements/requirements.md`, `specs/phases/<phase-id>/phase-assignment.md`
+- **Read original design document**: (path provided by Orchestrator; read in full)
+- **Output files**:
+  - `specs/phases/<phase-id>/requirements.md` (following `templates/phase-requirements.md`)
+  - `specs/phases/<phase-id>/requirements-zh.md` (MANDATORY)
+- **Expect back**: Output file paths
 
 ### Stage 4: task-planner
 
@@ -63,7 +73,9 @@ The Orchestrator dispatches each stage via the Task tool.
 - `specs/exploration/repo-exploration.md` - Repository/system context
 - `specs/requirements/requirements.md` - Requirement definition
 - `specs/master-spec.md` - Master plan with phase breakdown
-- `specs/phases/<phase-id>/requirements.md` - Phase-specific requirements
+- `specs/phases/<phase-id>/phase-assignment.md` - Phase module assignment (program-planner)
+- `specs/phases/<phase-id>/requirements.md` - Phase-specific requirements (requirement-analyst, full standard)
+- `specs/phases/<phase-id>/requirements-zh.md` - Chinese translation (MANDATORY)
 - `specs/phases/<phase-id>/phase-spec.md` - Phase task breakdown
 - `specs/phases/<phase-id>/slices/<sub-spec-id>/sub-spec.md` - Technical spec with Validation Plan
 - `specs/phases/<phase-id>/slices/<sub-spec-id>/solution-design.md` - Solution design
