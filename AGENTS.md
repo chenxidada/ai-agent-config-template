@@ -21,7 +21,9 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - **Phase Entry Gate**: Before Phase Preparation for Phase 2+, read `specs/tech-debt-registry.md` and present inherited debt to user for confirmation
 - **Tech Debt Registry**: All agents read and write `specs/tech-debt-registry.md` as the single source of truth for outstanding technical debt. New stubs are registered; resolved stubs are moved to resolved section.
 - **Pipeline iron rule**: Every sub-spec MUST go through the full implementer → reviewer → validator cycle. The orchestrator has NO authority to skip any stage. The ONLY exception is when the user explicitly says "跳过审查" or "跳过验证".
+- **Enforcement plugin awareness**: The `enforcement-gate.mjs` plugin programmatically blocks the Orchestrator from editing non-specs files and running unauthorized commands. If the Orchestrator receives a "Permission denied" message, it indicates a pipeline bypass was blocked — the Orchestrator MUST delegate the blocked action to the appropriate subagent immediately.
 - **Agent outputs are direct**: Agents no longer return content summaries to the orchestrator. They return only file paths. The orchestrator reads output files directly when it needs to make decisions. Agents read upstream output files directly — no information passes through orchestrator summarization.
+- **Interaction Protocol (UPDATED)**: All user input falls into Category A (pipeline commands) or Category B (everything else). There is NO Category C. If reading any file is needed to answer, the Orchestrator MUST dispatch a subagent.
 
 ### Escalation Rules
 
@@ -172,6 +174,8 @@ These skills start as empty skeletons. Agents update them after successful opera
 - **Update on resolution**: When a stub is filled in, move it from "active" to "resolved"
 - **Cross-reference on review**: Reviewer compares code against registry to catch unregistered stubs
 - **Validate on verification**: Validator uses registry to skip known stubs and flag suspected new ones
+
+**⚠️ ENFORCEMENT: These tools are listed for SUBAGENT use (primarily `knowledge-manager`). The Orchestrator MUST NOT use knowledge-base MCP tools directly for sync operations — dispatch `knowledge-manager` instead. The Orchestrator MAY use `search_documents` and `list_documents` ONLY for locating relevant prior work when asked. All create/update/sync operations go through `knowledge-manager`.**
 
 ## Preferred Tool Categories
 

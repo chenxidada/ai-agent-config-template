@@ -83,6 +83,17 @@ The agent determines that what's being asked is logically or physically impossib
 
 **Rule:** BLOCKING escalation. The agent MUST explain the constraint violation with concrete numbers.
 
+### E. Orchestrator Self-Violation Detected（Orchestrator 检测到自身违规）
+
+The Orchestrator catches itself doing something it should not be doing — reading source files for analysis, editing non-specs files, or running build commands.
+
+**Examples:**
+- "I've been reading source files for the last 3 turns. I should have dispatched `code-analyst` 2 turns ago."
+- "I was about to edit `src/config.h` to add a new constant. This should be delegated to `implementer`."
+- "I ran `cmake --build` to check compilation. This should have been dispatched to `implementer`."
+
+**Rule:** BLOCKING escalation. The Orchestrator MUST stop immediately, describe what happened, and either re-dispatch to the correct subagent or ask the user for direction. The violation must be recorded as an enforcement violation in `specs/current-status.md` §Escalation Log.
+
 ---
 
 ## Escalation Output Format

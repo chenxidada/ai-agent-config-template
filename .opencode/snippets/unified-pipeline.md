@@ -290,3 +290,23 @@ Use kebab-case derived from the sub-spec name. Examples:
 - `login-flow`
 - `csv-export`
 - `chart-component`
+
+## Enforcement Plugin Awareness
+
+The `enforcement-gate.mjs` plugin monitors all Orchestrator actions. It programmatically blocks:
+- Edits to any file outside `specs/current-status.md`
+- Bash commands beyond orchestration-safe operations (mkdir specs/, git branch/log/merge, which)
+- Dispatching implementer/reviewer/validator during Discussion mode
+
+If the Orchestrator receives a "Permission denied" message from the framework, this is the enforcement plugin at work. The Orchestrator MUST NOT attempt to work around the restriction — it MUST delegate to the appropriate subagent.
+
+### Pipeline Compliance Checkpoint (NEW)
+
+After each sub-spec completes, the Orchestrator MUST run a compliance self-check:
+
+- [ ] Were ALL stages dispatched to subagents (not done by Orchestrator)?
+- [ ] Were ALL dispatch prompts complete (template compliance)?
+- [ ] Were ALL Human Gates presented?
+- [ ] Were any enforcement violations logged?
+
+If any checkbox is unchecked → record in `specs/current-status.md` §Compliance Notes before proceeding.

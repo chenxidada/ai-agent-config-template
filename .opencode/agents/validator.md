@@ -43,6 +43,11 @@ Verify that the implemented slice works by designing and executing test cases, r
   - 🟡 MEDIUM: Works in normal path but edge cases or secondary features unverified
   - 🟢 LOW: Cosmetic, logging, documentation, or purely non-functional gaps
   - "No end-to-end verification of the primary behavior" is NEVER Low — it is at minimum MEDIUM
+- **Pipeline compliance verification (NEW)**: After completing standard validation, perform a lightweight pipeline compliance check:
+  a. Read `specs/current-status.md` — verify that each pipeline stage has a corresponding subagent output file
+  b. Check `git log --all --oneline` — verify that all non-specs file changes were made on `impl-*` branches (by implementer), not on `main`
+  c. If any non-specs files were modified outside `impl-*` branches → flag as a compliance finding in validation-report.md
+  d. Report: "Pipeline compliance: ✅ All changes on impl-* branches" or "⚠️ Pipeline compliance: <N> files modified outside implementer branches — see §Compliance Findings"
 
 ## Anti-Rationalization（不要用这些借口通过验证）
 

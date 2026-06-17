@@ -24,19 +24,12 @@ description: >-
 
 > **状态说明**：✅=已验证可用 | ⚠️=已过期/不可用 | ❌=未验证
 
-<!-- 格式示例：
-### `npm run build`
+### OpenCode 插件（.mjs）— 无需构建
 - **状态**：✅ 已验证
-- **环境**：Node 22 / npm 10
-- **说明**：等同于 tsc -p tsconfig.build.json && node scripts/postbuild.js
-- **最后验证**：2026-05-26 by implementer，Phase 2 构建成功
-
-### `npx tsc --build`
-- **状态**：⚠️ 已过期（缺少 postbuild 步骤，改用 npm run build）
-- **过期标记**：2026-05-26
--->
-
-*（尚无已验证的构建命令 — implementer 首次成功编译后填写）*
+- **环境**：Node.js 20.16.0
+- **说明**：`.opencode/plugins/` 下的 `.mjs` 文件是纯 JavaScript ES Module，由 OpenCode 框架直接加载执行，无需编译或构建步骤。用到的 API 仅限于标准 Node.js 模块（`fs/promises`、`path`），无外部依赖。
+- **文件**：`enforcement-gate.mjs`、`kb-sync-runtime.mjs`
+- **最后验证**：2026-06-16 by implementer，Phase 2 enforcement plugin 加载测试通过
 
 ---
 
@@ -44,15 +37,19 @@ description: >-
 
 <!-- 格式同上，标注状态 + 环境 + 最后验证时间 -->
 
-*（尚无已验证的依赖安装信息）*
+*（尚无已验证的依赖安装信息 — 插件使用标准 Node.js API，无需额外依赖）*
 
 ---
 
 ## 环境要求
 
-<!-- 特殊环境变量、工具版本等，同样标注验证状态 -->
+### Node.js
+- **状态**：✅ 已验证
+- **版本**：v20.16.0（经 nvm 管理）
+- **路径**：`/home/chendc/.nvm/versions/node/v20.16.0/bin/node`
+- **最后验证**：2026-06-16 by implementer
 
-*（尚无已验证的环境信息）*
+<!-- 特殊环境变量、工具版本等，同样标注验证状态 -->
 
 ---
 
@@ -65,5 +62,10 @@ description: >-
 ---
 
 ## 注意事项
+
+### Phase 1: 文本规则硬化
+- **状态**: ✅ 已验证
+- **说明**: Phase 1（Enforcement System Text Rule Hardening）为纯文本配置变更，修改 `.opencode/agents/orchestrator.md`、`AGENTS.md`、`.opencode/snippets/escalation-protocol.md`、`.opencode/snippets/unified-pipeline.md`。无需编译/构建步骤。
+- **最后验证**: 2026-06-16 by implementer
 
 *（尚无特殊注意点）*

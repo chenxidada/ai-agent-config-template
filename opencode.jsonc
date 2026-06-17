@@ -1,8 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "orchestrator",
-  // 简化版插件 - 只注入系统提示，不拦截消息
-  "plugin": ["./.opencode/plugins/kb-sync-runtime.mjs"],
+  // 插件列表（按注册顺序执行）：
+  //   1. enforcement-gate — 程序化门禁：通过 permission.ask 阻断非法 edit/bash/task 操作
+  //   2. kb-sync-runtime — KB 同步：在 session.compacted 时自动同步到知识库
+  "plugin": [
+    "./.opencode/plugins/enforcement-gate.mjs",
+    "./.opencode/plugins/kb-sync-runtime.mjs"
+  ],
   "mcp": {
     // ============================================
     // Knowledge Base MCP Server
