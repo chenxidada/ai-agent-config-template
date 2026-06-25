@@ -16,8 +16,8 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 - reviewer must-fix triggers auto-loop to implementer (max 3 rounds)
 - validator fail triggers auto-loop to implementer (max 3 rounds)
 - Exceed max rounds -> escalate to user
-- **Phase Preparation**: Before each new Phase (Phase 2+), run repo-explorer (Stage 4.5) to re-explore the now-modified codebase, writing to `specs/phases/<phase-id>/repo-exploration.md`. Optionally run code-analyst (Stage 4.6) for deep per-phase analysis.
-- **First phase uses global exploration**: Phase 1 uses `specs/exploration/repo-exploration.md` from initial exploration. Subsequent phases each get their own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`.
+- **Phase Preparation**: Before each new Phase, run repo-explorer (Stage 4.5) to explore the current codebase, writing to `specs/phases/<phase-id>/repo-exploration.md`. Optionally run code-analyst (Stage 4.6) for deep per-phase analysis.
+- **Every phase has independent exploration**: Each phase gets its own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`. The global `specs/exploration/repo-exploration.md` from Stage 1 serves as background for early planning stages (requirement-analyst, program-planner) before per-phase explorations are generated.
 - **Phase Entry Gate**: Before Phase Preparation for Phase 2+, read `specs/tech-debt-registry.md` and present inherited debt to user for confirmation
 - **Tech Debt Registry**: All agents read and write `specs/tech-debt-registry.md` as the single source of truth for outstanding technical debt. New stubs are registered; resolved stubs are moved to resolved section.
 - **Pipeline iron rule**: Every sub-spec MUST go through the full implementer → reviewer → validator cycle. The orchestrator has NO authority to skip any stage. The ONLY exception is when the user explicitly says "跳过审查" or "跳过验证".

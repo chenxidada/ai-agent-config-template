@@ -263,7 +263,7 @@ Before starting a NEW phase (Phase 2+), the Orchestrator MUST:
 
 ### Phase Preparation (Before Stage 5: task-planner)
 
-When starting a NEW phase (not the first phase, and not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
+When starting a NEW phase (not within a phase's sub-spec loop), execute Phase Preparation before task-planner:
 
 ### repo-explorer tools
 
@@ -280,12 +280,13 @@ Before dispatching repo-explorer, check if `code2prompt` is available on the sys
    - Skip when the phase only creates new modules without touching existing code
    - Output: `specs/phases/<phase-id>/code-analysis.md`
 
-**First phase exception**: The first phase uses `specs/exploration/repo-exploration.md` (from initial exploration) for initial planning. Starting from Phase 2 onward, each phase gets its own `specs/phases/<phase-id>/repo-exploration.md` via Stage 4.5.
+**Every phase has independent exploration**: Each phase gets its own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md` via Stage 4.5. The global `specs/exploration/repo-exploration.md` from Stage 1 serves as background context (read by repo-explorer during per-phase exploration), but each phase's exploration is a fresh snapshot of the current codebase state.
 
 **Per-phase file reading rules**:
-- `requirement-analyst`: reads `specs/exploration/repo-exploration.md` (first-time) OR `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
-- `solution-architect`: reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
-- `implementer`: reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
+- `requirement-analyst` (Stage 2, 3.5): reads `specs/exploration/repo-exploration.md` (global, since per-phase exploration does not exist yet at this stage)
+- `task-planner` (Stage 5): reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
+- `solution-architect` (Stage 6): reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
+- `implementer` (Stage 8): reads `specs/phases/<phase-id>/repo-exploration.md` (per-phase)
 
 ## After Each Stage
 
