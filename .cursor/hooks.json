@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": ".cursor/hooks/pipeline-gate.sh",
+        "matcher": "Task",
+        "failClosed": true,
+        "timeout": 15
+      },
+      {
+        "command": ".cursor/hooks/pipeline-gate.sh",
+        "matcher": "Shell",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": ".cursor/hooks/pipeline-advance.sh",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "command": ".cursor/hooks/context-snapshot.sh",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ]
+  }
+}

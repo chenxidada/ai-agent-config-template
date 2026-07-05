@@ -1,5 +1,26 @@
 # AI Agent Rules
 
+## Cursor 集成说明
+
+本项目以 Cursor 为**首要平台**进行开发流程工具设计。OpenCode 配置保留在 `.opencode/` 中作为参考。
+
+| 特性 | 路径 | 说明 |
+|------|------|------|
+| 核心规则 | `.cursor/rules/spec-workflow.mdc` | Always Apply — 3 Human Gate + 反狡辩准则 |
+| 子 Agent | `.cursor/agents/` | 6 个聚焦子Agent（含反狡辩表） |
+| 命令 | `.cursor/commands/` | `/feature` + `/bugfix` |
+| 钩子 | `.cursor/hooks/` | Human Gate 门禁（preToolUse）+ 自动推进（subagentStop）+ 压缩快照（preCompact） |
+
+### 三层约束体系
+1. **Rules**（静态，抗压缩）— `spec-workflow.mdc` 永远不会丢失
+2. **Hooks**（动态，程序化）— `pipeline-gate.sh` 程序化阻断跳过 Human Gate
+3. **Subagents**（独立上下文）— 每个子Agent 有自己的反狡辩表
+
+### 核心设计原则
+- Spec 是唯一真相源（所有决策写入 `specs/`）
+- Human Gate 强制停止确认（需求 → 方案 → Phase 完成）
+- 实施类子Agent（implementer/reviewer/verifier）不能自己声明"完成"，必须经过独立验证
+
 ## Orchestrator Architecture
 
 This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator is the default primary agent and the only agent the user interacts with directly.
