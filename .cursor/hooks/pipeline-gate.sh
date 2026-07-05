@@ -78,6 +78,50 @@ HG3=$(jq -r '.human_gates.hg3' "$STATUS_FILE" 2>/dev/null)
 CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
 LOOP_COUNT=$(jq -r '.loop_count // 0' "$STATUS_FILE" 2>/dev/null)
 
+# ── Phase ID 校验函数 ──
+# 验证 $CURRENT_PHASE 是否存在于 phase-plan.md DAG JSON 的 phases[].id 中
+# 参数: $1 = "warn" 只警告 | "deny" 阻断
+# 返回: 0 = 合法, 1 = 非法
+validate_phase_id() {
+    local action="${1:-deny}"
+
+    # 没有 current_phase → 这意味着 implementer 还没被调度过，放行
+    if [ -z "$CURRENT_PHASE" ]; then
+        return 0
+    fi
+
+    local DAG_FILE="$SPEC_DIR/phase-plan.md"
+    if [ ! -s "$DAG_FILE" ]; then
+        return 0  # 还没生成 phase-plan，放行
+    fi
+
+    # 提取 DAG JSON 中的 phases[].id 列表
+    local VALID_IDS
+    VALID_IDS=$(sed -n '/```json/,/```/p' "$DAG_FILE" | jq -r '.phases[].id' 2>/dev/null)
+
+    if [ -z "$VALID_IDS" ]; then
+        return 0  # 无法解析，放行
+    fi
+
+    if echo "$VALID_IDS" | grep -qxF "$CURRENT_PHASE"; then
+        return 0  # 合法
+    fi
+
+    # 非法 Phase ID
+    local VALID_LIST
+    VALID_LIST=$(echo "$VALID_IDS" | tr '\n' ' ')
+    if [ "$action" = "warn" ]; then
+        cat <<BLOCK
+{"permission":"allow","warning":"⚠️ Phase ID \\\`$CURRENT_PHASE\\\` 不在 phase-plan.md DAG JSON 的 phases[].id 列表中（有效 ID: $VALID_LIST）。请确保 ID 来自 DAG JSON，避免文件夹分裂。"}
+BLOCK
+    else
+        cat <<BLOCK
+{"permission":"deny","user_message":"⛔ Phase ID 不合法：\\\`$CURRENT_PHASE\\\` 不在 phase-plan.md DAG JSON 的 phases[].id 列表中。\\n有效的 Phase ID：$VALID_LIST\\n请将 current_phase 改回 DAG JSON 中的 ID（ID 是 plan-generator 先产出的唯一标准，禁止自己编名字）。","agent_message":"current_phase '$CURRENT_PHASE' is not a valid DAG phase id. Valid ids: $VALID_LIST. Use the id from phase-plan.md DAG JSON."}
+BLOCK
+    fi
+    return 1
+}
+
 # ── Human Gate 门禁 ──
 case "$SUBAGENT" in
     requirement-analyst)
@@ -111,6 +155,13 @@ BLOCK
 BLOCK
             exit 0
         fi
+        # Phase ID 必须来自 DAG JSON（禁止自己编名字）
+        VALIDATE_OUT=$(validate_phase_id deny)
+        VALIDATE_RC=$?
+        if [ $VALIDATE_RC -ne 0 ]; then
+            echo "$VALIDATE_OUT"
+            exit 0
+        fi
         # loop_count 上限
         if [ "$LOOP_COUNT" -ge 2 ]; then
             cat <<'BLOCK'
@@ -127,6 +178,13 @@ BLOCK
             cat <<'BLOCK'
 {"permission":"deny","user_message":"⛔ 无 implementation.md（或文件为空）。请先委托 implementer 完成代码实现。","agent_message":"No non-empty implementation.md. Dispatch implementer first."}
 BLOCK
+            exit 0
+        fi
+        # Phase ID 校验
+        VALIDATE_OUT=$(validate_phase_id deny)
+        VALIDATE_RC=$?
+        if [ $VALIDATE_RC -ne 0 ]; then
+            echo "$VALIDATE_OUT"
             exit 0
         fi
         echo '{"permission":"allow"}'
@@ -148,10 +206,19 @@ BLOCK
 BLOCK
             exit 0
         fi
+        # Phase ID 校验
+        VALIDATE_OUT=$(validate_phase_id deny)
+        VALIDATE_RC=$?
+        if [ $VALIDATE_RC -ne 0 ]; then
+            echo "$VALIDATE_OUT"
+            exit 0
+        fi
         echo '{"permission":"allow"}'
         ;;
 
     code-explorer)
+        # Phase ID 校验（仅警告，不阻断——code-explorer 是调研阶段）
+        validate_phase_id warn
         echo '{"permission":"allow"}'
         ;;
 

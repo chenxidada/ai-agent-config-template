@@ -114,8 +114,16 @@ alwaysApply: true
    - 记录 last_update 时间戳
 3. hg 状态切 passed 后：
    - HG-1→HG-2: 委托 plan-generator
-   - HG-2→HG-3: 设置 current_phase，委托 implementer
-   - 每个 Phase HG-3→下一个 Phase: 更新 current_phase，重置 hg3=pending
+   - HG-2→HG-3: 
+     1. **读取 `phase-plan.md` DAG JSON，获取 Phase ID 列表**
+     2. 取第一个 `dependencies` 为空的 Phase ID，设置 `current_phase`
+     3. **current_phase 必须与 DAG JSON 中的 `id` 字段完全一致，禁止自己编名字**
+     4. 委托 implementer（implementer 自动读取 current_phase 确定路径）
+   - 每个 Phase HG-3→下一个 Phase:
+     1. **读取 `phase-plan.md` DAG JSON，找到当前 Phase 的 `id`**
+     2. 根据 `dependencies` 找到下一个已就绪的 Phase ID
+     3. **更新 `current_phase` = 对应的 DAG JSON `id`（不是自己编名字）**
+     4. 重置 `hg3`=pending
 ```
 
 #### ⚠️ 禁止对 HG 状态的操作
@@ -312,6 +320,36 @@ implementer 完成
 
 ---
 
+## Phase ID 命名铁律 — 唯一真相源是 DAG JSON
+
+**Phase ID 必须以 `phase-plan.md` 中 DAG JSON 的 `phases[].id` 为唯一标准。** plan-generator 产出 DAG JSON 时定义了所有 Phase ID，后续所有阶段必须原样使用，禁止任何 Agent 或调度者自己另起名字。
+
+### Phase ID 传递链
+
+```
+plan-generator 产出 phase-plan.md DAG JSON
+  ↓
+  phases[].id = "phase-1-p0-core"          ← 唯一真相源
+  ↓
+  调度者（Cursor Agent）设置 current_phase  ← 必须从 DAG JSON 复制
+  ↓
+  code-explorer 写入 phases/<current_phase>/repo-exploration.md
+  implementer 写入 phases/<current_phase>/implementation.md
+  reviewer-* 写入 phases/<current_phase>/review-*.md
+  verifier 写入 phases/<current_phase>/verification.md
+  ↓
+  pipeline-gate.sh 验证 current_phase ∈ DAG JSON phases[].id
+```
+
+### 铁律
+
+```
+✅ 正确：current_phase 的值是从 phase-plan.md DAG JSON phases[].id 中复制的
+❌ 禁止：调度者根据自己的理解给 Phase 改名字（如把 phase-1-p0-core 改成 phase-1-core-collectors）
+❌ 禁止：implementer 不读 current-status.json 就用自己的 Phase ID
+❌ 禁止：任何 Agent 在输出路径中使用 DAG JSON 以外的 Phase ID
+```
+
 ## 每个 turn 的强制操作
 
 1. 如果有 `.specdev/active-workflow` → 读取最活跃工作流 slug，再读取 `.specdev/specs/<slug>/current-status.json` 确定当前阶段和 HG 状态
@@ -367,6 +405,7 @@ implementer 完成
 | 不读 specs/current-status.md 就开始行动 | 不知道当前阶段，导致流程混乱 |
 | 用户说"看看"/"好的"就认为 HG 通过 | 必须明确确认 |
 | reviewer 打回后不到 2 轮就放弃 | 最多 2 轮回路 |
+| Phase ID 不来自 DAG JSON，自己另起名字 | plan-generator 先产出的 ID 是唯一标准，另起名字导致文件夹分裂、spec 找不到 |
 
 ---
 
