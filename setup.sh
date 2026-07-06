@@ -4,10 +4,11 @@
 #
 # 用法:
 #   cd /your/project
-#   bash /path/to/ai-agent-config-template/setup.sh [--cursor|--opencode|--all]
+#   bash /path/to/ai-agent-config-template/setup.sh [--cursor|--trae|--opencode|--all]
 #
 # 选项:
 #   --cursor    仅安装 Cursor 配置（.cursor/ + .cursorrules + .mcp.json + AGENTS.md）
+#   --trae      仅安装 Trae 配置（.trae/ + .mcp.json + AGENTS.md）
 #   --opencode  仅安装 OpenCode 配置（.opencode/ + opencode.jsonc）
 #   --all       安装全部配置（默认）
 #   --force     跳过冲突确认，直接覆盖
@@ -30,12 +31,13 @@ FORCE=false
 for arg in "$@"; do
     case "$arg" in
         --cursor)   MODE="cursor" ;;
+        --trae)     MODE="trae" ;;
         --opencode) MODE="opencode" ;;
         --all)      MODE="all" ;;
         --force)    FORCE=true ;;
         --skip-kb-check) SKIP_KB_CHECK=true ;;
         -h|--help)
-            echo "用法: bash setup.sh [--cursor|--opencode|--all] [--force] [--skip-kb-check]"
+            echo "用法: bash setup.sh [--cursor|--trae|--opencode|--all] [--force] [--skip-kb-check]"
             exit 0
             ;;
     esac
@@ -190,6 +192,51 @@ install_cursor() {
 }
 
 # ============================================
+# Trae 配置安装
+# ============================================
+install_trae() {
+    echo "--- Trae 配置 ---"
+    echo ""
+
+    # Knownbase 预检
+    check_knowledge_base
+
+    # 通用文件
+    TRAE_FILES=(".mcp.json" "AGENTS.md" "knowledge-base-mcp.sh")
+    for file in "${TRAE_FILES[@]}"; do
+        copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
+    done
+
+    # .trae/ 目录（规则 + 子Agent + 命令 + 钩子 + 模板 + 代码片段）
+    copy_dir "$SCRIPT_DIR/.trae" "$TARGET_DIR/.trae" ".trae/ (规则+子Agent+命令+钩子)"
+
+    # 确保 hook 脚本有执行权限
+    if [ -d "$TARGET_DIR/.trae/hooks" ]; then
+        chmod +x "$TARGET_DIR/.trae/hooks/"*.sh 2>/dev/null || true
+    fi
+
+    # .specdev/ 运行时目录结构
+    mkdir -p "$TARGET_DIR/.specdev"
+    if [ -f "$SCRIPT_DIR/.specdev/constitution-template.md" ]; then
+        copy_file "$SCRIPT_DIR/.specdev/constitution-template.md" "$TARGET_DIR/.specdev/constitution-template.md" ".specdev/constitution-template.md"
+    fi
+    if [ -f "$SCRIPT_DIR/.specdev/tech-debt-registry-template.md" ]; then
+        copy_file "$SCRIPT_DIR/.specdev/tech-debt-registry-template.md" "$TARGET_DIR/.specdev/tech-debt-registry-template.md" ".specdev/tech-debt-registry-template.md"
+    fi
+
+    echo ""
+    echo "  ✅ Trae 配置导入完成"
+    echo ""
+    echo "  在 Trae 中的使用方式:"
+    echo "    1. 打开项目 -> SOLO 模式"
+    echo "    2. 确认知识库 MCP: knowledge-base → Running"
+    echo "    3. Subagent 已注册在 .trae/agents/，SOLO Agent 自动路由"
+    echo "    4. Hook 已配置在 .trae/hooks.json（PreToolUse + Stop + SessionStart）"
+    echo "    5. 命令已注册: /feature /bugfix /brief /research /specify /plan /implement /status"
+    echo ""
+}
+
+# ============================================
 # OpenCode 配置安装
 # ============================================
 install_opencode() {
@@ -241,6 +288,9 @@ case "$MODE" in
     cursor)
         install_cursor
         ;;
+    trae)
+        install_trae
+        ;;
     opencode)
         install_opencode
         ;;
@@ -248,6 +298,8 @@ case "$MODE" in
         echo "--- 全部配置 ---"
         echo ""
         install_cursor
+        echo ""
+        install_trae
         echo ""
         install_opencode
         ;;
@@ -268,6 +320,7 @@ echo "    \$PWD/knownbase/AI-Chat"
 echo ""
 echo "  各工具使用方式:"
 echo "    Cursor    → 打开项目，自定义页面查看规则/子Agent/命令/钩子"
+echo "    Trae      → SOLO 模式，Subagent 自动路由，Hook 自动生效"
 echo "    OpenCode  → 直接启动 opencode，自动读取 opencode.jsonc"
 echo "    Claude    → 自动读取 .mcp.json 和 AGENTS.md"
 echo "    Windsurf  → 自动读取 .mcp.json 和 .windsurfrules"
