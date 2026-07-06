@@ -44,8 +44,9 @@ if echo "$AGENT_LOWER" | grep -q "requirement-analyst"; then
 
 ## 📚 KB Sync (非阻塞)
 HG-1 通过后（异步，不等待）：
-- MCP 可用：调用 `save_document`，`title: "[topic:<slug>] 需求文档"`, `content: requirements.md 全文`
-- MCP 不可用：写入 `kb-pending/topic-<slug>.json`
+- resolve_folder_path: "Projects/<project>/Topics/" → folderId
+- MCP 可用：save_document(title: "[topic:<slug>] 需求文档", content: requirements.md 全文, folderId)
+- MCP 不可用：写入 kb-pending/topic-<slug>.json
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -63,8 +64,9 @@ elif echo "$AGENT_LOWER" | grep -q "plan-generator"; then
 
 ## 📚 KB Sync (非阻塞)
 HG-2 通过后（异步，不等待）：
-- MCP 可用：调用 `save_document`，`title: "[decision:<slug>] 架构设计"`, `content: design.md 全文`
-- MCP 不可用：写入 `kb-pending/decision-<slug>.json`
+- resolve_folder_path: "Projects/<project>/Decisions/" → folderId
+- MCP 可用：save_document(title: "[decision:<slug>] 架构设计", content: design.md 全文, folderId)
+- MCP 不可用：写入 kb-pending/decision-<slug>.json
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -121,8 +123,9 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 ## 📚 Knowledge Base Sync (非阻塞)
 
 Phase 验收后，异步同步 verification.md 到知识库：
-- MCP 可用：调用 `save_document`，`title: "[task:<current_phase>] Phase 验证"`, `content: verification.md 全文`
-- MCP 不可用：写入 `kb-pending/task-<current_phase>.json`
+- resolve_folder_path: "Projects/<project>/Tasks/" → folderId
+- MCP 可用：save_document(title: "[task:<current_phase>] Phase 验证", content: verification.md 全文, folderId)
+- MCP 不可用：写入 kb-pending/task-<current_phase>.json
 
 ⚠️ **同步是异步的，不影响 pipeline 推进。** 先推进下一 Phase / 合并分支，同步在后台完成。
 

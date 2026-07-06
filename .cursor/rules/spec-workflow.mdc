@@ -284,27 +284,52 @@ HG-3 通过（用户确认）
 
 **KB 同步不得阻塞 Pipeline 推进。** 同步是异步操作——发起即继续，不等待返回。同步失败不影响开发流程。
 
-### 同步方式：`save_document`（轻量，非 `sync_kb_object`）
+### 知识库路径规范
 
-不使用 `sync_kb_object`（该接口有路径解析 + merge 逻辑 + 额外 HTTP 调用，延迟高）。改用 `save_document`——单次 HTTP POST，和用户直接上传一个速度。
+`save_document` 通过 `folderId`（UUID）定位目录。需先用 `resolve_folder_path` 将逻辑路径转为 folderId：
 
 ```
-save_document:
-  title: "[<type>:<key>] <project> - <label>"
-  content: <文件全文>
-  sourceType: "ai-chat"
+resolve_folder_path:
+  path: "Projects/<项目名>/<类型>/"      ← 逻辑路径
+  createMissing: true                    ← 目录不存在则自动创建
+  → 返回 folderId (UUID)
+```
+
+然后调用 `save_document` 传入 `folderId`，文档即归档到对应目录。
+
+**路径规范**（沿用 `sync_kb_object` 的约定）：
+
+| 同步时机 | 逻辑路径 | folderId 来源 |
+|----------|---------|--------------|
+| HG-1（需求） | `Projects/<project>/Topics/` | resolve_folder_path |
+| HG-2（方案） | `Projects/<project>/Decisions/` | resolve_folder_path |
+| HG-3（Phase 验证） | `Projects/<project>/Tasks/` | resolve_folder_path |
+| 压缩 snapshot | `Projects/<project>/Snapshots/` | resolve_folder_path |
+| 每日摘要 | `Daily/<YYYY>/<YYYY-MM>/` | resolve_folder_path |
+
+**folderId 可缓存**：同一次会话内多次同步到同一路径时，首次 resolve 后缓存 folderId，后续直接复用。
+
+### 同步方式：`save_document`
+
+```json
+{
+  "title": "[<type>:<key>] <project> - <label>",
+  "content": "<文件全文>",
+  "folderId": "<resolve_folder_path 返回的 UUID>",
+  "sourceType": "ai-chat"
+}
 ```
 
 MCP 不可用时降级：写入 `.specdev/specs/<slug>/kb-pending/<type>-<key>.json`，后续重试。
 
 ### 同步触发点
 
-| 触发点 | MCP 工具 | title 模板 | 内容 |
-|--------|----------|-----------|------|
-| HG-1 通过 | `save_document` | `[topic:<slug>] 需求文档` | `requirements.md` 全文 |
-| HG-2 通过 | `save_document` | `[decision:<slug>] 架构设计` | `design.md` 全文 |
-| HG-3 通过 | `save_document` | `[task:<phase>] Phase 验证` | `verification.md` 全文 |
-| 上下文压缩 | `save_document` | `[snapshot:<timestamp>]` | 压缩会话摘要 |
+| 触发点 | MCP 工具 | title 模板 | 内容 | 目标路径 |
+|--------|----------|-----------|------|---------|
+| HG-1 通过 | `save_document` | `[topic:<slug>] 需求文档` | `requirements.md` 全文 | `Projects/<project>/Topics/` |
+| HG-2 通过 | `save_document` | `[decision:<slug>] 架构设计` | `design.md` 全文 | `Projects/<project>/Decisions/` |
+| HG-3 通过 | `save_document` | `[task:<phase>] Phase 验证` | `verification.md` 全文 | `Projects/<project>/Tasks/` |
+| 上下文压缩 | `save_document` | `[snapshot:<timestamp>] ` | 压缩会话摘要 | `Projects/<project>/Snapshots/` |
 
 ### 流程（以 HG-3 为例）
 
@@ -314,8 +339,9 @@ HG-3 通过，用户确认
   ├─ 1. 更新 current-status.json, 合并分支, 进入下一 Phase
   │     ← 先推进 pipeline，不等待同步
   │
-  └─ 2. 同步知识库（异步，不阻塞）
-        ├─ MCP 可用 → save_document(title, content)
+  └─ 2. 同步知识库（异步，步骤少且快）
+        ├─ (可选) resolve_folder_path: "Projects/<project>/Tasks/" → folderId
+        ├─ MCP 可用 → save_document(title, content, folderId)
         └─ MCP 不可用 → 写入 kb-pending/ 降级
 ```
 
