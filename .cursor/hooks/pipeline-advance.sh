@@ -42,8 +42,10 @@ if echo "$AGENT_LOWER" | grep -q "requirement-analyst"; then
 请将需求文档呈现给用户进行确认，等待用户明确回复（例如「确认」「OK」「继续」）后，手动更新:
 - `current-status.json`: `"hg1": "passed"`
 
-## 📚 KB Sync: Topic Doc
-HG-1 通过后：读取 `.specdev/specs/<slug>/requirements.md` 全文，调用 `knowledge-base_sync_kb_object`，`objectType: topic`, `objectKey: <slug>`, content 为文件完整内容
+## 📚 KB Sync (非阻塞)
+HG-1 通过后（异步，不等待）：
+- MCP 可用：调用 `save_document`，`title: "[topic:<slug>] 需求文档"`, `content: requirements.md 全文`
+- MCP 不可用：写入 `kb-pending/topic-<slug>.json`
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -59,8 +61,10 @@ elif echo "$AGENT_LOWER" | grep -q "plan-generator"; then
 请将设计方案呈现给用户进行确认，等待用户明确回复（例如「确认」「开始实施」）后，手动更新:
 - `current-status.json`: `"hg2": "passed"`
 
-## 📚 KB Sync: Decision Doc
-HG-2 通过后：读取 `.specdev/specs/<slug>/design.md` 全文，调用 `knowledge-base_sync_kb_object`，`objectType: decision`, `objectKey: <slug>-architecture`, content 为文件完整内容
+## 📚 KB Sync (非阻塞)
+HG-2 通过后（异步，不等待）：
+- MCP 可用：调用 `save_document`，`title: "[decision:<slug>] 架构设计"`, `content: design.md 全文`
+- MCP 不可用：写入 `kb-pending/decision-<slug>.json`
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -114,16 +118,13 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 - 手动更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
 - 如果还有后续 Phase：更新 `"current_phase": "phase-N-xxx"`
 
-## 📚 Knowledge Base Sync
+## 📚 Knowledge Base Sync (非阻塞)
 
-Phase 验证完成后，将 spec 文件全文同步到知识库：
+Phase 验收后，异步同步 verification.md 到知识库：
+- MCP 可用：调用 `save_document`，`title: "[task:<current_phase>] Phase 验证"`, `content: verification.md 全文`
+- MCP 不可用：写入 `kb-pending/task-<current_phase>.json`
 
-- 读取 `.specdev/specs/<slug>/phases/<current_phase>/verification.md` **完整内容**
-- 调用 `knowledge-base_sync_kb_object`（MCP 可用时）
-  - `objectType: task`, `objectKey: phase-<current-phase>`
-  - `content`: 文件全文，不是摘要
-
-⚠️ MCP 不可用时：写入 `.specdev/specs/<slug>/kb-pending/phase-<current_phase>.json`（含完整文件内容），稍后重试。
+⚠️ **同步是异步的，不影响 pipeline 推进。** 先推进下一 Phase / 合并分支，同步在后台完成。
 
 **不要自动继续。不要替用户做决定。**
 MSG

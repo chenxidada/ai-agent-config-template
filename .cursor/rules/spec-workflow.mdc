@@ -276,50 +276,48 @@ HG-3 通过（用户确认）
 
 ---
 
-## Knowledge Base 同步（Pipeline 内置）
+## Knowledge Base 同步（Pipeline 内置，非阻塞）
 
-每个 Human Gate 通过后，将关键产物同步到个人知识库（Knownbase），用于后续检索、总结、复盘。
+每个 Human Gate 通过后，将 spec 文件全文同步到个人知识库（Knownbase），用于后续检索、总结、复盘。
 
-### 前提
+### 核心原则：非阻塞
 
-知识库通过 `.mcp.json` 中的 `knowledge-base` MCP 加载。MCP 不可用时，降级写入 `.specdev/specs/<slug>/kb-pending/`，后续手动重试。
+**KB 同步不得阻塞 Pipeline 推进。** 同步是异步操作——发起即继续，不等待返回。同步失败不影响开发流程。
+
+### 同步方式：`save_document`（轻量，非 `sync_kb_object`）
+
+不使用 `sync_kb_object`（该接口有路径解析 + merge 逻辑 + 额外 HTTP 调用，延迟高）。改用 `save_document`——单次 HTTP POST，和用户直接上传一个速度。
+
+```
+save_document:
+  title: "[<type>:<key>] <project> - <label>"
+  content: <文件全文>
+  sourceType: "ai-chat"
+```
+
+MCP 不可用时降级：写入 `.specdev/specs/<slug>/kb-pending/<type>-<key>.json`，后续重试。
 
 ### 同步触发点
 
-| 触发点 | 对象类型 | objectKey | 内容来源 |
-|--------|----------|-----------|---------|
-| HG-1 通过（需求确认） | `topic` | `<slug>` | `requirements.md` 全文 |
-| HG-2 通过（方案确认） | `decision` | `<slug>-architecture` | `design.md` 全文 |
-| HG-3 通过（Phase 验收） | `task` | `phase-<current-phase>` | `verification.md` 全文 |
-| 上下文压缩 | `snapshot` + `daily` | `<project>` | 压缩时的会话全文摘要 |
+| 触发点 | MCP 工具 | title 模板 | 内容 |
+|--------|----------|-----------|------|
+| HG-1 通过 | `save_document` | `[topic:<slug>] 需求文档` | `requirements.md` 全文 |
+| HG-2 通过 | `save_document` | `[decision:<slug>] 架构设计` | `design.md` 全文 |
+| HG-3 通过 | `save_document` | `[task:<phase>] Phase 验证` | `verification.md` 全文 |
+| 上下文压缩 | `save_document` | `[snapshot:<timestamp>]` | 压缩会话摘要 |
 
-### 同步流程（HG-3 示例）
+### 流程（以 HG-3 为例）
 
 ```
 HG-3 通过，用户确认
   │
-  ├─ 1. 尝试调用 knowledge-base MCP: get_sync_object_status
-  │     → 可用: 继续步骤 2
-  │     → 不可用: 降级写入 kb-pending/phase-<id>.json
+  ├─ 1. 更新 current-status.json, 合并分支, 进入下一 Phase
+  │     ← 先推进 pipeline，不等待同步
   │
-  ├─ 2. 读取 `.specdev/specs/<slug>/phases/<current_phase>/verification.md` **全文**
-  │     调用 knowledge-base MCP: sync_kb_object
-  │     objectType: task
-  │     objectKey: phase-<current-phase>
-  │     project: <project-name>
-  │     content: 文件完整内容（全文同步，不提取摘要）
-  │
-  └─ 3. 确认同步成功（或不阻塞继续）
+  └─ 2. 同步知识库（异步，不阻塞）
+        ├─ MCP 可用 → save_document(title, content)
+        └─ MCP 不可用 → 写入 kb-pending/ 降级
 ```
-
-### MCP 不可用时的降级
-
-```bash
-mkdir -p .specdev/specs/<slug>/kb-pending/
-# 写入待同步内容，含 objectType / objectKey / project / content / timestamp
-```
-
-后续用户执行 `/sync` 命令时，批量重试 `kb-pending/` 中的待同步条目。
 
 ---
 
