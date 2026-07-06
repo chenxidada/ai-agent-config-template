@@ -16,7 +16,7 @@ argument-hint: <需求描述>
 
 ### 第二步：需求分析
 
-委托 `requirement-analyst` 按 EARS 5 种模式书写验收标准。
+调用 @requirement-analyst 按 EARS 5 种模式书写验收标准。
 
 ### 第三步：Human Gate 1 — 需求确认 🛑
 

@@ -24,7 +24,7 @@ Bug 修复流程简化了架构设计阶段（不需要完整的 Phase 拆分）
 
 ### 第二步：问题分析
 
-委托 `requirement-analyst`：
+调用 @requirement-analyst：
 - 分析 bug 影响范围
 - 定义修复的验收标准
 - 输出 `.specdev/specs/<slug>/requirements.md`
@@ -35,7 +35,7 @@ Bug 修复流程简化了架构设计阶段（不需要完整的 Phase 拆分）
 
 ### 第三步：修复方案（HG-1 确认后）
 
-委托 `plan-generator`：
+调用 @plan-generator：
 - 分析根因
 - 设计修复方案
 - 输出 `.specdev/specs/<slug>/design.md`（精简版，含修复方案和影响分析）

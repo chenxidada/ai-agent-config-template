@@ -55,11 +55,11 @@ description: 查看当前工作流进度和技术债快照
 
 | 状态 | 建议 |
 |------|------|
-| HG-1=pending | → 等待用户确认需求后，更新 hg1=passed，委托 plan-generator |
-| HG-2=pending | → 等待用户确认方案后，更新 hg2=passed，委托 implementer |
-| implementer=pending | → 委托 implementer 实现当前 Phase |
-| reviewer=pending | → 委托 reviewer 审查 |
-| verifier=pending | → 委托 verifier 验证 |
+| HG-1=pending | → 等待用户确认需求后，更新 hg1=passed，调用 @plan-generator |
+| HG-2=pending | → 等待用户确认方案后，更新 hg2=passed，调用 @implementer |
+| implementer=pending | → 调用 @implementer 实现当前 Phase |
+| reviewer=pending | → 调用 @reviewer 审查 |
+| verifier=pending | → 调用 @verifier 验证 |
 | HG-3=pending | → 展示验证结果，等待用户确认 |
 | loop_count=2 | → ⚠️ 回路达到上限，需用户介入决策 |
 | 全部完成 | → 🎉 所有 Phase 完成，确认收尾 |

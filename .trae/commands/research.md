@@ -27,7 +27,7 @@ argument-hint: <调研目标>
 
 ### 第二步：深度调研
 
-委托 `code-explorer` 进行深度调研。
+调用 @code-explorer 进行深度调研。
 
 输入：用户的目标描述 + 调研范围提示
 产出：

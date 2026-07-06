@@ -29,7 +29,7 @@ argument-hint: <任务描述>
 ### 第二步：快速分析 + 代码调研
 
 并行执行：
-1. 委托 `code-explorer` 快速调研相关代码 → 口头输出关键文件/路径
+1. 调用 @code-explorer 快速调研相关代码 → 口头输出关键文件/路径
 2. TRAE Agent 读取 explorer 输出，结合用户描述，直接生成简化 requirements.md（3-5 条 AC，EARS 格式）
 
 输出：`.specdev/specs/<slug>/requirements.md`
@@ -42,10 +42,10 @@ argument-hint: <任务描述>
 
 ### 第四步：实施 → 审查 → 验证
 
-1. **code-explorer**：轻量调研当前代码状态（口头输出）
-2. **implementer**：按 requirements.md 实现
-3. **reviewer**：单视角审查（含 correctness + design + connectivity）
-4. **verifier**：独立验证
+1. @code-explorer：轻量调研当前代码状态（口头输出）
+2. @implementer：按 requirements.md 实现
+3. @reviewer：单视角审查（含 correctness + design + connectivity）
+4. @verifier：独立验证
 
 ### 第五步：Human Gate 2 — 验收确认 🛑
 

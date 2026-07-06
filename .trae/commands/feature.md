@@ -47,7 +47,7 @@ argument-hint: <功能描述>
 
 ### 第二步：需求分析
 
-委托 `requirement-analyst` 分析需求，输出 `.specdev/specs/<slug>/requirements.md`。
+调用 @requirement-analyst 分析需求，输出 `.specdev/specs/<slug>/requirements.md`。
 
 完成后，`pipeline-advance.sh` hook 会触发 HG-1 停止。
 
@@ -62,7 +62,7 @@ argument-hint: <功能描述>
 
 ### 第四步：架构设计（HG-1 确认后）
 
-委托 `plan-generator` 设计架构+拆分 Phase，输出：
+调用 @plan-generator 设计架构+拆分 Phase，输出：
 - `.specdev/specs/<slug>/design.md`
 - `.specdev/specs/<slug>/phase-plan.md`
 - `.specdev/specs/<slug>/phases/<phase-id>/spec.md`（每个 Phase 一个）
@@ -86,7 +86,7 @@ argument-hint: <功能描述>
 对每个 Phase（从 Phase 1 开始）：
 
 **0. Per-Phase Code Exploration（每个 Phase 前强制执行）**：
-委托 `code-explorer` 调研当前代码库状态。
+调用 @code-explorer 调研当前代码库状态。
 - 产出：`phases/<phase>/repo-exploration.md`（10-section 结构化报告）+ `repo-exploration-zh.md`
 - implementer/reviewer/verifier 必须读取此报告
 
@@ -94,10 +94,10 @@ argument-hint: <功能描述>
    - 输入：spec.md + design.md + **repo-exploration.md** + tech-debt-registry.md
    - 输出：`.specdev/specs/<slug>/phases/<phase>/implementation.md` + 更新 `tech-debt-registry.md`
 
-**2. 并行三视角 Reviewer**：同时委托 3 个 reviewer
-   - `reviewer-correctness` → `review-correctness.md`（实现正确性）
-   - `reviewer-design` → `review-design.md`（设计一致性）
-   - `reviewer-connectivity` → `review-connectivity.md`（集成连通性）
+**2. 并行三视角 Reviewer**：同时调用 3 个 reviewer
+   - @reviewer-correctness → `review-correctness.md`（实现正确性）
+   - @reviewer-design → `review-design.md`（设计一致性）
+   - @reviewer-connectivity → `review-connectivity.md`（集成连通性）
    - 等 3 个全部完成后，按合并规则生成 `review.md` 统一判决
    - 如 **任一** MUST-FIX → 回到步骤 1（修复后重审，`loop_count` +1，最多 2 轮）
 
@@ -129,7 +129,7 @@ argument-hint: <功能描述>
 
 ### 第八步：继续下一个 Phase
 
-Phase Entry Gate 通过后，更新 `current-status.json`（新 `current_phase`, `hg3` 重置为 `pending`, `loop_count` 重置为 0），委托 `code-explorer` 探索代码库 → 开始步骤 6-7。直到所有 Phase 完成。
+Phase Entry Gate 通过后，更新 `current-status.json`（新 `current_phase`, `hg3` 重置为 `pending`, `loop_count` 重置为 0），调用 @code-explorer 探索代码库 → 开始步骤 6-7。直到所有 Phase 完成。
 
 ### 第九步：完成清理
 

@@ -16,7 +16,7 @@ argument-hint: <可选：补充说明>
 
 ### 第零步：Per-Phase Code Exploration
 
-在 implementer 启动前，先委托 `code-explorer` 调研当前 Phase 的代码上下文：
+在 implementer 启动前，先调用 @code-explorer 调研当前 Phase 的代码上下文：
 
 产出：
 - `.specdev/specs/<slug>/phases/<current_phase>/repo-exploration.md`
@@ -26,17 +26,17 @@ argument-hint: <可选：补充说明>
 
 ### 第一步：implementer
 
-委托 `implementer` 实现 -> 更新 `tech-debt-registry.md`
+调用 @implementer 实现 -> 更新 `tech-debt-registry.md`
 
 ### 第二步：并行三视角 Reviewer
 
-同时委托 3 个 reviewer（并行执行）：
+同时调用 3 个 reviewer（并行执行）：
 
 | Reviewer | 输出文件 | 视角 |
 |----------|---------|------|
-| `reviewer-correctness` | `review-correctness.md` | 实现正确性：函数体有真实逻辑？空壳检测 |
-| `reviewer-design` | `review-design.md` | 设计一致性：是否遵循 architecture constraints？ |
-| `reviewer-connectivity` | `review-connectivity.md` | 集成连通性：数据路径完整可追踪？ |
+| @reviewer-correctness | `review-correctness.md` | 实现正确性：函数体有真实逻辑？空壳检测 |
+| @reviewer-design | `review-design.md` | 设计一致性：是否遵循 architecture constraints？ |
+| @reviewer-connectivity | `review-connectivity.md` | 集成连通性：数据路径完整可追踪？ |
 
 ### 第三步：Merge 判决
 
@@ -49,7 +49,7 @@ argument-hint: <可选：补充说明>
 
 ### 第四步：verifier
 
-委托 `verifier` 独立验证 -> 输出 verification.md
+调用 @verifier 独立验证 -> 输出 verification.md
 
 ### 第五步：Human Gate 3
 
