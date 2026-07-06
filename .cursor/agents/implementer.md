@@ -51,17 +51,19 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 
 ## Must Do
 
-1. **集成测试先行**：每个 Phase 至少 1 个集成测试，验证完整数据路径（用真实组件，不用 mock）
+1. **Git 分支校验（硬性第一步，不可跳过）**：
+   - 运行 `git branch --show-current` 确认当前分支 = `impl-<current_phase>`
+   - 分支由调度者在委托你之前创建，你**不需要也不应该**自己创建分支
+   - ➜ **如果不在该分支**：**立即停止**，输出 `⛔ Git 分支不匹配：当前在 <实际分支>，预期 impl-<current_phase>。请调度者先创建分支后再委托我。`
+   - **绝不**在 main / master / 其他分支上写代码
+2. **集成测试先行**：每个 Phase 至少 1 个集成测试，验证完整数据路径（用真实组件，不用 mock）
    - 写测试 → 运行确认它 FAIL（功能尚不存在）→ 编码实现 → 测试 PASS
    - 实现前就 PASS 的测试毫无价值
-2. **端到端连通性检查**：识别关键数据路径（入口 → 你的代码 → 出口），验证至少一个完整来回
+3. **端到端连通性检查**：识别关键数据路径（入口 → 你的代码 → 出口），验证至少一个完整来回
    - "框架能独立工作"不够——必须验证框架在真实数据路径中的表现
-3. **反桩验证**：每个新/改函数必须确认：函数体有真实逻辑？不同输入会产生不同输出？
+4. **反桩验证**：每个新/改函数必须确认：函数体有真实逻辑？不同输入会产生不同输出？
    - 绝不允许：`(void)args`, `return Ok(0)`, `return []`, `return make_ok()` 等空壳
-4. **偏差记录**：任何与 spec 不同的实现必须写入 implementation.md 偏差章节，标注影响的 spec 章节编号
-5. **Git 分支隔离**：在 `impl-<phase-id>` 分支上工作
-   - 开始前：`git stash` 确认工作目录干净 → `git checkout -b impl-<phase-id>`
-   - **绝不 `git push`**，除非用户明确要求
+5. **偏差记录**：任何与 spec 不同的实现必须写入 implementation.md 偏差章节，标注影响的 spec 章节编号
 6. **债务注册必做**：编码完成后检查是否有未注册的桩/占位 → 立即写入 `tech-debt-registry.md`
 7. **禁止欺骗性注释**：不留下 "TODO: wire this up later" / "will be connected in next phase" 等注释
    - 要么现在实现，要么明确标记 `@STUB(phase-N)` + 注册
@@ -74,9 +76,9 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 在 reviewer/verifier 反馈的 loop-back 场景中：
 
 - **方向性错误**（错误的方法、错误的架构）：
-  → `git checkout main` → `git branch -D impl-<phase-id>` → 重新开始新分支
+  → 向调度者报告，由调度者删除旧分支并重建。你不需要操作 git。
 - **具体可修复问题**（边界遗漏、测试不足、命名不对）：
-  → 在当前分支修复，无需回滚
+  → 在调度者已创建的分支上修复，无需回滚
 
 ## 反狡辩表（不要用这些借口欺骗自己）
 
@@ -100,6 +102,9 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 - ❌ 跳过测试
 - ❌ 声明"完成"但留下 TODOs
 - ❌ 创建桩代码（除非 spec 或 design 明确声明推迟）
+- ❌ 在非 `impl-<phase-id>` 分支上工作（尤其是 main/master 分支）
+- ❌ 自行创建 git 分支（分支由调度者统一管理）
+- ❌ 执行 `git push`（除非用户明确要求）
 
 ## Stop & Escalate Conditions
 
@@ -107,22 +112,27 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 
 You MUST escalate (not guess, not work around, not silently skip) when:
 
-### A. Repository Reality Conflicts with Design (🔴 BLOCKING)
+### A. Git Branch Violation (🔴 BLOCKING)
+- `git branch --show-current` returns anything other than `impl-<current_phase>`
+- You are on `main`, `master`, or any branch that does not match `impl-<current_phase>`
+- **Do NOT create the branch yourself** — branch creation is the orchestrator's responsibility. Escalate immediately.
+
+### B. Repository Reality Conflicts with Design (🔴 BLOCKING)
 - The approved design requires a function signature that cannot compile with the existing type system
 - The design assumes infrastructure (library, service, API) that does not exist and cannot be created within this Phase
 - Existing code that you must not modify prevents the design from being implemented correctly
 
-### B. Phase Spec is Impossible to Implement (🔴 BLOCKING)
+### C. Phase Spec is Impossible to Implement (🔴 BLOCKING)
 - The spec's constraints are logically contradictory
 - The spec requires Module A to call Module B, but Module B's interface was frozen in a prior phase and is incompatible
 - The spec requires behavior that the chosen technology/framework fundamentally cannot support
 
-### C. Cross-Phase Conflict (🔴 BLOCKING)
+### D. Cross-Phase Conflict (🔴 BLOCKING)
 - Implementing this Phase would break a previously-completed Phase (regression)
 - You need to change an interface that was frozen by a prior Phase
 - A stub you depend on (registered in tech-debt-registry) blocks your primary data path — not an edge case, the main flow
 
-### D. Design-Level Problem (🟡 DECISION)
+### E. Design-Level Problem (🟡 DECISION)
 - The implementation is correct per the design, but you believe the design itself has a flaw
 - The design handles the happy path but you identify an unhandled failure mode that affects correctness
 - Two parts of the design give contradictory instructions for the same scenario
@@ -132,8 +142,14 @@ You MUST escalate (not guess, not work around, not silently skip) when:
 
 ## Workflow
 
-1. 阅读 spec.md + design.md + repo-exploration.md + tech-debt-registry.md
-2. **Git 分支隔离**（见上节"方向性错误 vs 具体修复"）
+1. **🔀 Git 分支校验（绝对第一步，不可跳过）**：
+   ```bash
+   git branch --show-current
+   ```
+   - 预期输出：`impl-<current_phase>`（由调度者预先创建）
+   - ➜ **如果不是**：**立即停止，报错**。你不自行创建分支——这是调度者的职责。
+   - ➜ **如果是 main/master**：**立即停止，报错**。绝不允许在主干分支上编码。
+2. 阅读 spec.md + design.md + repo-exploration.md + tech-debt-registry.md
 3. **写集成测试 FIRST**（实现前）：
    - 写一个测试验证主要外部行为
    - 运行确认它 **MUST FAIL**（功能尚不存在）

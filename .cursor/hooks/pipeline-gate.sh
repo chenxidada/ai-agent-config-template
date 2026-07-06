@@ -1,9 +1,10 @@
 #!/bin/bash
 # ============================================
-# pipeline-gate.sh — Human Gate 程序化门禁 v4
+# pipeline-gate.sh — Human Gate 程序化门禁 v5
 # 绑定: preToolUse (matcher: Task + Shell)
 # schema: .specdev/specs/{slug}/current-status.json
 # failClosed: true — hook 崩溃 = deny
+# v5: 新增 implementer 前 git 分支校验
 # ============================================
 
 INPUT=$(cat 2>/dev/null || echo '{}')
@@ -166,6 +167,15 @@ BLOCK
         if [ "$LOOP_COUNT" -ge 2 ]; then
             cat <<'BLOCK'
 {"permission":"deny","user_message":"⛔ 回路计数已达上限（2轮）。请向用户报告问题并请求指导。","agent_message":"Loop count exceeded (max 2). Escalate to user."}
+BLOCK
+            exit 0
+        fi
+        # ── Git 分支校验：implementer 必须在 impl-<phase-id> 分支上工作 ──
+        EXPECTED_BRANCH="impl-${CURRENT_PHASE}"
+        ACTUAL_BRANCH=$(git branch --show-current 2>/dev/null)
+        if [ "$ACTUAL_BRANCH" != "$EXPECTED_BRANCH" ]; then
+            cat <<BLOCK
+{"permission":"deny","user_message":"⛔ Git 分支不匹配：当前分支是 \\\`$ACTUAL_BRANCH\\\`，但 implementer 必须在 \\\`$EXPECTED_BRANCH\\\` 分支上工作。\\n请调度者先创建分支：\\\`git checkout -b $EXPECTED_BRANCH\\\` 后再重新委托 implementer。","agent_message":"Wrong git branch. Currently on '$ACTUAL_BRANCH', expected '$EXPECTED_BRANCH'. Branch must be created by orchestrator before dispatching implementer."}
 BLOCK
             exit 0
         fi

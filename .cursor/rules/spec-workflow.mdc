@@ -118,12 +118,15 @@ alwaysApply: true
      1. **读取 `phase-plan.md` DAG JSON，获取 Phase ID 列表**
      2. 取第一个 `dependencies` 为空的 Phase ID，设置 `current_phase`
      3. **current_phase 必须与 DAG JSON 中的 `id` 字段完全一致，禁止自己编名字**
-     4. 委托 implementer（implementer 自动读取 current_phase 确定路径）
+     4. **创建 git 分支：`git checkout -b impl-<current_phase>`**（详见「Per-Phase Git 分支管理」章节）
+     5. 委托 implementer（implementer 自动读取 current_phase 确定路径）
    - 每个 Phase HG-3→下一个 Phase:
-     1. **读取 `phase-plan.md` DAG JSON，找到当前 Phase 的 `id`**
-     2. 根据 `dependencies` 找到下一个已就绪的 Phase ID
-     3. **更新 `current_phase` = 对应的 DAG JSON `id`（不是自己编名字）**
-     4. 重置 `hg3`=pending
+     1. **合并当前分支回 main**（详见「分支合并回 main」章节）
+     2. **读取 `phase-plan.md` DAG JSON，找到当前 Phase 的 `id`**
+     3. 根据 `dependencies` 找到下一个已就绪的 Phase ID
+     4. **更新 `current_phase` = 对应的 DAG JSON `id`（不是自己编名字）**
+     5. 重置 `hg3`=pending
+     6. **创建新 git 分支：`git checkout -b impl-<新 current_phase>`**
 ```
 
 #### ⚠️ 禁止对 HG 状态的操作
@@ -191,11 +194,94 @@ Phase N 的 HG-3 通过，用户确认进入 Phase N+1
 ✅ 正确：先呈现债务，用户决策后更新 registry，再开始实施
 ```
 
+---
+
+## Per-Phase Git 分支管理（强制执行）
+
+**每个 Phase 的 implementer 在开始编码前必须工作在独立的 git 分支上。** 分支名称格式：`impl-<phase-id>`（phase-id 来自 DAG JSON）。调度者（Cursor Agent）负责在 `code-explorer` 完成后、委托 `implementer` 之前，创建 git 分支。
+
+### 分支创建流程
+
+```
+code-explorer 完成
+  │
+  ├─ 1. 检查当前是否已在 impl-<phase-id> 分支（bash: git branch --show-current）
+  │     - 如果是目标分支（Must-Fix 回路场景）→ 跳到步骤 5，不重复创建
+  │     - 如果不是 → 继续下一步
+  │
+  ├─ 2. git stash 保存未提交的更改（如果有）
+  │
+  ├─ 3. git checkout main（回到主分支，确保分支从干净基线上创建）
+  │
+  ├─ 4. git checkout -b impl-<phase-id>
+  │
+  └─ 5. 委托 implementer
+```
+
+### 分支合并回 main（HG-3 通过后立即执行）
+
+Phase 通过 HG-3 验收后，进入下一个 Phase **之前**，必须将当前分支合并回 main：
+
+```
+HG-3 通过（用户确认）
+  │  此时工作区在 impl-<current_phase> 分支上
+  │
+  ├─ 1. git checkout main && git merge impl-<current_phase>
+  │     把 feature 分支合入 main，理想情况下走 fast-forward
+  │
+  ├─ 2. git branch -d impl-<current_phase>（删除已合并的分支）
+  │
+  └─ 3. main 已包含 Phase N 全部代码，下一 Phase 从最新 main 创建分支
+```
+
+**为什么必须合并**：
+- Phase N+1 的代码依赖 Phase N 的改动
+- 不合并 → 后续 Phase 基于旧 main → rebase 越来越困难
+- 合并后每个 Phase 分支都从最新 main 出发，始终干净
+
+**如果 Phase 是最后一个**（DAG 中无依赖它的后续 Phase）：
+- 仍然执行合并 → main → 删除分支
+- 这表示整个 workflow 完成，main 即为最终交付物
+
+### Must-Fix 回路特殊处理
+
+当 reviewer 判决 MUST-FIX，需要 implementer 重新处理时（此时**尚未合并回 main**）：
+- **具体可修复问题**（边界遗漏、测试不足、命名不对）→ 停留在已有 `impl-<phase-id>` 分支修复，不操作 main
+- **方向性错误**（错误的方法、错误的架构）→ `git checkout main` → `git branch -D impl-<phase-id>` → 重新 `git checkout -b impl-<phase-id>`
+
+### 铁律
+
+```
+❌ 禁止：不创建 git 分支就直接委托 implementer
+❌ 禁止：让 implementer 在 main 分支上直接编码
+✅ 正确：每个 Phase（含 MUST-FIX 回路）都必须在隔离的 impl-<phase-id> 分支上工作
+✅ 正确：分支名必须使用 DAG JSON 中的 phase-id
+```
+
+### Hook 层硬阻断
+
+`pipeline-gate.sh` 在 implementer 被 dispatch 时，自动检查当前 git 分支：
+- 当前分支 = `impl-<current_phase>` → 放行
+- 当前分支 ≠ `impl-<current_phase>` → **阻断**，提示调度者先创建分支
+
+这意味着即使调度者忘记创建分支，hook 也会在 implementer 被 dispatch 的瞬间拦截，**不会让 implementer 在错误分支上开始工作**。
+
+### 三层防护总结
+
+| 层 | 机制 | 职责 |
+|---|------|------|
+| Rules 层 | `spec-workflow.mdc` 文本指令 | 调度者必须在 code-explorer 后创建分支 |
+| Hook 层 | `pipeline-gate.sh` preToolUse 阻断 | 程序化验证 implementer 是否在正确分支 |
+| Agent 层 | `implementer.md` Must Do #1 校验 | implementer 启动后立即 `git branch --show-current` 二次确认 |
+
+---
+
 | 阶段 | 委托的子Agent | 产出文件 | 门禁 |
 |------|------------|---------|:--:|
 | 需求分析 | `requirement-analyst` | `.specdev/specs/<slug>/requirements.md` | **HG-1** |
 | 架构设计 | `plan-generator` | `.specdev/specs/<slug>/design.md` + `phase-plan.md` + `phases/<phase>/spec.md` | **HG-2** |
 | 代码调研（per-Phase） | `code-explorer` | `.specdev/specs/<slug>/phases/<phase>/repo-exploration.md` | — |
+| Git 分支创建 | *Cursor Agent 执行* | `impl-<phase-id>` 分支 | **每个 Phase 前** |
 | Phase Entry Gate | *Cursor Agent 读 registry* | 向用户呈现债务清单 → 用户决策 | **仅 Phase 2+** |
 | Phase 实施 | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md` | **HG-3** |
 
@@ -214,11 +300,14 @@ Phase N 准备实施
   │     输出: phases/<phase>/repo-exploration.md (10-section 结构化报告)
   │     输出: phases/<phase>/repo-exploration-zh.md (中文翻译)
   │
-  ├─ 2. implementer 必须读取 repo-exploration.md 后才能开始编码
+  ├─ 2. 🔀 Git 分支创建：`git checkout -b impl-<phase-id>`（详见 Per-Phase Git 分支管理章节）
+  │     - 调度者执行，确保 implementer 在独立分支上工作
   │
-  ├─ 3. 3 个并行 reviewer 也需要读取 repo-exploration.md 作为上下文
+  ├─ 3. implementer 必须读取 repo-exploration.md 后才能开始编码
   │
-  └─ 4. verifier 参考 repo-exploration.md 中的关键路径设计验证场景
+  ├─ 4. 3 个并行 reviewer 也需要读取 repo-exploration.md 作为上下文
+  │
+  └─ 5. verifier 参考 repo-exploration.md 中的关键路径设计验证场景
 ```
 
 ### code-explorer 必须产出的 10 个章节
