@@ -288,10 +288,10 @@ HG-3 通过（用户确认）
 
 | 触发点 | 对象类型 | objectKey | 内容来源 |
 |--------|----------|-----------|---------|
-| HG-1 通过（需求确认） | `topic` | `<slug>` | `requirements.md` 摘要 |
-| HG-2 通过（方案确认） | `decision` | `<slug>-architecture` | `design.md` 关键决策 |
-| HG-3 通过（Phase 验收） | `task` | `phase-<current-phase>` | `verification.md` 实现结果 |
-| 上下文压缩 | `snapshot` + `daily` | `<project>` | 压缩时的会话摘要 |
+| HG-1 通过（需求确认） | `topic` | `<slug>` | `requirements.md` 全文 |
+| HG-2 通过（方案确认） | `decision` | `<slug>-architecture` | `design.md` 全文 |
+| HG-3 通过（Phase 验收） | `task` | `phase-<current-phase>` | `verification.md` 全文 |
+| 上下文压缩 | `snapshot` + `daily` | `<project>` | 压缩时的会话全文摘要 |
 
 ### 同步流程（HG-3 示例）
 
@@ -302,11 +302,12 @@ HG-3 通过，用户确认
   │     → 可用: 继续步骤 2
   │     → 不可用: 降级写入 kb-pending/phase-<id>.json
   │
-  ├─ 2. 调用 knowledge-base MCP: sync_kb_object
+  ├─ 2. 读取 `.specdev/specs/<slug>/phases/<current_phase>/verification.md` **全文**
+  │     调用 knowledge-base MCP: sync_kb_object
   │     objectType: task
   │     objectKey: phase-<current-phase>
   │     project: <project-name>
-  │     content: 从 verification.md 提取摘要
+  │     content: 文件完整内容（全文同步，不提取摘要）
   │
   └─ 3. 确认同步成功（或不阻塞继续）
 ```

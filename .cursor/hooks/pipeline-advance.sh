@@ -43,7 +43,7 @@ if echo "$AGENT_LOWER" | grep -q "requirement-analyst"; then
 - `current-status.json`: `"hg1": "passed"`
 
 ## 📚 KB Sync: Topic Doc
-HG-1 通过后：调用 `knowledge-base_sync_kb_object` 创建 Topic Doc，`objectType: topic`, `objectKey: <slug>`
+HG-1 通过后：读取 `.specdev/specs/<slug>/requirements.md` 全文，调用 `knowledge-base_sync_kb_object`，`objectType: topic`, `objectKey: <slug>`, content 为文件完整内容
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -60,7 +60,7 @@ elif echo "$AGENT_LOWER" | grep -q "plan-generator"; then
 - `current-status.json`: `"hg2": "passed"`
 
 ## 📚 KB Sync: Decision Doc
-HG-2 通过后：调用 `knowledge-base_sync_kb_object` 创建 Decision Doc，`objectType: decision`, `objectKey: <slug>-architecture`
+HG-2 通过后：读取 `.specdev/specs/<slug>/design.md` 全文，调用 `knowledge-base_sync_kb_object`，`objectType: decision`, `objectKey: <slug>-architecture`, content 为文件完整内容
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -116,23 +116,14 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 
 ## 📚 Knowledge Base Sync
 
-Phase 验证完成后，调用 knowledge-base MCP 同步成果：
+Phase 验证完成后，将 spec 文件全文同步到知识库：
 
-```bash
-# 同步 Task Doc（记录本 Phase 实现结果）
-lark-cli knowledge-base sync_kb_object \
-  --objectType task \
-  --project "<project>" \
-  --objectKey "phase-<current-phase>" \
-  --title "[task:phase-<current-phase>] <project> - Phase N 实现完成" \
-  --content "从 .specdev/specs/<slug>/phases/<current_phase>/verification.md 提取摘要"
-```
+- 读取 `.specdev/specs/<slug>/phases/<current_phase>/verification.md` **完整内容**
+- 调用 `knowledge-base_sync_kb_object`（MCP 可用时）
+  - `objectType: task`, `objectKey: phase-<current-phase>`
+  - `content`: 文件全文，不是摘要
 
-**MCP 调用方式**（如果 MCP 可用）：
-- `knowledge-base_sync_kb_object` — 创建/更新 Task Doc
-- `knowledge-base_get_sync_object_status` — 检查已有文档
-
-⚠️ 如果 MCP 不可用：写入 `.specdev/specs/<slug>/kb-pending/phase-<current_phase>.json` 稍后重试。
+⚠️ MCP 不可用时：写入 `.specdev/specs/<slug>/kb-pending/phase-<current_phase>.json`（含完整文件内容），稍后重试。
 
 **不要自动继续。不要替用户做决定。**
 MSG
