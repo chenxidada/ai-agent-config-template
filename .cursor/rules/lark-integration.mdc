@@ -1,57 +1,17 @@
 ---
-description: 飞书 API 集成 — lark-cli 用法、身份切换、安全规范
-alwaysApply: true
+description: 飞书 lark-cli 安全铁律 — 仅在涉及飞书操作的场景中手动引用
+alwaysApply: false
 ---
 
-# 飞书 / Lark 集成 — lark-cli 使用规范
+# 飞书 / Lark — lark-cli 安全铁律
 
-## 概述
+本规则仅在涉及飞书操作时使用。用法通过 `lark-cli --help` 动态发现。
 
-本项目环境已安装 `lark-cli`（`npx @larksuite/cli`），覆盖 26 个飞书业务域。Agent 通过 shell 直接调用 `lark-cli`，不经过 MCP。
+## 安全铁律
 
-## 核心用法
-
-```
-lark-cli <domain> --help          # 发现命令（优先 /+shortcut，再选 typed 命令）
-lark-cli schema <svc>.<res>.<method>  # 查看参数、类型、权限
-lark-cli api GET /open-apis/...   # 兜底：原生 HTTP 路径
-```
-
-**命令优先级**：`+shortcut`（高层封装） > `typed 命令`（单 API method） > `api`（原始 HTTP）
-
-### 26 个业务域
-
-`approval` `apps` `attendance` `base` `calendar` `contact` `docs` `drive` `event` `im` `mail` `markdown` `mindnotes` `minutes` `okr` `sheets` `slides` `task` `vc` `wiki` 等。
-
-## 身份（--as）
-
-| 身份 | 标识 | 场景 |
-|------|------|------|
-| user 用户 | `--as user` | 访问用户自己的日历/云空间/邮箱等个人资源 |
-| bot 应用 | `--as bot`（默认） | 应用级操作，需 appId + appSecret |
-
-- Bot **看不到用户个人资源**（日历、云空间文档等）
-- Bot 发消息以应用名义发送
-- 权限不足时先确认身份是否正确，不要随意切换
-
-## 安全规则（强制）
-
-| 规则 | 说明 |
-|------|------|
-| **禁止输出密钥** | appSecret、accessToken 绝不能打印到终端 |
-| **写操作前确认** | 涉及创建/删除/修改时先用 `--dry-run` 预览 |
-| **exit 10 协议** | lark-cli 对高风险写操作返回 exit code 10 → 必须向用户确认后追加 `--yes` 重试，禁止静默加 `--yes` |
-| **高危操作** | `--help` 顶部标注 `Risk: high-risk-write` 的命令需用户明确同意 |
-
-## 首次配置
-
-如果 `lark-cli` 报权限错误，引导用户运行：
-
-```bash
-lark-cli config init --new        # 首次配置
-lark-cli auth login --scope "<缺失的 scope>"   # 按需授权
-```
+- **禁止输出密钥**：appSecret、accessToken 绝不能打印到终端
+- **exit 10 协议**：高风险写操作返回 exit code 10 → 必须向用户确认后追加 `--yes` 重试，禁止静默加 `--yes`
 
 ## 参考
 
-完整域名细技能位于 `~/.claude/skills/lark-*/`，Agent 可在需要时读取对应 SKILL.md 获取详细的 API 模式和最佳实践。
+完整业务域技能（calendar、im、mail 等 26 个）位于 `~/.claude/skills/lark-*/SKILL.md`，需要时按域读取。
