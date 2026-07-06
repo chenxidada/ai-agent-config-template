@@ -297,39 +297,46 @@ resolve_folder_path:
 
 然后调用 `save_document` 传入 `folderId`，文档即归档到对应目录。
 
-**路径规范**（沿用 `sync_kb_object` 的约定）：
-
-| 同步时机 | 逻辑路径 | folderId 来源 |
-|----------|---------|--------------|
-| HG-1（需求） | `Projects/<project>/Topics/` | resolve_folder_path |
-| HG-2（方案） | `Projects/<project>/Decisions/` | resolve_folder_path |
-| HG-3（Phase 验证） | `Projects/<project>/Tasks/` | resolve_folder_path |
-| 压缩 snapshot | `Projects/<project>/Snapshots/` | resolve_folder_path |
-| 每日摘要 | `Daily/<YYYY>/<YYYY-MM>/` | resolve_folder_path |
-
 **folderId 可缓存**：同一次会话内多次同步到同一路径时，首次 resolve 后缓存 folderId，后续直接复用。
 
-### 同步方式：`save_document`
+### 跨 Phase 路径结构
 
-```json
-{
-  "title": "[<type>:<key>] <project> - <label>",
-  "content": "<文件全文>",
-  "folderId": "<resolve_folder_path 返回的 UUID>",
-  "sourceType": "ai-chat"
-}
+每个 Phase 独立子目录，HG-3 通过后同步该 Phase 全套文档：
+
+```
+Projects/<project>/
+  ├─ Topics/              ← HG-1: requirements.md
+  ├─ Decisions/           ← HG-2: design.md
+  ├─ Phases/
+  │   ├─ <phase-1-id>/    ← HG-3: 该 Phase 全套
+  │   ├─ <phase-2-id>/    ← HG-3
+  │   └─ <phase-3-id>/    ← HG-3
+  ├─ Snapshots/           ← 上下文压缩
+  └─ Daily/<YYYY>/<YYYY-MM>/  ← 每日摘要
 ```
 
-MCP 不可用时降级：写入 `.specdev/specs/<slug>/kb-pending/<type>-<key>.json`，后续重试。
+每个 Phase 同步时，先 `resolve_folder_path("Projects/<project>/Phases/<phase-id>/")` 创建目录（如果尚不存在），然后按固定顺序写入文件。
 
-### 同步触发点
+### HG-3 Phase 文档同步（用户确认后）
 
-| 触发点 | MCP 工具 | title 模板 | 内容 | 目标路径 |
-|--------|----------|-----------|------|---------|
-| HG-1 通过 | `save_document` | `[topic:<slug>] 需求文档` | `requirements.md` 全文 | `Projects/<project>/Topics/` |
-| HG-2 通过 | `save_document` | `[decision:<slug>] 架构设计` | `design.md` 全文 | `Projects/<project>/Decisions/` |
-| HG-3 通过 | `save_document` | `[task:<phase>] Phase 验证` | `verification.md` 全文 | `Projects/<project>/Tasks/` |
-| 上下文压缩 | `save_document` | `[snapshot:<timestamp>] ` | 压缩会话摘要 | `Projects/<project>/Snapshots/` |
+HG-3 通过后，同步该 Phase 下所有 spec 文档。**按顺序逐个调用 `save_document`**：
+
+| # | 文件 | title 模板 | 用途 |
+|---|------|-----------|------|
+| 1 | `spec.md` | `[spec] <phase-id> - Phase 规格` | 验收标准，后续 Phase 需要知道 |
+| 2 | `repo-exploration.md` | `[exploration] <phase-id> - 代码调研` | 代码库上下文 |
+| 3 | `implementation.md` | `[impl] <phase-id> - 实现摘要` | 变更清单 + 偏差记录 |
+| 4 | `review.md` | `[review] <phase-id> - 审查报告` | 判决 + 发现的问题 |
+| 5 | `verification.md` | `[verify] <phase-id> - 验证报告` | 端到端验证结果 |
+
+### 同步触发点总览
+
+| 触发点 | 目标路径 | 内容 | 文档数 |
+|--------|---------|------|:--:|
+| HG-1 通过 | `Projects/<project>/Topics/` | `requirements.md` | 1 |
+| HG-2 通过 | `Projects/<project>/Decisions/` | `design.md` | 1 |
+| HG-3 通过 | `Projects/<project>/Phases/<phase-id>/` | 以上 5 个 spec 文件 | 5 |
+| 上下文压缩 | `Projects/<project>/Snapshots/` | 压缩会话摘要 | 1 |
 
 ### 流程（以 HG-3 为例）
 
@@ -339,9 +346,9 @@ HG-3 通过，用户确认
   ├─ 1. 更新 current-status.json, 合并分支, 进入下一 Phase
   │     ← 先推进 pipeline，不等待同步
   │
-  └─ 2. 同步知识库（异步，步骤少且快）
-        ├─ (可选) resolve_folder_path: "Projects/<project>/Tasks/" → folderId
-        ├─ MCP 可用 → save_document(title, content, folderId)
+  └─ 2. 异步同步该 Phase 全套文档到 KB
+        ├─ resolve_folder_path("Projects/<project>/Phases/<phase-id>/") → folderId
+        ├─ 依次 save_document(spec.md, impl.md, review.md, verify.md, repo-exploration.md)
         └─ MCP 不可用 → 写入 kb-pending/ 降级
 ```
 

@@ -122,10 +122,15 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 
 ## 📚 Knowledge Base Sync (非阻塞)
 
-Phase 验收后，异步同步 verification.md 到知识库：
-- resolve_folder_path: "Projects/<project>/Tasks/" → folderId
-- MCP 可用：save_document(title: "[task:<current_phase>] Phase 验证", content: verification.md 全文, folderId)
-- MCP 不可用：写入 kb-pending/task-<current_phase>.json
+Phase 验收后，异步同步该 Phase 全套 spec 文档到知识库：
+- resolve_folder_path: "Projects/<project>/Phases/<current_phase>/" → folderId
+- MCP 可用时依次 save_document（不阻塞 pipeline）：
+  1. spec.md          → title: "[spec] <phase> - Phase 规格"
+  2. repo-exploration.md → title: "[exploration] <phase> - 代码调研"
+  3. implementation.md   → title: "[impl] <phase> - 实现摘要"
+  4. review.md        → title: "[review] <phase> - 审查报告"
+  5. verification.md  → title: "[verify] <phase> - 验证报告"
+- MCP 不可用：写入 kb-pending/ 降级
 
 ⚠️ **同步是异步的，不影响 pipeline 推进。** 先推进下一 Phase / 合并分支，同步在后台完成。
 
