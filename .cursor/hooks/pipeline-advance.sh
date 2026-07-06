@@ -116,23 +116,30 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 
 ## ⏸️ Human Gate 3 — Phase 验收
 
-请将验证报告呈现给用户进行确认，等待用户明确回复后：
-- 手动更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
-- 如果还有后续 Phase：更新 `"current_phase": "phase-N-xxx"`
+请将验证报告呈现给用户。
+
+**先展示改动清单**：运行 `git diff --stat` + `git status -s`，让用户知道哪些文件将被提交。
+
+等待用户回复：
+- 用户说"不通过"/"需要修改" → 停止，了解修改内容
+- 用户说"通过"/"验收通过"/"确认" → **一次性执行全部**：
+  - touch /tmp/git-commit-allowed && git add -A && git commit -m "impl-<phase-id>: <概要>"
+  - git checkout main && git merge impl-<phase-id> && git branch -d impl-<phase-id>
+  - 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
+  - 如有下一 Phase：更新 `"current_phase": "phase-N-xxx"` 并创建新分支
+
+⚠️ 禁止盲 `git add -A`：必须先用 `git diff --stat` + `git status -s` 展示改动清单。
 
 ## 📚 Knowledge Base Sync (非阻塞)
 
 Phase 验收后，异步同步该 Phase 全套 spec 文档到知识库：
 - resolve_folder_path: "Projects/<project>/Phases/<current_phase>/" → folderId
-- MCP 可用时依次 save_document（不阻塞 pipeline）：
-  1. spec.md          → title: "[spec] <phase> - Phase 规格"
-  2. repo-exploration.md → title: "[exploration] <phase> - 代码调研"
-  3. implementation.md   → title: "[impl] <phase> - 实现摘要"
-  4. review.md        → title: "[review] <phase> - 审查报告"
-  5. verification.md  → title: "[verify] <phase> - 验证报告"
+- MCP 可用时依次 save_document（不阻塞）：
+  1. spec.md, repo-exploration.md, implementation.md, review.md, verification.md
 - MCP 不可用：写入 kb-pending/ 降级
 
-⚠️ **同步是异步的，不影响 pipeline 推进。** 先推进下一 Phase / 合并分支，同步在后台完成。
+⚠️ **同步是异步的，不影响 pipeline 推进。**
+
 
 **不要自动继续。不要替用户做决定。**
 MSG

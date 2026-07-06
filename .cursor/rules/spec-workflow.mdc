@@ -78,7 +78,15 @@ alwaysApply: true
    - 实现概要（改了什么）
    - 审查结果（判决 + 发现的问题）
    - 验证结果（PASS/PARTIAL/FAIL + 通过的端到端场景）
-3. 明确问用户："这个 Phase 是否通过验收？是进入下一个 Phase 还是需要修改？"
+    - **如果分支上有未提交的改动**：运行 `git diff --stat` + `git status -s` 展示改动清单
+3. 问用户："Phase 是否通过验收？"
+   - 用户说"不通过"/"需要修改" → 停止，说明需要修改什么
+   - 用户说"通过"/"验收通过"/"确认" → **一次性执行全部**：
+     - touch /tmp/git-commit-allowed && git add -A && git commit -m "Phase <id>: <改动概要>"
+     - git checkout main && git merge impl-<id> && git branch -d impl-<id>
+     - 更新 current-status.json (hg3=passed, current_phase=下一 Phase)
+     - KB 同步（异步）
+     - 进入下一 Phase 或结束
 4. **停止**，不做任何其他动作，等待用户回复
 
 ### Human Gate 铁律
@@ -121,7 +129,7 @@ alwaysApply: true
      4. **创建 git 分支：`git checkout -b impl-<current_phase>`**（详见「Per-Phase Git 分支管理」章节）
      5. 委托 implementer（implementer 自动读取 current_phase 确定路径）
    - 每个 Phase HG-3→下一个 Phase:
-     1. **合并当前分支回 main**（详见「分支合并回 main」章节）
+     1. 用户说"通过" → touch /tmp/git-commit-allowed && commit + merge + 删除分支
      2. **读取 `phase-plan.md` DAG JSON，找到当前 Phase 的 `id`**
      3. 根据 `dependencies` 找到下一个已就绪的 Phase ID
      4. **更新 `current_phase` = 对应的 DAG JSON `id`（不是自己编名字）**
@@ -218,21 +226,24 @@ code-explorer 完成
   └─ 5. 委托 implementer
 ```
 
-### 分支合并回 main（HG-3 通过后立即执行）
+### 分支合并回 main（HG-3 用户确认"通过"时一次性执行）
 
-Phase 通过 HG-3 验收后，进入下一个 Phase **之前**，必须将当前分支合并回 main：
+Phase 通过 HG-3 验收后，**同一轮**内完成 commit + merge，不分开确认。
+
+**implementer 在分支上不自行 commit** — 所有改动留在工作区，由调度者在 HG-3 用户说"通过"时统一执行。
 
 ```
-HG-3 通过（用户确认）
-  │  此时工作区在 impl-<current_phase> 分支上
+HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清单）
   │
-  ├─ 1. git checkout main && git merge impl-<current_phase>
-  │     把 feature 分支合入 main，理想情况下走 fast-forward
+  ├─ 用户确认"通过" →
+  │   touch /tmp/git-commit-allowed && git add -A && git commit -m "Phase <phase-id>: <概要>"
+  ├─ git checkout main && git merge impl-<current_phase>
+  ├─ git branch -d impl-<current_phase>
   │
-  ├─ 2. git branch -d impl-<current_phase>（删除已合并的分支）
-  │
-  └─ 3. main 已包含 Phase N 全部代码，下一 Phase 从最新 main 创建分支
+  └─ main 已包含 Phase N 全部代码，直接进入下一 Phase
 ```
+
+**⚠️ 禁止 `git add -A` 盲提交**：HG-3 报告时必须先展示 `git diff --stat` + `git status -s`，让用户清楚知道哪些文件将被提交。
 
 **为什么必须合并**：
 - Phase N+1 的代码依赖 Phase N 的改动

@@ -4,7 +4,7 @@
 # 绑定: preToolUse (matcher: Task + Shell)
 # schema: .specdev/specs/{slug}/current-status.json
 # failClosed: true — hook 崩溃 = deny
-# v5: 新增 implementer 前 git 分支校验
+# v6: git commit/push 拦截改用文件标记 /tmp/git-commit-allowed（env var 跨进程不可传递）
 # ============================================
 
 INPUT=$(cat 2>/dev/null || echo '{}')
@@ -16,6 +16,18 @@ if [ "$TOOL_NAME" = "Shell" ]; then
     if echo "$CMD" | grep -qE 'rm -rf /[^a-z]|sudo rm -rf|:\(\)\{ :|:& \};:'; then
         cat <<'BLOCK'
 {"permission":"deny","user_message":"⛔ 危险命令被拦截"}
+BLOCK
+        exit 0
+    fi
+    # ── git commit/push 必须经用户显式允许 ──
+    if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
+        # 文件标记：/tmp/git-commit-allowed 存在且 300s 内创建则放行
+        if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+            echo '{"permission":"allow"}'
+            exit 0
+        fi
+        cat <<'BLOCK'
+{"permission":"deny","user_message":"⛔ git commit/push 被拦截。Agent 不允许未经用户明确同意的提交操作。\\n如你确实需要提交，请回复「允许提交」后由 Agent touch /tmp/git-commit-allowed 再执行。"}
 BLOCK
         exit 0
     fi

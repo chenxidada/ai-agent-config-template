@@ -103,6 +103,7 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 - ❌ 声明"完成"但留下 TODOs
 - ❌ 创建桩代码（除非 spec 或 design 明确声明推迟）
 - ❌ 在非 `impl-<phase-id>` 分支上工作（尤其是 main/master 分支）
+- ❌ 自行执行 `git commit` — 所有改动留在工作区，由调度者在 HG-3 确认后统一 commit
 - ❌ 自行创建 git 分支（分支由调度者统一管理）
 - ❌ 执行 `git push`（除非用户明确要求）
 
