@@ -97,11 +97,11 @@ alwaysApply: true
 
 #### HG 状态更新时机
 
-| HG | 触发条件 | 操作 |
-|----|---------|------|
-| HG-1 ⏳→✅ | 用户明确说「确认需求」「OK 进入设计」等 | 更新 `current-status.json`: `"hg1": "passed"` |
-| HG-2 ⏳→✅ | 用户明确说「确认方案」「开始实施」等 | 更新 `current-status.json`: `"hg2": "passed"` |
-| HG-3 ⏳→✅ | 用户明确说「Phase 通过」「验收通过」等 | 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0` |
+| HG | 触发条件 | 操作 | KB 同步 |
+|----|---------|------|---------|
+| HG-1 ⏳→✅ | 用户明确说「确认需求」「OK 进入设计」等 | 更新 `current-status.json`: `"hg1": "passed"` | Topic Doc |
+| HG-2 ⏳→✅ | 用户明确说「确认方案」「开始实施」等 | 更新 `current-status.json`: `"hg2": "passed"` | Decision Doc |
+| HG-3 ⏳→✅ | 用户明确说「Phase 通过」「验收通过」等 | 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0` | Task Doc |
 
 #### HG 状态更新流程
 
@@ -276,6 +276,52 @@ HG-3 通过（用户确认）
 
 ---
 
+## Knowledge Base 同步（Pipeline 内置）
+
+每个 Human Gate 通过后，将关键产物同步到个人知识库（Knownbase），用于后续检索、总结、复盘。
+
+### 前提
+
+知识库通过 `.mcp.json` 中的 `knowledge-base` MCP 加载。MCP 不可用时，降级写入 `.specdev/specs/<slug>/kb-pending/`，后续手动重试。
+
+### 同步触发点
+
+| 触发点 | 对象类型 | objectKey | 内容来源 |
+|--------|----------|-----------|---------|
+| HG-1 通过（需求确认） | `topic` | `<slug>` | `requirements.md` 摘要 |
+| HG-2 通过（方案确认） | `decision` | `<slug>-architecture` | `design.md` 关键决策 |
+| HG-3 通过（Phase 验收） | `task` | `phase-<current-phase>` | `verification.md` 实现结果 |
+| 上下文压缩 | `snapshot` + `daily` | `<project>` | 压缩时的会话摘要 |
+
+### 同步流程（HG-3 示例）
+
+```
+HG-3 通过，用户确认
+  │
+  ├─ 1. 尝试调用 knowledge-base MCP: get_sync_object_status
+  │     → 可用: 继续步骤 2
+  │     → 不可用: 降级写入 kb-pending/phase-<id>.json
+  │
+  ├─ 2. 调用 knowledge-base MCP: sync_kb_object
+  │     objectType: task
+  │     objectKey: phase-<current-phase>
+  │     project: <project-name>
+  │     content: 从 verification.md 提取摘要
+  │
+  └─ 3. 确认同步成功（或不阻塞继续）
+```
+
+### MCP 不可用时的降级
+
+```bash
+mkdir -p .specdev/specs/<slug>/kb-pending/
+# 写入待同步内容，含 objectType / objectKey / project / content / timestamp
+```
+
+后续用户执行 `/sync` 命令时，批量重试 `kb-pending/` 中的待同步条目。
+
+---
+
 | 阶段 | 委托的子Agent | 产出文件 | 门禁 |
 |------|------------|---------|:--:|
 | 需求分析 | `requirement-analyst` | `.specdev/specs/<slug>/requirements.md` | **HG-1** |
@@ -284,6 +330,7 @@ HG-3 通过（用户确认）
 | Git 分支创建 | *Cursor Agent 执行* | `impl-<phase-id>` 分支 | **每个 Phase 前** |
 | Phase Entry Gate | *Cursor Agent 读 registry* | 向用户呈现债务清单 → 用户决策 | **仅 Phase 2+** |
 | Phase 实施 | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md` | **HG-3** |
+| KB 同步 | *Cursor Agent 调用 MCP* | Knownbase 中的 topic/decision/task 对象 | **每个 HG 通过后** |
 
 ---
 

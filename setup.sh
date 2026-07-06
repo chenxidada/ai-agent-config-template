@@ -33,8 +33,9 @@ for arg in "$@"; do
         --opencode) MODE="opencode" ;;
         --all)      MODE="all" ;;
         --force)    FORCE=true ;;
+        --skip-kb-check) SKIP_KB_CHECK=true ;;
         -h|--help)
-            echo "用法: bash setup.sh [--cursor|--opencode|--all] [--force]"
+            echo "用法: bash setup.sh [--cursor|--opencode|--all] [--force] [--skip-kb-check]"
             exit 0
             ;;
     esac
@@ -98,12 +99,69 @@ copy_dir() {
     return 0
 }
 
+# ---- Knownbase 预检 ----
+check_knowledge_base() {
+    if [ "${SKIP_KB_CHECK:-false}" = "true" ]; then
+        echo "  [KB] 跳过检查 (--skip-kb-check)"
+        return 0
+    fi
+
+    local found_at=""
+    local candidates=(
+        "$HOME/AI-Chat/packages/mcp-server/dist/index.js"
+        "$HOME/workspace/AI-Chat/packages/mcp-server/dist/index.js"
+        "$HOME/code/AI-Chat/packages/mcp-server/dist/index.js"
+        "$HOME/code/knownbase/AI-Chat/packages/mcp-server/dist/index.js"
+    )
+
+    for candidate in "${candidates[@]}"; do
+        if [ -f "$candidate" ]; then
+            found_at="$(dirname "$(dirname "$(dirname "$(dirname "$candidate")")")")"
+            break
+        fi
+    done
+
+    if [ -n "$found_at" ]; then
+        echo "  [KB] ✅ 在 $found_at 检测到 Knownbase"
+        return 0
+    fi
+
+    # Docker 检测
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "kb-mcp-server"; then
+        echo "  [KB] ✅ 检测到 kb-mcp-server Docker 容器"
+        return 0
+    fi
+
+    echo ""
+    echo "  ⚠️  [KB] 未检测到 Knownbase（知识库后端）"
+    echo "  ─────────────────────────────────────"
+    echo "  知识库 MCP 会随 .mcp.json 一起复制，但需要 Knownbase 后端才能工作。"
+    echo ""
+    echo "  如果你没有 Knownbase："
+    echo "    1. 继续安装，稍后在 .mcp.json 中删除 knowledge-base 条目"
+    echo "    2. MCP 启动失败不会影响 Cursor 正常工作"
+    echo ""
+    echo "  如果你已安装 Knownbase："
+    echo "    设置环境变量: export KNOWNBASE_ROOT=/path/to/AI-Chat"
+    echo "    或启动 Docker: docker-compose up -d mcp-server"
+    echo ""
+    read -p "  继续安装? (Y/n): " confirm
+    if [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
+        echo "  已取消安装。"
+        exit 1
+    fi
+    return 1
+}
+
 # ============================================
 # Cursor 配置安装
 # ============================================
 install_cursor() {
     echo "--- Cursor 配置 ---"
     echo ""
+
+    # Knownbase 预检
+    check_knowledge_base
 
     # 通用文件
     CURSOR_FILES=(".mcp.json" "AGENTS.md" ".cursorrules" "knowledge-base-mcp.sh")

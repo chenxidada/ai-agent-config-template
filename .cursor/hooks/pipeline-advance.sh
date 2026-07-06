@@ -42,6 +42,9 @@ if echo "$AGENT_LOWER" | grep -q "requirement-analyst"; then
 请将需求文档呈现给用户进行确认，等待用户明确回复（例如「确认」「OK」「继续」）后，手动更新:
 - `current-status.json`: `"hg1": "passed"`
 
+## 📚 KB Sync: Topic Doc
+HG-1 通过后：调用 `knowledge-base_sync_kb_object` 创建 Topic Doc，`objectType: topic`, `objectKey: <slug>`
+
 **不要自动继续。不要替用户做决定。**
 MSG
 
@@ -55,6 +58,9 @@ elif echo "$AGENT_LOWER" | grep -q "plan-generator"; then
 
 请将设计方案呈现给用户进行确认，等待用户明确回复（例如「确认」「开始实施」）后，手动更新:
 - `current-status.json`: `"hg2": "passed"`
+
+## 📚 KB Sync: Decision Doc
+HG-2 通过后：调用 `knowledge-base_sync_kb_object` 创建 Decision Doc，`objectType: decision`, `objectKey: <slug>-architecture`
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -107,9 +113,28 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
 请将验证报告呈现给用户进行确认，等待用户明确回复后：
 - 手动更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
 - 如果还有后续 Phase：更新 `"current_phase": "phase-N-xxx"`
-- 同步知识库
 
-**不要自动继续。不 要替用户做决定。**
+## 📚 Knowledge Base Sync
+
+Phase 验证完成后，调用 knowledge-base MCP 同步成果：
+
+```bash
+# 同步 Task Doc（记录本 Phase 实现结果）
+lark-cli knowledge-base sync_kb_object \
+  --objectType task \
+  --project "<project>" \
+  --objectKey "phase-<current-phase>" \
+  --title "[task:phase-<current-phase>] <project> - Phase N 实现完成" \
+  --content "从 .specdev/specs/<slug>/phases/<current_phase>/verification.md 提取摘要"
+```
+
+**MCP 调用方式**（如果 MCP 可用）：
+- `knowledge-base_sync_kb_object` — 创建/更新 Task Doc
+- `knowledge-base_get_sync_object_status` — 检查已有文档
+
+⚠️ 如果 MCP 不可用：写入 `.specdev/specs/<slug>/kb-pending/phase-<current_phase>.json` 稍后重试。
+
+**不要自动继续。不要替用户做决定。**
 MSG
 
 elif echo "$AGENT_LOWER" | grep -q "code-explorer"; then
