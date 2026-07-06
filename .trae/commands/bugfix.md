@@ -1,3 +1,8 @@
+---
+description: Bug 修复流程（单Phase + 单视角审查）
+argument-hint: <bug描述>
+---
+
 # /bugfix — Bug 修复流程
 
 当用户使用 `/bugfix <问题描述>` 时，启动 bug 修复流程。

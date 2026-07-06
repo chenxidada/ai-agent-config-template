@@ -1,3 +1,8 @@
+---
+description: 独立需求分析（EARS格式AC）
+argument-hint: <需求描述>
+---
+
 # /specify — 需求分析专用
 
 当用户使用 `/specify <描述>` 时，仅执行需求分析阶段，停在 Human Gate 1。适合只想讨论需求、不急于实施的场景。

@@ -1,3 +1,8 @@
+---
+description: 独立架构设计（输出DAG Phase拆分）
+argument-hint: <可选：设计目标>
+---
+
 # /plan — 架构设计专用
 
 当用户使用 `/plan` 时，基于已有的 requirements.md 进行架构设计和 Phase 拆分。停在 Human Gate 2。

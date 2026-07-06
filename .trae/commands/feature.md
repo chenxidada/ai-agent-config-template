@@ -1,3 +1,8 @@
+---
+description: 启动完整新功能开发流程（多Phase + 并行审查）
+argument-hint: <功能描述>
+---
+
 # /feature — 新功能开发流程
 
 当用户使用 `/feature <描述>` 时，启动 spec 驱动的开发流程。

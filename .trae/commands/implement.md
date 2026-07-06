@@ -1,3 +1,8 @@
+---
+description: 直接进入实施阶段（需HG-2已通过）
+argument-hint: <可选：补充说明>
+---
+
 # /implement — 执行实施
 
 当用户使用 `/implement` 时，执行当前 Phase 的 implementer→reviewer→verifier 闭环。
