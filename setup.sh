@@ -96,6 +96,8 @@ copy_dir() {
     fi
 
     mkdir -p "$dst"
+    # 清理目标中的符号链接，避免 cp -R 无法用目录覆盖符号链接
+    find "$dst" -maxdepth 1 -type l -exec rm -f {} \; 2>/dev/null || true
     cp -R "$src"/. "$dst"/
     echo "  [完成] $label (已合并模板内容)"
     return 0
@@ -176,6 +178,10 @@ install_cursor() {
 
     # 技能目录（Cursor 自动发现 SKILL.md）
     if [ -d "$SCRIPT_DIR/.opencode/skills" ]; then
+        # 移除符号链接或非目录文件，避免 mkdir 冲突
+        if [ -L "$TARGET_DIR/.cursor/skills" ] || { [ -e "$TARGET_DIR/.cursor/skills" ] && [ ! -d "$TARGET_DIR/.cursor/skills" ]; }; then
+            rm -f "$TARGET_DIR/.cursor/skills"
+        fi
         copy_dir "$SCRIPT_DIR/.opencode/skills" "$TARGET_DIR/.cursor/skills" ".cursor/skills/"
     fi
 
