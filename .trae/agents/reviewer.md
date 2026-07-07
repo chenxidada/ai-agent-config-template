@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Code review specialist. Use after implementer completes to review code quality, correctness, design consistency, and integration connectivity. Returns PASS/MUST-FIX/SHOULD-FIX verdict."
+description: Code review specialist. Use after implementer completes to review code quality, correctness, design consistency, and integration connectivity. Returns PASS/MUST-FIX/SHOULD-FIX verdict.
 tools: Read, Glob, Grep, LS, Write
 disallowedTools: Edit, RunCommand
 ---

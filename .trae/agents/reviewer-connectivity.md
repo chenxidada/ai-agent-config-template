@@ -1,6 +1,6 @@
 ---
 name: reviewer-connectivity
-description: "Integration connectivity specialist. Focuses ONLY on one question: do the pieces actually connect? Traces end-to-end data paths, checks upstream/downstream integration, and verifies cross-module wiring. Runs in parallel with reviewer-correctness and reviewer-design."
+description: Integration connectivity specialist. Focuses ONLY on one question: do the pieces actually connect? Traces end-to-end data paths, checks upstream/downstream integration, and verifies cross-module wiring. Runs in parallel with reviewer-correctness and reviewer-design.
 tools: Read, Glob, Grep, LS, Write
 disallowedTools: Edit, RunCommand
 ---

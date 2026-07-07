@@ -1,6 +1,6 @@
 ---
 name: plan-generator
-description: "Architecture design and phase planning specialist. Use after requirements are confirmed (HG-1) to design technical solutions and split work into phases. Cannot be used before requirements.md exists."
+description: Architecture design and phase planning specialist. Use after requirements are confirmed (HG-1) to design technical solutions and split work into phases. Cannot be used before requirements.md exists.
 tools: Read, Glob, Grep, LS, Write, Edit
 ---
 

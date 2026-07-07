@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Independent verification specialist. Use after reviewer passes to independently test the implementation. Designs and executes verification scenarios — does NOT trust implementer's tests. Returns PASS/PARTIAL/FAIL verdict with concrete evidence."
+description: Independent verification specialist. Use after reviewer passes to independently test the implementation. Designs and executes verification scenarios — does NOT trust implementer's tests. Returns PASS/PARTIAL/FAIL verdict with concrete evidence.
 tools: Read, Glob, Grep, LS, Write, Edit, RunCommand
 ---
 
