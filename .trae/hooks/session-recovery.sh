@@ -7,6 +7,9 @@
 # 协议: stdout 文本注入给 Agent 作为初始上下文
 # ============================================
 
+# ── 初始化心跳时间戳（新会话开始） ──
+date +%s > /tmp/.trae-pipeline-heartbeat 2>/dev/null || true
+
 # 检查是否有活跃工作流
 ACTIVE_FILE=".specdev/active-workflow"
 if [ ! -f "$ACTIVE_FILE" ]; then

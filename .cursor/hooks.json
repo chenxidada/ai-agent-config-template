@@ -13,6 +13,18 @@
         "matcher": "Shell",
         "failClosed": true,
         "timeout": 10
+      },
+      {
+        "command": ".cursor/hooks/pipeline-gate.sh",
+        "matcher": "Edit",
+        "failClosed": true,
+        "timeout": 10
+      },
+      {
+        "command": ".cursor/hooks/pipeline-gate.sh",
+        "matcher": "Write",
+        "failClosed": true,
+        "timeout": 10
       }
     ],
     "subagentStop": [

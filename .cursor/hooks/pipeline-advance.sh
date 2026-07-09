@@ -11,6 +11,9 @@ EXIT_CODE=$(echo "$INPUT" | jq -r '.exit_code // 0')
 AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // "subagent"')
 AGENT_NAME=$(echo "$INPUT" | jq -r '.agent_name // "subagent"')
 
+# ── 更新心跳时间戳（subagentStop 不算超时） ──
+date +%s > /tmp/.cursor-pipeline-heartbeat 2>/dev/null || true
+
 # 读取活跃工作流
 ACTIVE_FILE=".specdev/active-workflow"
 if [ ! -f "$ACTIVE_FILE" ]; then

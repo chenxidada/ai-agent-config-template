@@ -21,6 +21,9 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "."' 2>/dev/null)
 # 切到工作目录
 cd "$CWD" 2>/dev/null || true
 
+# ── 更新心跳时间戳（Stop 事件不算超时） ──
+date +%s > /tmp/.trae-pipeline-heartbeat 2>/dev/null || true
+
 # 读取活跃工作流
 ACTIVE_FILE=".specdev/active-workflow"
 if [ ! -f "$ACTIVE_FILE" ]; then
