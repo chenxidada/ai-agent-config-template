@@ -84,10 +84,16 @@ Wiki 目录：<project_root>/docs/wiki/
 3. 增量更新所有层级（L1-L4）
 4. 更新 .wiki-status.json
 
-要求：
-- 所有图表使用 Mermaid 格式
-- 内容尽可能详细，逐模块逐函数记录
+图表要求：
+- 简单图（≤5 节点）用 Mermaid 内联渲染
+- 复杂图（6+ 节点、架构图、ER 图、UML、网络拓扑、C4）用 drawio skill 生成
+- drawio 图表存入 docs/wiki/diagrams/，导出 .drawio.png 嵌入 markdown
+- drawio -e 导出后必须运行 repair_png.py 修复 PNG
+- 首次运行先创建 docs/wiki/diagrams/ 目录
+
+内容要求：
 - 中文书写，技术术语保持英文
+- 内容尽可能详细，逐模块逐函数记录
 ```
 
 ### Pipeline 模式
@@ -111,8 +117,13 @@ Wiki 目录：<project_root>/docs/wiki/
 3. 追加 changelog.md 条目
 4. 更新 .wiki-status.json
 
+图表要求：
+- 根据 design.md 中的架构变更，判断是否需要新建/更新 drawio 图表
+- 复杂架构图/ER 图/UML 用 drawio skill 生成，存入 docs/wiki/diagrams/，导出 .drawio.png 嵌入
+- 简单关系图用 Mermaid 内联
+- drawio -e 导出后必须运行 repair_png.py
+
 要求：
 - 只更新受影响的页面，不重写未变更内容
 - changelog 必须包含：日期、slug、概要、影响模块、遗留债务
-- 所有新增图表使用 Mermaid 格式
 ```

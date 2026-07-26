@@ -86,7 +86,15 @@ BLOCK
     fi
     # ── git commit/push 必须经用户显式允许 ──
     if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
-        if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+        COMMIT_ALLOWED_MTIME=0
+        if [ -f /tmp/git-commit-allowed ]; then
+            if stat --version 2>/dev/null | grep -q GNU; then
+                COMMIT_ALLOWED_MTIME=$(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0)
+            else
+                COMMIT_ALLOWED_MTIME=$(stat -f %m /tmp/git-commit-allowed 2>/dev/null || echo 0)
+            fi
+        fi
+        if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - COMMIT_ALLOWED_MTIME)) -lt 300 ]; then
             allow_with_heartbeat
         fi
         cat <<'BLOCK'
