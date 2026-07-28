@@ -191,10 +191,12 @@ docs/wiki/
       "sub_topics": [
         { "title": "HMAC认证机制", "file": "docs/wiki/安全机制/HMAC认证机制.md",
           "role": "core-subtopic",
+          "source_subsystem": "HMAC 认证",
           "scope": "密钥管理、消息签名验证、MCU 4字节截断验证",
           "source_modules": ["security"] },
         { "title": "访问控制列表（ACL）", "file": "docs/wiki/安全机制/访问控制列表（ACL）.md",
           "role": "core-subtopic",
+          "source_subsystem": "ACL 访问控制",
           "scope": "规则匹配、权限验证、热重载", "source_modules": ["security"] }
       ],
       "nested": []
@@ -208,6 +210,7 @@ docs/wiki/
 - `nested[]` 结构同 `domains[]`，用于嵌套子域。
 - 每个 `sub_topics[].scope` 描述该页预期覆盖范围（AC-3），同时作为概览页「一句话摘要」的来源（AC-7）。
 - 每个 `sub_topics[].role` 固定为 `core-subtopic`（深度子主题页）；页面角色定义见「单篇文档标准模板 §页面角色区分」。阶段 3 依据 `role` 套用生成规范，阶段 4 依据 `role` 分级判定门槛。
+- 每个 `sub_topics[].source_subsystem` 记录本页聚焦的**唯一子系统名**（映射到 `module-manifest.json` 的某个 `detected_subsystem`），是 AC-17「单一子系统聚焦」的可程序化校验依据——一页有且仅有一个 `source_subsystem`，供「子主题拆分决策逻辑」写入、阶段 4 门禁校验「一页不跨多子系统」。与 `title` 的区别：`title` 面向读者（可含中文修饰），`source_subsystem` 面向机器校验（对齐实测子系统名）。
 
 ### §3 源码片段索引 `.wiki-work/code-snippets.json`（阶段 2 产出，阶段 3 消费）
 
@@ -243,6 +246,8 @@ docs/wiki/
       "cite_ref_count": 12,
       "mermaid_count": 5,
       "example_count": 3,
+      "troubleshoot_scenario_count": 2,
+      "design_rationale_present": true,
       "depth_verdict": "pass",
       "issues": []
     }
@@ -251,7 +256,9 @@ docs/wiki/
 }
 ```
 
-- `role` 取值：`overview | core-subtopic`。
+- `role` 取值：`overview | core-subtopic | simple`（与 `topic-plan.json` 的 `overview_role`/`role` 页面角色链路对齐；`overview`/`simple` 页豁免 9 选 7 硬门槛）。
+- `troubleshoot_scenario_count`：故障排除场景数（AC-13 要求 `core-subtopic` ≥ 2），使故障场景要素可被门禁量化。
+- `design_rationale_present`：布尔值，标记本页是否含「设计动机 / 为什么这样设计」段落（AC-14），使设计动机要素可被门禁校验。
 - `depth_verdict` 取值：`pass | supplement-needed | limited-content`。
 - 指标阈值与判定逻辑详见 `## 质量门禁与自检`（Phase 4 落地）；本 Phase 仅确立 schema 契约。
 
@@ -350,7 +357,7 @@ docs/wiki/
 
 ### 章节覆盖门槛（AC-4）
 
-- **必须命中 9 章中的至少 7 章**（`section_coverage ≥ 0.78`，即 7/9）。
+- **必须命中 9 章中的至少 7 章**（`section_coverage ≥ 0.7778`，即 7/9；与阶段 4 门禁阈值统一为「9 选 7」边界）。
 - 「简介」「结论」「详细组件分析」「架构概览」为**强制章节**，任何 `core-subtopic` 页面不得缺失这四章。
 - 允许省略的章节：当模块确无相关内容时，可省略「性能考虑」或「依赖关系分析」，但省略后仍须满足 7 章下限。
 - 章节标题**保持中文**；技术术语（HMAC、ACL、CommContext、KeyStore 等）保持英文原文。
@@ -579,15 +586,140 @@ graph TD
 
 ## 质量门禁与自检
 
-> `@STUB(phase-4-quality-gate-modes)` — 质量门禁阈值与自检补充回路（章节覆盖率 < 0.70 触发补充；cite 缺失触发追溯补充）在 **phase-4-quality-gate-modes** 落地。本 Phase 已确立 `quality-report.json` 的 schema 契约与阶段 4 的框架职责。详见后续 Phase。
+本节规定**阶段 4** 如何度量阶段 3 产出的每篇文档、产出 `quality-report.json`，并按 `role` 分级判定是否触发补充生成回路（AC-18/19/20）。门禁**校验对象**为阶段 4 实际度量的要素（章节覆盖、cite 三件套、示例、Mermaid、故障场景数、设计动机存在性、深度四要素）。`source_subsystem` 的正确性由阶段 2/3 拆分规范（AC-17）保证，阶段 4 不重复校验。
+
+### 步骤 1：逐页度量（产出 quality-report.json，AC-18）
+
+深度生成完成后，遍历 `docs/wiki/**` 每个页面，为每页计算并写入 `quality-report.json`（schema 见「中间产物契约 §4」）的一条 `pages[]` 记录：
+
+| 度量字段 | 含义 | 度量方法 | 对齐 AC |
+|---------|------|---------|:------:|
+| `role` | 页面角色 | 读 `topic-plan.json` 对应页的 `role`/`overview_role`（`overview`/`core-subtopic`/`simple`） | AC-16 |
+| `word_count` | 正文字数 | 统计正文字符数（**软信号，非门槛**，见「自适应深度策略」） | AC-5 |
+| `section_coverage` | 9 章命中率 | `命中章节数 / 9`，命中 = 该 `## 标题` 存在且有实质内容 | AC-4/19 |
+| `sections_present` | 命中的章节名列表 | 扫描 `##` 二级标题与 9 章骨架比对 | AC-4 |
+| `cite_ref_count` | 源码追溯条目数 | 统计 `<cite>` 文件条目 + `章节来源`/`图表来源` 行号标注总数 | AC-9/10/20 |
+| `mermaid_count` | Mermaid 图数 | 统计 ` ```mermaid ` 代码块数 | AC-12 |
+| `example_count` | 代码/配置示例数 | 统计标注语言的非 mermaid 代码块数 | AC-11 |
+| `troubleshoot_scenario_count` | 故障排除场景数 | 统计「故障排除指南」章节内三段式场景（症状/可能原因/解决步骤）数 | AC-13 |
+| `design_rationale_present` | 是否含设计动机 | 检测「设计动机 / 为什么这样设计」段落存在性 | AC-14 |
+| `depth_verdict` | 深度判定 | `pass`/`supplement-needed`/`limited-content`（判定逻辑见下） | AC-5/18 |
+| `issues` | 具体问题清单 | 未达标项的可读描述（供补充回路定位） | AC-18 |
+
+度量完毕汇总 `summary`：`total`（总页数）、`pass`、`supplement_needed`、`limited_content` 计数。
+
+### 步骤 2：按 role 分级判定门槛（硬门禁按角色分支）
+
+门禁**必须按 `role` 分支**，不同角色套用不同门槛：
+
+| role | 章节覆盖门槛 | 深度要素门槛 | 说明 |
+|------|-------------|-------------|------|
+| `core-subtopic` | **`section_coverage ≥ 0.7778`（9 选 7 硬门槛）** + 四强制章节（简介/结论/详细组件分析/架构概览）齐全 | `example_count ≥ 1` 且 `mermaid_count ≥ 1` 且 `troubleshoot_scenario_count ≥ 2` 且 `design_rationale_present == true`（AC-11/12/13/14） | 完整深度页，全部硬门槛 |
+| `overview` | **豁免** 9 选 7 | 仅需含 TOC + `≥1` Mermaid 结构图 + 子主题导航列表完整（AC-7） | 轻量导航页 |
+| `simple` | **豁免** 9 选 7（AC-16 简单模块单页） | 仅需含 TOC + `≥1` Mermaid；示例/故障场景/设计动机不强制 | 简单模块单页 |
+
+> **阈值统一说明（收口 GAP-2）**：达标线（阶段 2「章节覆盖门槛」L353）与门禁线（本节）统一为 `section_coverage ≥ 0.7778`（即 7/9），消除旧版 `0.78` 与 `0.70` 的口径分歧。判定用 `≥ 0.7778` 等价于「命中 ≥ 7 章」，`< 0.7778`（即 ≤ 6 章）触发补充。
+
+### 步骤 3：补充生成回路（自检 → 补充 → 复核，AC-19/20）
+
+对每个 `core-subtopic` 页面按序自检，任一未达标即置 `depth_verdict = supplement-needed`，写入 `issues`，并触发对应补充动作，补充后**重新度量该页**直至达标或转 `limited-content`：
+
+1. **章节覆盖不足（AC-19）**：`section_coverage < 0.7778` 或缺任一强制章节 → 对缺失章节执行补充生成（复用阶段 2「单篇文档标准模板」9 章规范补齐内容），补齐后重新计算 `section_coverage`。
+2. **源码追溯缺失（AC-20）**：`<cite>` 块为空、或存在无对应 `code-snippets.json` 条目的行号标注、或主要章节缺 `章节来源` → 触发源码追溯补充：回到阶段 2 补录 snippet 到 `code-snippets.json`，再回填该页 `<cite>`/`章节来源`/`图表来源`（严禁凭记忆编造行号）。
+3. **深度要素缺失（AC-11/12/13/14）**：`example_count`/`mermaid_count`/`troubleshoot_scenario_count`/`design_rationale_present` 任一未达门槛 → 从 `code-snippets.json` 补取示例、补画 Mermaid、补写故障场景（三段式）、补写设计动机段落。
+4. **补充上限与豁免**：若某页补充后仍无法达标且经判断确属内容有限（见「自适应深度策略」），置 `depth_verdict = limited-content` 并在页内说明原因、计入 `summary.limited_content`，不判失败、不阻塞流水线。
+
+`overview`/`simple` 页面不参与步骤 2/3 的 9 选 7 与四深度要素校验，仅校验其角色门槛（TOC + Mermaid + 导航完整性）。
+
+### 步骤 4：回写状态
+
+`quality-report.json` 写入 `.wiki-work/`，并将 `.wiki-status.json`（v2）的 `quality_report` 字段指向本次报告路径（AC-23）。向调用方报告 `summary`（pass / supplement-needed / limited-content 计数）。
 
 ## 自适应深度策略
 
-> `@STUB(phase-4-quality-gate-modes)` — 自适应深度信号（章节完整度 + 源码引用覆盖 + 示例/图表存在性 + 组件分析充分性；字数仅作参考非硬门槛，允许 `limited-content` 豁免）在 **phase-4-quality-gate-modes** 落地。详见后续 Phase。
+本节落地 design.md 决策 4（HG-1 Q-3）：**字数不是硬门槛，而是软信号**。深度达标由**结构化深度信号**综合判定，避免为凑字数而虚构或注水（AC-5）。
+
+### 深度信号（取代硬字数门槛）
+
+`core-subtopic` 页面的深度由以下 4 类信号综合判定，全部达标才 `pass`：
+
+1. **章节完整度**：`section_coverage ≥ 0.7778`（9 选 7）且四强制章节齐全。
+2. **源码引用覆盖**：`cite_ref_count` 足量（对标 repowiki 基线，典型深度页 ≥ 8 条），且每条对应 `code-snippets.json` 索引。
+3. **示例/图表存在性**：`example_count ≥ 1` 且 `mermaid_count ≥ 1`（`core-subtopic` 建议 Mermaid ≥ 3）。
+4. **组件分析充分性**：`troubleshoot_scenario_count ≥ 2` 且 `design_rationale_present == true`。
+
+> `word_count` **仅作参考记录**（参考区间 3000-5000 字），**不作为通过/失败的判定条件**。一篇 2800 字但四类信号齐全的页面判 `pass`；一篇 6000 字但缺故障场景的页面判 `supplement-needed`。
+
+### limited-content 豁免（AC-5）
+
+当某模块**内容客观有限**（如功能极简、源码极少、无复杂交互）导致深度信号无法自然达标，且补充生成会产生无意义填充时：
+
+- 置 `depth_verdict = limited-content`，计入 `summary.limited_content`，**不判失败、不触发无意义补充**。
+- 在该页正文（建议置于「简介」章节末尾）**明确说明原因**，例如：「> 本模块为轻量工具类，核心逻辑集中于单一文件，故未拆分多子主题、故障场景有限。」
+- 豁免仅适用于「内容确实有限」的场景，**不得**用于规避应有的深度补充（如源码本身丰富却偷懒少写）。判据：源文件数、组件数、交互复杂度是否客观支撑更深内容。
+
+### 判定顺序（防止误用豁免）
+
+```
+先判 role
+  ├─ overview/simple → 套角色门槛（TOC + Mermaid + 导航完整），不走 9 选 7
+  └─ core-subtopic → 逐项检查 4 类深度信号
+        ├─ 全部达标 → pass
+        ├─ 有缺且可补（源码充足）→ supplement-needed → 补充回路 → 复核
+        └─ 有缺且确属内容有限（源码不足以支撑）→ limited-content + 页内说明
+```
 
 ## 模式整合（增量 vs 全量）
 
-> `@STUB(phase-4-quality-gate-modes)` — Standalone 全量扫描与 Pipeline 增量（仅处理 `implementation.md` 变更模块）的整合细则在 **phase-4-quality-gate-modes** 落地。本 Phase 已在「运行模式」章节确立两模式共享四阶段、仅输入范围不同的框架契约。详见后续 Phase。
+Standalone 与 Pipeline **共享同一套四阶段流水线与全部内容/结构/门禁规范**，唯一差异在**阶段 1 的输入范围**：Standalone 全量、Pipeline 增量（AC-21/22）。
+
+### Standalone 模式（全量，AC-22）
+
+触发：`/wiki`、`/wiki update`、`/wiki init`。
+
+```
+阶段 1：全量扫描项目全部代码模块 → module-manifest.json 纳入所有模块
+阶段 2：为所有主题域规划目录 + 建全量源码片段索引
+阶段 3：逐主题域逐页深度生成 docs/wiki/**（全量）
+阶段 4：对所有页面执行质量门禁 → quality-report.json + 更新 .wiki-status.json（v2）
+```
+
+- 覆盖全部主题域，产出完整主题域文档集（AC-22）。
+
+### Pipeline 模式（增量，AC-21）
+
+触发：Feature 最后一个 Phase HG-3 通过后自动触发。输入 `.specdev/specs/<slug>/phases/*/implementation.md` 变更清单 + `.specdev/specs/<slug>/tech-debt-registry.md`。
+
+**受影响主题域判定（AC-21 核心）**：
+
+```
+1. 从各 implementation.md「变更清单」提取本次变更的源文件路径集合 C。
+2. 读回既有 .wiki-status.json（v2），用其 domains[].source_modules 建立
+   「源模块 → 主题域」反向映射 M。
+3. 将 C 中每个文件归属到其所在模块，再经 M 映射到受影响主题域集合 D_affected。
+4. 若 C 中存在无法映射到任何既有主题域的新模块 → 为其新建主题域条目（走完整四阶段），
+   一并纳入 D_affected；其余未受影响主题域保持不变。
+```
+
+```
+阶段 1：module-manifest.json 仅纳入 D_affected 涉及的模块（不全量扫描）
+阶段 2：仅为受影响模块规划/更新主题域 + 建增量源码片段索引
+阶段 3：仅重写 D_affected 的页面，其余主题域页面保持不变（不重写未受影响文档）
+阶段 4：对 D_affected 页面执行质量门禁 + 追加 docs/wiki/changelog.md + 更新 .wiki-status.json（v2）
+```
+
+- **禁止全量重写**：未在 `D_affected` 内的主题域一律不动（AC-21）。
+- **changelog 必填**：每次 Pipeline 触发追加一条，含 `日期 / feature slug / 变更概要 / 受影响主题域与模块 / 遗留债务`（遗留债务读取 `tech-debt-registry.md` 中仍活跃的条目）。
+- 更新 `.wiki-status.json` 中受影响主题域的 `last_generated` 与 `last_feature_slug`。
+
+## 通用要求（中文书写 / 技术术语英文原文，AC-24）
+
+以下要求适用于**全部角色页面**（`core-subtopic`/`overview`/`simple`）及概览页导航、changelog 等所有 wiki 产出文本：
+
+- **正文中文书写**：所有章节标题、说明文字、导航摘要、故障场景描述、设计动机等**均用中文**。
+- **技术术语保持英文原文**：协议名、算法名、类名/符号等专有技术术语**不译**，保留英文原文并保持原始大小写，例如：`HMAC`、`ACL`、`DDS`、`SOME/IP`、`gRPC`、`CommContext`、`KeyStore`、`Mermaid`、`YAML`、`JSON`。
+- **中英混排**：术语在中文句中直接以英文原文嵌入（如「HMAC 消息认证机制」）；代码符号可用反引号标注（如 `HmacSigner::sign`）。
+- **一致性**：同一术语全文用法统一，不在中英译名间摇摆（如统一「ACL」，不混用「访问控制列表」作为术语标识——中文可作解释性补充，但术语标识保持英文）。
 
 ---
 

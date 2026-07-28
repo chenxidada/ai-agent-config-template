@@ -59,9 +59,10 @@ description: 维护项目 Wiki 深度文档。独立调用时全量扫描代码�
   ├─ KB 同步（现有流程）
   │
   └─ 委托 wiki agent（模式 = pipeline）
-        - 传入：spec slug、所有 Phase 的 implementation.md 路径
-        - wiki agent 走四阶段流水线，但阶段 1 仅纳入 implementation.md 变更涉及的模块
-        - 仅重写受影响主题域页面 + 追加 changelog + 更新 .wiki-status.json
+        - 传入：spec slug、所有 Phase 的 implementation.md 路径、既有 .wiki-status.json
+        - wiki agent 读回 .wiki-status.json 的 domains[].source_modules 建立「源模块 → 主题域」反向映射，
+          结合 implementation.md 变更清单确定受影响主题域集合（AC-21）
+        - 阶段 1 仅纳入受影响模块；仅重写受影响主题域页面 + 追加 changelog + 更新 .wiki-status.json
 ```
 
 ## 调度者行为
@@ -92,7 +93,7 @@ Wiki 目录：<project_root>/docs/wiki/
 中间产物目录：<project_root>/.wiki-work/
 
 任务（严格四阶段，禁止跳阶）：
-1. 阶段 1 代码分析：全量扫描项目代码，识别模块结构与复杂度，产出 .wiki-work/module-manifest.json
+1. 阶段 1 代码分析：全量扫描项目全部代码模块（AC-22），识别模块结构与复杂度，产出 .wiki-work/module-manifest.json
 2. 阶段 2 主题规划：按主题域组织目录规划（每个主题域一个同名概览页），并先建源码片段索引，
    产出 .wiki-work/topic-plan.json + .wiki-work/code-snippets.json
 3. 阶段 3 深度生成：逐主题域逐页生成 docs/wiki/**，行号标注必须引用 code-snippets.json 中的条目
@@ -120,9 +121,12 @@ Wiki 目录：<project_root>/docs/wiki/
 - .specdev/specs/<slug>/design.md
 - .specdev/specs/<slug>/phases/*/implementation.md
 - .specdev/specs/<slug>/tech-debt-registry.md
+- docs/wiki/.wiki-status.json（既有状态，用于源模块→主题域反向映射）
 
 任务（严格四阶段，禁止跳阶）：
-1. 阶段 1 代码分析：读取以上文件确定变更影响范围，module-manifest.json 仅纳入受影响模块
+1. 阶段 1 代码分析：读取 implementation.md 变更清单提取变更源文件集合，读回 .wiki-status.json 的
+   domains[].source_modules 建立「源模块 → 主题域」反向映射，确定受影响主题域（AC-21）；
+   module-manifest.json 仅纳入受影响模块（无法映射到既有主题域的新模块则新建主题域）
 2. 阶段 2 主题规划：为受影响模块规划/更新主题域目录，建源码片段索引
 3. 阶段 3 深度生成：仅重写受影响主题域的页面，其余主题域保持不变
 4. 阶段 4 质量门禁：度量深度，产出 quality-report.json，追加 changelog.md，更新 .wiki-status.json（v2）
