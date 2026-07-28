@@ -47,12 +47,15 @@ run_local_mode() {
   if [[ -n "${KNOWNBASE_ROOT:-}" ]]; then
     knownbase_root="${KNOWNBASE_ROOT}"
   else
-    # 候选路径（按优先级）
-    local candidates=(
-      "$HOME/workspace/code/knownbase/AI-Chat"
-      "$HOME/code/knownbase/AI-Chat"
-      "/workspace/chendecheng/code/need/APP2"
-    )
+  # 候选路径（按优先级）
+  local candidates=(
+    "$HOME/AI-Chat"
+    "$HOME/workspace/AI-Chat"
+    "$HOME/code/AI-Chat"
+    "$HOME/code/knownbase/AI-Chat"
+    "$HOME/workspace/code/knownbase/AI-Chat"
+    "/workspace/chendecheng/code/need/APP2"
+  )
     
     for candidate in "${candidates[@]}"; do
       if [[ -f "$candidate/packages/mcp-server/dist/index.js" ]]; then

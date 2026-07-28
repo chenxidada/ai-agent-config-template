@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|RunCommand",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/pipeline-gate.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "loop_limit": 5,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/pipeline-advance.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/context-snapshot.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/session-recovery.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

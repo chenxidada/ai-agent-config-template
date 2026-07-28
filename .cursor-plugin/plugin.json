@@ -1,0 +1,37 @@
+{
+  "name": "spec-driven-workflow",
+  "description": "Spec 驱动开发流程工具 — Human Gate 强制确认 + 反狡辩体系 + 三层约束（Rules/Hooks/Subagents）。使用 /feature 或 /bugfix 命令启动。",
+  "version": "3.0.0",
+  "author": {
+    "name": "chendc"
+  },
+  "keywords": [
+    "spec-driven",
+    "human-gate",
+    "code-review",
+    "verification",
+    "multi-agent",
+    "pipeline",
+    "anti-rationalization"
+  ],
+  "components": {
+    "rules": [
+      { "path": ".cursor/rules/spec-workflow.mdc", "description": "核心约束 + Human Gate + 反狡辩表（Always Apply）" }
+    ],
+    "agents": [
+      { "path": ".cursor/agents/requirement-analyst.md", "description": "需求分析 — 澄清需求，输出 specs/requirements.md" },
+      { "path": ".cursor/agents/plan-generator.md", "description": "方案设计 — 架构设计 + Phase 拆分" },
+      { "path": ".cursor/agents/implementer.md", "description": "实施 — 按 spec 实现代码，含反狡辩表" },
+      { "path": ".cursor/agents/reviewer.md", "description": "审查 — 三视角审查 + 桩检测 + 判决" },
+      { "path": ".cursor/agents/verifier.md", "description": "验证 — 独立端到端验证，不信任实施者" },
+      { "path": ".cursor/agents/code-explorer.md", "description": "代码探索 — 只读分析代码库结构" }
+    ],
+    "commands": [
+      { "path": ".cursor/commands/feature.md", "description": "/feature — 新功能开发（3 Human Gate）" },
+      { "path": ".cursor/commands/bugfix.md", "description": "/bugfix — Bug 修复（3 Human Gate）" }
+    ],
+    "hooks": [
+      { "path": ".cursor/hooks.json", "description": "Human Gate 门禁 + 自动推进 + 上下文快照" }
+    ]
+  }
+}
