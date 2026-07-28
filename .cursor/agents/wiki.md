@@ -187,11 +187,14 @@ docs/wiki/
       "domain": "安全机制",
       "dir": "docs/wiki/安全机制/",
       "overview_page": "docs/wiki/安全机制/安全机制.md",
+      "overview_role": "overview",
       "sub_topics": [
         { "title": "HMAC认证机制", "file": "docs/wiki/安全机制/HMAC认证机制.md",
+          "role": "core-subtopic",
           "scope": "密钥管理、消息签名验证、MCU 4字节截断验证",
           "source_modules": ["security"] },
         { "title": "访问控制列表（ACL）", "file": "docs/wiki/安全机制/访问控制列表（ACL）.md",
+          "role": "core-subtopic",
           "scope": "规则匹配、权限验证、热重载", "source_modules": ["security"] }
       ],
       "nested": []
@@ -201,8 +204,10 @@ docs/wiki/
 ```
 
 - `overview_page` 必须与 `dir` 同名（AC-6）。
+- `overview_role`：概览页角色，`overview`（complex/medium 模块的轻量导航概览页）| `simple`（simple 模块单页承载全部内容，此时 `sub_topics` 为空）。取值由「子主题拆分决策逻辑」按复杂度产出。
 - `nested[]` 结构同 `domains[]`，用于嵌套子域。
-- 每个 `sub_topics[].scope` 描述该页预期覆盖范围（AC-3）。
+- 每个 `sub_topics[].scope` 描述该页预期覆盖范围（AC-3），同时作为概览页「一句话摘要」的来源（AC-7）。
+- 每个 `sub_topics[].role` 固定为 `core-subtopic`（深度子主题页）；页面角色定义见「单篇文档标准模板 §页面角色区分」。阶段 3 依据 `role` 套用生成规范，阶段 4 依据 `role` 分级判定门槛。
 
 ### §3 源码片段索引 `.wiki-work/code-snippets.json`（阶段 2 产出，阶段 3 消费）
 
@@ -465,11 +470,112 @@ docs/wiki/
 
 ## 子主题拆分决策逻辑
 
-> `@STUB(phase-3-topic-split-nav)` — 依据 `module-manifest.json` 复杂度做子主题拆分的详细决策逻辑（complex → 拆 ≥3 篇；simple → 1 篇概览页；medium → 概览 + 2-3 篇）在 **phase-3-topic-split-nav** 落地。本 Phase 已在阶段 1 确立复杂度判定规则、在阶段 2 确立「每主题域一个同名概览页」的规划契约。详见后续 Phase。
+本节规定**阶段 2 主题规划**如何把 `module-manifest.json` 的每个模块转化为 `topic-plan.json` 的主题域与子主题页面清单。拆分决策**只消费阶段 1 已产出的字段**：`complexity`、`detected_subsystems`、`file_count`、`component_count`（阈值冻结于「阶段 1 复杂度判定规则」，本节不得重新定义阈值）。
+
+### 决策输入（来自 module-manifest.json，不得凭空假设）
+
+| 字段 | 用途 |
+|------|------|
+| `complexity`（`simple`/`medium`/`complex`） | 决定拆分档位（拆几篇） |
+| `detected_subsystems[]` | 决定子主题页的**数量与主题**（每个子系统一篇，标题即子系统名，来自实测非硬编码） |
+| `file_count` / `component_count` | 复核 complexity（阶段 1 已判定，本节不重算，仅用于 AC-8 边界复核） |
+
+### 拆分决策表（按 complexity 分档）
+
+| complexity | 判定（阶段 1 冻结阈值） | 拆分结果 | 页面构成 | AC |
+|-----------|----------------------|---------|---------|:--:|
+| `complex` | 文件 > 10 且 组件 ≥ 3 | 拆 **≥ 3 篇** `core-subtopic` 深度页，**每篇聚焦一个 `detected_subsystem`** | 1 个 `overview` 概览页 + N 个 `core-subtopic` 页（N = `len(detected_subsystems)`，且 N ≥ 3） | AC-15 / AC-17 |
+| `medium` | 介于 simple 与 complex 之间 | 拆 **2–3 篇** `core-subtopic` 深度页 | 1 个 `overview` 概览页 + 2–3 个 `core-subtopic` 页（每篇对应一个 `detected_subsystem`） | — |
+| `simple` | 文件 ≤ 5 且 功能类 1–2 | **不拆分**，仅 1 篇单页 | 1 个 `simple` 页（`overview_role = "simple"`，`sub_topics` 为空，单页承载全部内容） | AC-16 |
+
+### 独立子系统强制成页规则（AC-8，与上表取并集）
+
+**无论 complexity 落在哪一档**，只要 `len(detected_subsystems) ≥ 3`：
+- **每个子系统必须独立成一篇 `core-subtopic` 页**（`title` = 子系统名，`scope` 描述该子系统覆盖范围），**不得合并进概览页**。
+- 概览页只保留导航与摘要，子系统的深度内容全部下沉到各自的子主题页（避免「一页塞多主题」，AC-17）。
+- 该规则会把「文件数落在 medium 边界但子系统 ≥ 3」的模块提升为「每子系统独立成页」，与 `complex` 拆分结果一致。
+
+### 单一子系统聚焦（AC-17）
+
+- 每篇 `core-subtopic` 页**有且仅有一个** `source_subsystem`（映射到某个 `detected_subsystem`）。
+- 页面 `title` 必须明确写出子系统名称（如「HMAC认证机制」「访问控制列表（ACL）」），不得用「其他」「杂项」等聚合标题。
+- 一个子系统的内容不得跨多篇拆散，多个子系统不得并入同一篇。
+
+### 嵌套主题域（多层拆分）
+
+- 当一个 `detected_subsystem` 自身又含 ≥ 3 个独立关注点时，用 `topic-plan.json` 的 `nested[]` 递归表达为**子域**（结构同 `domains[]`：子域目录 + 同名概览页 + N 子主题页），如 `架构设计/性能优化策略/零拷贝通信机制/`。
+- 嵌套子域同样遵循本节拆分决策表与 AC-8 强制成页规则。
+
+### 拆分决策产出 → topic-plan.json（阶段 2 落地动作）
+
+对每个模块执行：
+1. 读 `complexity` → 查上表定档；再查 `detected_subsystems` 长度应用 AC-8 并集规则，确定最终页面数与各页 `role`。
+2. `simple` 档：写 `overview_page`（`overview_role = "simple"`）+ 空 `sub_topics[]`。
+3. `medium`/`complex` 档：写 `overview_page`（`overview_role = "overview"`）+ 每个子系统一条 `sub_topics[]`（`role = "core-subtopic"`，`title` = 子系统名，`scope` = 该子系统范围）。
+4. 页面文件路径遵循「目录结构规范」（概览页与目录同名，AC-6）。
+
+> **页面角色与生成规范的衔接**：`role`/`overview_role` 决定阶段 3 套用哪套生成规范、阶段 4 套用哪套门槛——`core-subtopic` 走「单篇文档标准模板（9 大章节）」的完整深度要求；`overview` 走下节「概览页内容编织规范」；`simple` 走概览页规范但承载单模块全部内容（豁免 9 选 7 硬门槛，见「单篇文档标准模板 §页面角色区分」）。
 
 ## 概览页与交叉引用规范
 
-> `@STUB(phase-3-topic-split-nav)` — 概览页内容编织（全部子主题链接 + 一句话摘要）与页面间相对路径互链规范在 **phase-3-topic-split-nav** 落地。详见后续 Phase。
+本节规定**阶段 3** 如何生成主题域概览页，以及页面之间如何互链。
+
+### 概览页角色定位（与 core-subtopic 深度页区分）
+
+| 页面 | 角色 | 职责 | 深度 |
+|------|------|------|------|
+| 同名概览页 | `overview` | **导航中枢**：一句话简介 + 子主题导航列表（链接 + 摘要） | 轻量，不套 9 章骨架 |
+| 子主题页 | `core-subtopic` | **深度内容**：单一子系统的 9 章深度文档 | 完整（见「单篇文档标准模板」） |
+
+> **偏差说明（对标 repowiki）**：repowiki 样本的同名概览页（如 `tmp/repowiki/zh/content/安全机制/安全机制.md`）本身是完整 9 章深度文档，会与子主题页内容重复。本项目按 spec（AC-7）将概览页定位为**轻量导航页**——深度内容一律下沉到 `core-subtopic` 页，概览页只负责「导航 + 摘要」，避免重复维护。此为有意的组织差异，非质量退化。
+
+### 概览页内容编织规范（AC-7）
+
+每个主题域概览页（`overview_page`）**必须包含**：
+1. **一句话简介**：说明本主题域是什么、含哪几个子系统（可由各 `sub_topics[].scope` 归纳）。
+2. **子主题导航列表**：**列出该域下全部子主题页**，每条含：
+   - 指向子主题页的**相对路径链接**（见下「相对路径互链规范」）；
+   - **一句话摘要**（来源：`topic-plan.json` 的对应 `sub_topics[].scope`），概括该子主题页讲什么。
+3. （可选）一张 Mermaid 结构图，展示各子系统在本域中的关系。
+
+**完整性约束**：导航列表的条目数必须等于 `topic-plan.json` 中该域 `sub_topics[]` 的长度（含 `nested[]` 子域概览页链接），不得遗漏任一子主题页。
+
+概览页骨架示例：
+
+```markdown
+# 安全机制
+
+本主题域涵盖仓库的三大安全子系统：访问控制（ACL）、HMAC 消息认证、DDS 安全配置。
+
+## 子主题导航
+
+- [HMAC认证机制](./HMAC认证机制.md) — 密钥管理、消息签名验证与 MCU 4 字节截断验证。
+- [访问控制列表（ACL）](./访问控制列表（ACL）.md) — 规则匹配、权限验证与热重载机制。
+- [DDS安全配置](./DDS安全配置.md) — 证书管理与加密通信配置。
+
+（可选）## 子系统关系
+```mermaid
+graph TD
+  安全机制 --> ACL
+  安全机制 --> HMAC
+  安全机制 --> DDS安全配置
+```
+```
+
+### 相对路径互链规范（AC-26）
+
+**Wiki 页面之间的所有跳转链接必须使用相对路径**，确保 `docs/wiki/` 目录整体移动后链接仍有效。
+
+- **概览页 → 子主题页**（同目录）：`[HMAC认证机制](./HMAC认证机制.md)`。
+- **概览页 → 嵌套子域概览页**：`[四层架构详解](./四层架构详解/四层架构详解.md)`。
+- **子主题页 → 同域概览页**（返回导航，建议每篇 `core-subtopic` 页顶部或底部附一条）：`[← 返回 安全机制 概览](./安全机制.md)`。
+- **子主题页 ↔ 子主题页**（同域交叉引用）：`[访问控制列表（ACL）](./访问控制列表（ACL）.md)`。
+- **跨目录引用**：用 `../` 逐级相对，如子域页引用上级域概览页 `[性能优化策略](../性能优化策略.md)`。
+
+**硬性禁止**：
+- ❌ 绝对路径（`/docs/wiki/...`）或以仓库根为基准的路径。
+- ❌ 用 `file://` 链接做 Wiki 页面间跳转——`file://` 仅用于源码追溯 `<cite>`/`章节来源`（指向被记录的源代码文件，AC-9/10），两类链接职责不同，不得混用。
+- ❌ 页内锚点跳转用相对 `.md#锚点`（跨页）或 `#锚点`（同页），不用绝对 URL。
 
 ## 质量门禁与自检
 
