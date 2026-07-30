@@ -49,10 +49,12 @@ check_heartbeat() {
 # 执行心跳检查
 check_heartbeat
 
-# ── 辅助函数：拒绝（非零退出码 = Trae deny） ──
+# ── 辅助函数：拒绝（Trae block 语义）──
+# 官方规范：PreToolUse 退出码 2 == "decision": block，直接禁止执行并把 stderr 展示给用户。
+# 必须写 stderr + exit 2；exit 1 会被 Trae 当作「其他退出码→忽略错误继续执行」而放行。
 deny() {
-    echo "$1"
-    exit 1
+    echo "$1" >&2
+    exit 2
 }
 
 # ── 辅助函数：询问（PreToolUse 弹窗，由用户决定放行/拒绝）──
@@ -184,9 +186,11 @@ check_dangerous_command() {
     local p
     for p in "${DANGER_SENSITIVE_PATHS[@]}"; do
         if echo "$CMD" | grep -qF "$p"; then
-            ask "⚠️ 敏感路径访问：命令尝试访问敏感路径（$p）。这可能读写系统凭证/密钥文件（/etc/shadow、~/.ssh、id_rsa 等）。是否允许执行？
+            deny "⛔ 命令被拦截 [敏感路径访问]：检测到访问敏感路径（$p），可能读写系统凭证/密钥文件（/etc/shadow、~/.ssh、id_rsa 等）。
 
-命令：$CMD"
+  待执行命令：$CMD
+
+  如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
         fi
     done
 
@@ -201,9 +205,11 @@ check_dangerous_command() {
         local m
         for m in "${DANGER_RECURSIVE_MODS[@]}"; do
             if _danger_tool_match "$CMD" "$m"; then
-                ask "⚠️ 系统根递归修改：检测到以文件系统根 / 或系统目录为目标的递归修改（命中：$m）。这可能影响系统文件。是否允许执行？
+                deny "⛔ 命令被拦截 [系统根递归修改]：检测到以文件系统根 / 或系统目录为目标的递归修改（命中：$m），可能影响系统文件。
 
-命令：$CMD"
+  待执行命令：$CMD
+
+  如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
             fi
         done
 
@@ -211,9 +217,11 @@ check_dangerous_command() {
         local t
         for t in "${DANGER_SCAN_TOOLS[@]}"; do
             if _danger_tool_match "$CMD" "$t"; then
-                ask "⚠️ 全盘扫描：检测到以文件系统根 / 或系统目录为起点的递归扫描（命中：$t）。这类命令可能极慢并消耗大量资源。是否允许执行？
+                deny "⛔ 命令被拦截 [全盘扫描]：检测到以文件系统根 / 或系统目录为起点的递归扫描（命中：$t），可能极慢并消耗大量资源。
 
-命令：$CMD"
+  待执行命令：$CMD
+
+  建议将路径限定在项目内（如 find ./src ...）。如确需全盘执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
             fi
         done
     fi
