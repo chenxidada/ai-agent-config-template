@@ -1,5 +1,6 @@
 #!/bin/bash
 # ============================================
+echo "[DEBUG] pipeline-gate.sh invoked with tool=$TOOL_NAME cmd=$CMD" >> /tmp/hook-debug.log 2>/dev/null
 # pipeline-gate.sh — Human Gate 程序化门禁 (Trae 版 v2)
 # 绑定: PreToolUse (matcher: Write|Edit|RunCommand)
 # schema: .specdev/specs/{slug}/current-status.json
@@ -52,6 +53,22 @@ check_heartbeat
 deny() {
     echo "$1"
     exit 1
+}
+
+# ── 辅助函数：询问（PreToolUse 弹窗，由用户决定放行/拒绝）──
+# 输出 hookSpecificOutput.permissionDecision=ask 的 JSON，退出码 0。
+# reason 作为弹窗提示文案。
+ask() {
+    local reason="$1"
+    # 用 jq 安全构造 JSON，避免 reason 中的引号/换行破坏格式
+    jq -cn --arg r "$reason" '{
+        hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "ask",
+            permissionDecisionReason: $r
+        }
+    }'
+    exit 0
 }
 
 # ── 辅助函数：允许（附带心跳提醒） ──
@@ -122,13 +139,98 @@ check_stage_sequence() {
     esac
 }
 
+# ============================================================
+# DANGEROUS COMMAND GUARD (feature: command-guard-hook / phase-1-command-guard)
+# 单一维护点 (D-2 / AC-12)：新增一条危险模式，只需在下方对应数组追加一行。
+# 三类硬拦截：全盘扫描 / 系统根递归修改 / 敏感路径访问。
+# ============================================================
+#
+# DANGER_ROOT_RE — 共享遍历根分类器（类别 1 与 2 复用）。
+# 一个遍历根参数被判为危险，仅当它作为「完整参数」（由 起始/空格/引号/结尾 界定）出现，且是：
+#   - 裸 "/"
+#   - 顶层系统目录（/etc /usr /var /sys /proc /bin /sbin /lib /lib64 /opt /boot /dev /root /home，可带子路径）
+#   - "~" 或 "$HOME"（可带子路径）
+# 相对路径（./src、.）或非系统绝对根（如 /workspace/<project>/...）判安全。
+# 锚定在「参数」而非任意 "/" 出现，避免 `find . -path '/*'`（/* 非完整参数）与「偶含 /etc 子串」误触。
+DANGER_ROOT_RE='(^|[[:space:]"'\''])(/([[:space:]"'\'']|$)|/(etc|usr|var|sys|proc|bin|sbin|lib|lib64|opt|boot|dev|root|home)(/[^[:space:]"'\'']*)?([[:space:]"'\'']|$)|(~|\$HOME)(/[^[:space:]"'\'']*)?([[:space:]"'\'']|$))'
+
+# 危险工具 token（类别 1：全盘递归扫描）。新增扫描类工具在此追加一行。
+DANGER_SCAN_TOOLS=('find' 'grep -r' 'grep -R' 'ls -R' 'du' 'rg')
+# 危险递归修改 token（类别 2：系统根递归修改）。新增递归修改类命令在此追加一行。
+DANGER_RECURSIVE_MODS=('chmod -R' 'chown -R' 'rm -rf')
+# 敏感路径（类别 3：与工具无关，读或写均拦）。新增敏感路径在此追加一行。
+DANGER_SENSITIVE_PATHS=('/etc/shadow' '/etc/passwd' '/root/.ssh' '~/.ssh' 'id_rsa' 'id_ed25519' 'id_ecdsa')
+
+# ── 辅助：工具 token 是否作为完整词出现在命令中（带非字母数字边界，防 reduce→du / arg→rg 误判） ──
+# 注意：作为 if 条件调用，set -e 对 if 条件里的非零退出豁免；函数体仅一条 grep，返回其退出码。
+_danger_tool_match() {
+    echo "$1" | grep -qE "(^|[^[:alnum:]_])$2([^[:alnum:]_]|$)"
+}
+
+# ── 危险命令守卫（AD-1 子串锚定：命令串同时含「危险工具 token」+「危险遍历根参数」→ 拦截） ──
+# 契约（关键，见 repo-exploration §5/§7）：
+#   - 无命中时必须 `return 0`（落到后续 git gate），绝不能 allow/exit 0 —— 否则绕过 git 门禁破坏 AC-11。
+#   - 所有 grep 必须写在 if 条件内，绝不裸用 —— 否则 set -euo pipefail 下 grep 无匹配返回 1 会终止脚本，导致安全命令被误判 deny。
+#   - CMD 是外部输入，仅作数据（加引号）传给 grep/echo，绝不 eval 或执行（宪法 §3.1）。
+check_dangerous_command() {
+    local CMD="$1"
+
+    # 逃生舱优先 (AC-8 / AD-3)：标记文件存在且 300s 内创建 → 放行，跳过全部检查（照搬 git-commit-allowed 模式）
+    if [ -f /tmp/command-guard-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/command-guard-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+        return 0
+    fi
+
+    # ── 类别 3 — 敏感路径访问（与工具无关，AC-6） ──
+    local p
+    for p in "${DANGER_SENSITIVE_PATHS[@]}"; do
+        if echo "$CMD" | grep -qF "$p"; then
+            ask "⚠️ 敏感路径访问：命令尝试访问敏感路径（$p）。这可能读写系统凭证/密钥文件（/etc/shadow、~/.ssh、id_rsa 等）。是否允许执行？
+
+命令：$CMD"
+        fi
+    done
+
+    # 是否含危险遍历根参数（共享分类器，类别 1 与 2 使用）
+    local has_danger_root=0
+    if echo "$CMD" | grep -qE "$DANGER_ROOT_RE"; then
+        has_danger_root=1
+    fi
+
+    if [ "$has_danger_root" -eq 1 ]; then
+        # ── 类别 2 — 以系统根为目标的递归修改（AC-4） ──
+        local m
+        for m in "${DANGER_RECURSIVE_MODS[@]}"; do
+            if _danger_tool_match "$CMD" "$m"; then
+                ask "⚠️ 系统根递归修改：检测到以文件系统根 / 或系统目录为目标的递归修改（命中：$m）。这可能影响系统文件。是否允许执行？
+
+命令：$CMD"
+            fi
+        done
+
+        # ── 类别 1 — 全盘递归扫描（AC-1 / AC-3） ──
+        local t
+        for t in "${DANGER_SCAN_TOOLS[@]}"; do
+            if _danger_tool_match "$CMD" "$t"; then
+                ask "⚠️ 全盘扫描：检测到以文件系统根 / 或系统目录为起点的递归扫描（命中：$t）。这类命令可能极慢并消耗大量资源。是否允许执行？
+
+命令：$CMD"
+            fi
+        done
+    fi
+
+    # 无任何命中 → 返回（AC-10），控制落到后续 git commit/push 门禁（AC-11）。绝不 allow/exit。
+    return 0
+}
+
 # ── Shell/RunCommand 安全检查 ──
 if [ "$TOOL_NAME" = "RunCommand" ]; then
     CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-    # 危险命令拦截
+    # 危险命令拦截（既有行为，保持第一且不变 — AC-11）
     if echo "$CMD" | grep -qE 'rm -rf /[^a-z]|sudo rm -rf|:\(\)\{ :|:& \};:'; then
         deny "⛔ 危险命令被拦截"
     fi
+    # ── 危险命令守卫（本 feature，插在 rm -rf / 之后、git gate 之前）──
+    check_dangerous_command "$CMD"
     # ── git commit/push 必须经用户显式允许 ──
     if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
         # 文件标记：/tmp/git-commit-allowed 存在且 300s 内创建则放行
