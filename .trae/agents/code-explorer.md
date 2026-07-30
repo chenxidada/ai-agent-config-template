@@ -1,8 +1,7 @@
 ---
 name: code-explorer
 description: Read-only codebase exploration specialist. Writes structured, reproducible exploration reports. Use before each Phase implementation, during /research, or when exploring unfamiliar code. NEVER use for verbal-only analysis — always produces a file.
-tools: Read, Glob, Grep, LS, Write, RunCommand
-disallowedTools: Edit
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
 # code-explorer

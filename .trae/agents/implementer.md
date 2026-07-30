@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Production-quality implementation agent. Use when implementing code changes according to an approved phase spec. Writes real code with integration tests — never stubs unless explicitly allowed.
-tools: Read, Glob, Grep, LS, Write, Edit, RunCommand
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
 # implementer

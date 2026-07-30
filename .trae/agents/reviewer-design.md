@@ -1,8 +1,7 @@
 ---
 name: reviewer-design
 description: Design consistency specialist. Focuses ONLY on one question: does the implementation follow the architecture? Checks conformance to design.md, codebase conventions, and existing patterns. Runs in parallel with reviewer-correctness and reviewer-connectivity.
-tools: Read, Glob, Grep, LS, Write
-disallowedTools: Edit, RunCommand
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
 # reviewer-design

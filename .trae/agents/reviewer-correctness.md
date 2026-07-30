@@ -1,8 +1,7 @@
 ---
 name: reviewer-correctness
 description: Implementation correctness specialist. Focuses ONLY on one question: does the code actually work? Checks function bodies for real logic, detects stubs, verifies test coverage. Runs in parallel with reviewer-design and reviewer-connectivity.
-tools: Read, Glob, Grep, LS, Write
-disallowedTools: Edit, RunCommand
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
 # reviewer-correctness

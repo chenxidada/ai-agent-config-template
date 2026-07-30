@@ -1,8 +1,7 @@
 ---
 name: requirement-analyst
 description: Requirements analysis specialist. Use when clarifying user requirements, defining acceptance criteria, and identifying scope boundaries. Always use before any design or implementation work.
-tools: Read, Glob, Grep, LS, Write
-disallowedTools: Edit, RunCommand
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
 # requirement-analyst
