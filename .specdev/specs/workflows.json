@@ -1,1 +1,23 @@
-{}
+{
+  "independent-subagent-dispatch": {
+    "status": "closed",
+    "created": "2026-07-06T16:00:00Z",
+    "description": "支持用户独立 @ subagent 进行调用，无需走完整 pipeline",
+    "closed_reason": "现有 /explore 和 /review command 已覆盖独立调用需求，Trae @ 菜单是 UI agent（云端注册），与 .trae/agents/ 是两套机制"
+  },
+  "wiki-generation-redesign": {
+    "status": "completed",
+    "created": "2026-07-27T10:00:00Z",
+    "description": "重新设计 wiki agent 生成流程，使其产出质量达到 repowiki 水平（深度拆分、源码追溯、故障排除、配置示例、设计动机）"
+  },
+  "command-guard-hook": {
+    "status": "completed",
+    "created": "2026-07-29T00:00:00Z",
+    "description": "做一个 hook 限制 AI 模型/子Agent 执行危险或高开销命令（如 find / 全盘扫描），在 PreToolUse 阶段拦截"
+  },
+  "pipeline-resume-robustness": {
+    "status": "active",
+    "created": "2026-07-30T00:00:00Z",
+    "description": "提升 spec 工作流在任务中断、从某节点重跑、换终端/新会话恢复时的健壮性，避免状态漂移导致的流程抽风"
+  }
+}

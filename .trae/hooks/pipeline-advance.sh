@@ -15,6 +15,11 @@
 
 set -euo pipefail
 
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
+
 INPUT=$(cat 2>/dev/null || echo '{}')
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."' 2>/dev/null)
 
@@ -38,12 +43,11 @@ if [ ! -f "$STATUS_FILE" ]; then
     exit 0
 fi
 
-# 读取状态
-CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$STATUS_FILE")
-CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE")
-HG1=$(jq -r '.human_gates.hg1 // "pending"' "$STATUS_FILE")
-HG2=$(jq -r '.human_gates.hg2 // "pending"' "$STATUS_FILE")
-HG3=$(jq -r '.human_gates.hg3 // "pending"' "$STATUS_FILE")
+# 读取状态（收敛到共享片段 read_status，AC-F3）
+# set -euo pipefail 下必须用 if 包裹，读取失败时静默退出，不阻断 Stop 流程
+if ! read_status "$STATUS_FILE" 2>/dev/null; then
+    exit 0
+fi
 SPEC_DIR=".specdev/specs/$SLUG"
 
 # ── 基于状态推断当前阶段并给出引导 ──

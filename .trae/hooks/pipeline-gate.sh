@@ -15,6 +15,11 @@ echo "[DEBUG] pipeline-gate.sh invoked with tool=$TOOL_NAME cmd=$CMD" >> /tmp/ho
 
 set -euo pipefail
 
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
+
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."' 2>/dev/null)
@@ -272,8 +277,12 @@ if ! echo "$TARGET_FILE" | grep -q '\.specdev/'; then
         allow
     fi
 
-    CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-    HG2=$(jq -r '.human_gates.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
+    # 收敛到共享片段 read_status（AC-F3：消除 gate 内第二处 .human_gates.hg2 内联读取的漂移点）
+    # 损坏/缺字段时无法可信判定，放行普通编辑（保持原分支「默认不拦截普通编辑」的意图，
+    # 同时修复原内联 jq 在 set -e 下对损坏 JSON 直接崩溃退出的既有缺陷）
+    if ! read_status "$STATUS_FILE" 2>/dev/null; then
+        allow
+    fi
 
     # 如果 HG-2 已通过（进入实施阶段），项目代码必须在 impl- 分支上修改
     if [ "$HG2" = "passed" ] && [ -n "$CURRENT_PHASE" ]; then
@@ -300,13 +309,11 @@ if [ ! -f "$STATUS_FILE" ]; then
     allow
 fi
 
-# 解析状态
-HG1=$(jq -r '.human_gates.hg1 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG2=$(jq -r '.human_gates.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG3=$(jq -r '.human_gates.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null)
-CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-LOOP_COUNT=$(jq -r '.loop_count // 0' "$STATUS_FILE" 2>/dev/null)
-CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$STATUS_FILE" 2>/dev/null)
+# 解析状态（收敛到共享片段 read_status，AC-F3）
+# set -euo pipefail 下必须用 if 包裹：状态文件损坏/缺字段时无法可信判定门禁，受控放行
+if ! read_status "$STATUS_FILE" 2>/dev/null; then
+    allow
+fi
 
 # ── Phase ID 校验（从 DAG JSON 验证合法性） ──
 validate_phase_id() {

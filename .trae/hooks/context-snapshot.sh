@@ -6,6 +6,11 @@
 # 注: Trae 无 preCompact 事件，改为在 Stop 时持续写入快照
 # ============================================
 
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
+
 INPUT=$(cat 2>/dev/null || echo '{}')
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -20,6 +25,7 @@ SPEC_DIR=".specdev/specs/$SLUG"
 STATUS_FILE="$SPEC_DIR/current-status.json"
 
 if [ ! -f "$STATUS_FILE" ]; then
+    # STATUS_FILE 不存在，保持静默（AC-F4 边界）
     exit 0
 fi
 
@@ -29,13 +35,18 @@ cat >> "$SPEC_DIR/snapshot-log.jsonl" <<EOF
 {"timestamp":"$TIMESTAMP","hook":"Stop","slug":"$SLUG"}
 EOF
 
-# 解析当前状态，写恢复指南
-CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$STATUS_FILE" 2>/dev/null)
-HG1=$(jq -r '.hg1 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG2=$(jq -r '.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG3=$(jq -r '.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null)
-CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-LOOP_COUNT=$(jq -r '.loop_count // 0' "$STATUS_FILE" 2>/dev/null)
+# ── 通过共享片段读取状态（fail-loud）──
+# 文件存在但损坏/缺字段 → 明确报错，绝不写出伪造的全 pending recovery-instructions.md（AC-F4）
+if ! read_status "$STATUS_FILE" 2>/tmp/.trae-status-read.err; then
+    echo "⚠️ **状态文件读取失败** — 未更新 recovery-instructions.md（避免伪造状态污染）"
+    echo ""
+    echo "\`\`\`"
+    cat /tmp/.trae-status-read.err 2>/dev/null
+    echo "\`\`\`"
+    echo ""
+    echo "**请人工检查 \`$STATUS_FILE\` 是否损坏或缺失关键字段（.human_gates / .current_stage）。**"
+    exit 0
+fi
 
 cat > "$SPEC_DIR/recovery-instructions.md" <<RECOVERY
 # 会话恢复指南 — $TIMESTAMP

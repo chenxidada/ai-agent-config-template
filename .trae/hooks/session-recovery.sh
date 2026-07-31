@@ -7,13 +7,18 @@
 # 协议: stdout 文本注入给 Agent 作为初始上下文
 # ============================================
 
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
+
 # ── 初始化心跳时间戳（新会话开始） ──
 date +%s > /tmp/.trae-pipeline-heartbeat 2>/dev/null || true
 
 # 检查是否有活跃工作流
 ACTIVE_FILE=".specdev/active-workflow"
 if [ ! -f "$ACTIVE_FILE" ]; then
-    # 无活跃工作流，不注入额外上下文
+    # 无活跃工作流，不注入额外上下文（保持静默，AC-F4 边界）
     exit 0
 fi
 
@@ -23,17 +28,23 @@ STATUS_FILE="$SPEC_DIR/current-status.json"
 RECOVERY_FILE="$SPEC_DIR/recovery-instructions.md"
 
 if [ ! -f "$STATUS_FILE" ]; then
+    # STATUS_FILE 不存在，保持静默（AC-F4 边界：仅在文件存在但损坏时才报错）
     exit 0
 fi
 
-# 解析状态
-CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$STATUS_FILE" 2>/dev/null)
-HG1=$(jq -r '.hg1 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG2=$(jq -r '.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG3=$(jq -r '.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null)
-CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-LOOP_COUNT=$(jq -r '.loop_count // 0' "$STATUS_FILE" 2>/dev/null)
-DESCRIPTION=$(jq -r '.description // ""' "$STATUS_FILE" 2>/dev/null)
+# ── 通过共享片段读取状态（fail-loud）──
+# 文件存在但损坏/缺字段 → 明确报错，绝不注入伪造的全 pending 状态表（AC-F4）
+if ! read_status "$STATUS_FILE" 2>/tmp/.trae-status-read.err; then
+    echo "⚠️ **状态文件读取失败** — 无法注入可信恢复上下文"
+    echo ""
+    echo "\`\`\`"
+    cat /tmp/.trae-status-read.err 2>/dev/null
+    echo "\`\`\`"
+    echo ""
+    echo "**请人工检查 \`$STATUS_FILE\` 是否损坏或缺失关键字段（.human_gates / .current_stage），修复后重新开始会话。**"
+    echo "（未注入状态表，以避免伪造的全 pending 状态污染恢复流程。）"
+    exit 0
+fi
 
 # 注入恢复上下文给 Agent
 cat <<MSG
