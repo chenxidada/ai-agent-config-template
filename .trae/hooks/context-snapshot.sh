@@ -68,4 +68,8 @@ cat > "$SPEC_DIR/recovery-instructions.md" <<RECOVERY
 - **快照时间**: $TIMESTAMP
 RECOVERY
 
+# ── Phase 1 Core A：向 recovery-instructions.md 追加同一锚定块 ──
+# 与 session-recovery.sh 的 SessionStart 注入逐字一致（共享 emit_anchoring_block）。
+emit_anchoring_block "$CURRENT_STAGE" >> "$SPEC_DIR/recovery-instructions.md"
+
 exit 0

@@ -65,4 +65,8 @@ cat <<MSG
 如用户未要求特定操作，请向用户简要报告当前进度并等待指示。
 MSG
 
+# ── Phase 1 Core A：追加流程与角色锚定块（强制读规则 + 三条铁律 + 阶段化提示 + 权威声明）──
+# 仅在 read_status 成功后执行；内容与 context-snapshot.sh 的 recovery-instructions.md 逐字一致。
+emit_anchoring_block "$CURRENT_STAGE"
+
 exit 0
