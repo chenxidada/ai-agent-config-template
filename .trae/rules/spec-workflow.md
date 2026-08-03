@@ -308,6 +308,70 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 
 ***
 
+## 重跑清理与级联作废（清除干净重跑）
+
+当你（调度者）需要从任意节点重新派发 implementer / reviewer / verifier 时（无论是 MUST-FIX 回路、验证失败回炉，还是用户主动要求重跑某一步），必须保证「清除干净重跑」：**旧产物由 agent 自身启动时归档，步骤状态与级联作废由你负责重置**。职责分工不得混淆——agent 只归档自己产物、绝不碰 `current-status.json`；你只重置状态、绝不替 agent 归档，更**绝不用 git 还原工作区来做清除**。
+
+### 重跑识别（AC-B1）
+
+「重跑」= 以下三条件**联合成立**（任一不满足都不是重跑，勿误触发级联）：
+
+1. 该步骤的产出文件已存在（如 `phases/<phase>/implementation.md` 已在直接路径下）；
+2. 该步骤在 `current-status.json` 中 `phases[<phase>][<step>]` 为 `completed`；
+3. 你又要派发同类 agent（再次 dispatch implementer / reviewer / verifier）。
+
+### 重派前状态重置流程（AC-B9）
+
+```
+你决定重派步骤 X（如 implementer）到当前 Phase
+        │
+        ▼
+1. 读取 current-status.json，确认 phases[<phase>][X] == "completed"（满足重跑识别三条件）
+        │
+        ▼
+2. 将 phases[<phase>][X] 由 "completed" 重置为 "pending"
+        │
+        ▼
+3. 将 loop_count 归零（loop_count = 0）
+        │
+        ▼
+4. 按下文「级联作废规则」重置全部下游步骤为 "pending"（只向下游，不向上游）
+        │
+        ▼
+5. 按 §Per-Phase Git 分支管理 确保处在 impl-<phase> 分支
+        │
+        ▼
+6. 派发 X → X 启动时自清理（归档自己旧产物到 .archive/）→ 从干净状态重新工作
+   （你只翻状态；旧产物的归档由 X 及各下游 agent 在各自被派发时自行完成，你绝不代劳归档）
+```
+
+### 级联作废规则（AC-B10，只向下游、不向上游）
+
+重跑上游步骤会使下游此前的产出失效，因此必须**级联作废下游全部步骤**（状态重置为 `pending`；其旧产物在下游 agent 下次被派发时由各自自清理归档）。方向严格单向——**只作废下游，绝不动上游**：
+
+| 重跑步骤 | 级联作废下游（状态重置为 pending） | 不动的上游 |
+|---|---|---|
+| implementer | reviewer + verifier | （无上游） |
+| reviewer | verifier | implementer |
+| verifier | （仅自身，无下游） | implementer、reviewer |
+
+- 「作废」= 你把下游步骤状态置 `pending`；下游 agent 被重新派发时按其「启动自清理协议」归档自己旧产物。
+- 下游产物文件从直接路径消失（被下游 agent 归档到 `.archive/`）+ 状态 `pending` → `pipeline-advance.sh` 的直接路径推断自然回到「该步骤未完成」的引导态，与预期完全一致。
+
+### 铁律
+
+```
+❌ 禁止：调度者用 git（reset/checkout/clean/restore）还原工作区来「清除」旧产物 —— 归档是 agent 的职责，git 破坏分支隔离
+❌ 禁止：调度者替 agent 归档产物 —— 你只翻 current-status.json 状态，agent 自己归档
+❌ 禁止：重派上游却不级联作废下游 —— 会残留过期的 review/verification 产物
+❌ 禁止：向上游作废（如重跑 reviewer 却把 implementer 也置 pending）—— 只向下游
+❌ 禁止：重派前不把该步骤 completed→pending、不把 loop_count 归零
+✅ 正确：满足重跑识别三条件 → 该步骤 completed→pending + loop_count=0 → 级联作废下游 → 派发 → agent 自清理
+✅ 正确：agent 负责归档自己产物（.archive/），调度者负责重置状态（current-status.json）
+```
+
+***
+
 ## Knowledge Base 同步（Pipeline 内置，非阻塞）
 
 每个 Human Gate 通过后，将 spec 文件全文同步到个人知识库（Knownbase），用于后续检索、总结、复盘。
