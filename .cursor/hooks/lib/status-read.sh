@@ -9,7 +9,9 @@
 # 引入方（source 本文件）：
 #   - context-snapshot.sh   (preCompact) — read_status
 #   - pipeline-gate.sh      (preToolUse) — read_status
-#   - pipeline-advance.sh   (subagentStop) — read_status（收敛一致，见下方说明）
+#   - pipeline-advance.sh   (subagentStop) — 仅 source（AC-F3 收敛一致），不调用 read_status；
+#                                             其引导逻辑由 stdin 的 agent_name 驱动，不依赖 HG 字段推断，
+#                                             故不强行插入 read_status 调用（详见 pipeline-advance.sh 头部注释）。
 #   - session-recovery.sh   (sessionStart，Phase 1 建立) — read_status + emit_anchoring_block
 #
 # read_status "$STATUS_FILE"

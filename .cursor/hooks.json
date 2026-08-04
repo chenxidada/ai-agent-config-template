@@ -40,6 +40,13 @@
         "failClosed": false,
         "timeout": 10
       }
+    ],
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/session-recovery.sh",
+        "failClosed": false,
+        "timeout": 10
+      }
     ]
   }
 }
