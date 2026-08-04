@@ -4,7 +4,17 @@
 # 绑定: subagentStop
 # schema: .specdev/specs/{slug}/current-status.json
 # 原则: HG 状态只能由用户在对话中显式确认后由 Agent 更新
+#
+# AC-F3：统一 source 共享状态读取片段（lib/status-read.sh）以保持四 hook 一致。
+#   本 hook 的引导逻辑由 stdin 的 agent_name 驱动（Cursor subagentStop 携带该字段），
+#   不依赖 HG 字段推断，因此不强行插入 read_status 调用；仅统一 source 以备后续
+#   需要状态时可直接调用同一实现（消除潜在漂移）。
 # ============================================
+
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 EXIT_CODE=$(echo "$INPUT" | jq -r '.exit_code // 0')

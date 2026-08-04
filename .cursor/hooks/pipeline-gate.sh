@@ -11,7 +11,18 @@
 # 3. 心跳/超时提醒 — 记录最后活动时间戳
 # 4. current-status.json 更新时完整流程校验
 # 5. 阶段一致性检查
+#
+# AC-F3/F5：状态读取收敛到共享 read_status（lib/status-read.sh），
+#   消除 gate 内两处 .human_gates.hgN 内联 jq 读取的漂移点。
+#   本 hook 未启用 set -euo pipefail（保持 Cursor 现状），但 read_status
+#   仍用 if/|| 包裹，读取失败时降级到与原内联读取等价的安全默认值，
+#   绝不破坏 allow/deny (permission JSON) 契约。
 # ============================================
+
+# ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/status-read.sh
+source "$HOOK_DIR/lib/status-read.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -110,10 +121,12 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
             STATUS_FILE="$SPEC_DIR/current-status.json"
             
             if [ -f "$STATUS_FILE" ]; then
-                CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-                HG1=$(jq -r '.human_gates.hg1 // "pending"' "$STATUS_FILE" 2>/dev/null)
-                HG2=$(jq -r '.human_gates.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
-                HG3=$(jq -r '.human_gates.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null)
+                # 收敛到共享 read_status（AC-F3）。读取失败（损坏/缺字段）时
+                # 降级到与原内联读取等价的安全默认值，保持本段门禁行为不变。
+                if ! read_status "$STATUS_FILE" 2>/dev/null; then
+                    CURRENT_PHASE=""
+                    HG1="pending"; HG2="pending"; HG3="pending"
+                fi
                 
                 NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_str // empty' 2>/dev/null)
                 
@@ -224,13 +237,16 @@ BLOCK
     esac
 fi
 
-# 读取状态
-HG1=$(jq -r '.human_gates.hg1 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG2=$(jq -r '.human_gates.hg2 // "pending"' "$STATUS_FILE" 2>/dev/null)
-HG3=$(jq -r '.human_gates.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null)
-CURRENT_PHASE=$(jq -r '.current_phase // ""' "$STATUS_FILE" 2>/dev/null)
-LOOP_COUNT=$(jq -r '.loop_count // 0' "$STATUS_FILE" 2>/dev/null)
-CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$STATUS_FILE" 2>/dev/null)
+# 读取状态（收敛到共享 read_status，AC-F3）
+# failClosed:true 语义：状态损坏/缺字段时无法可信判定门禁，降级到安全默认值
+# （全 pending / current_phase 空 / stage unknown），使下游 HG 校验对实施类
+# Agent 保持「拒绝」（fail-closed），绝不误放行。read_status 用 if 包裹，绝不裸调用。
+if ! read_status "$STATUS_FILE" 2>/dev/null; then
+    HG1="pending"; HG2="pending"; HG3="pending"
+    CURRENT_PHASE=""
+    LOOP_COUNT=0
+    CURRENT_STAGE="unknown"
+fi
 
 # ── 阶段一致性检查 ──
 if [ "$CURRENT_STAGE" != "phase-implementation" ]; then
