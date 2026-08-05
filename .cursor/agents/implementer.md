@@ -51,6 +51,22 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 
 ## Must Do
 
+0. **启动自清理协议（第 0 步，先于 Git 分支校验）**：
+   - 你的产出文件：`<spec_dir>/phases/<current_phase>/implementation.md`（`<step>` = `implementation`）
+   - 启动即检测：若该文件已存在（说明这是一次「重跑」——旧产物残留），必须在写任何新内容前先归档：
+     ```bash
+     PHASE_DIR=".specdev/specs/<slug>/phases/<current_phase>"
+     if [ -f "$PHASE_DIR/implementation.md" ]; then
+       mkdir -p "$PHASE_DIR/.archive"
+       mv "$PHASE_DIR/implementation.md" "$PHASE_DIR/.archive/implementation-$(date -u +%Y%m%dT%H%M%SZ).md"
+     fi
+     # implementation-zh.md 同理归档
+     ```
+   - **归档优于删除**：只 `mv` 到 `.archive/`，**绝不物理删除**；`.archive/` 无保留上限。
+   - **硬约束（不可违反）**：
+     ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` 等一律禁止）——本步骤只用 `mv`；
+     ② **绝不修改 `current-status.json`**（状态重置是调度者职责，非你的职责）；
+     ③ **边界**：只归档你自己的产物（implementation.md / implementation-zh.md），不碰其他 agent 产物、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
 1. **Git 分支校验（硬性第一步，不可跳过）**：
    - 运行 `git branch --show-current` 确认当前分支 = `impl-<current_phase>`
    - 分支由调度者在委托你之前创建，你**不需要也不应该**自己创建分支

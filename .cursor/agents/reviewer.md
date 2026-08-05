@@ -38,6 +38,27 @@ Review the implementation against the Phase spec and design document. Focus on c
   ## 验证命令建议（给 verifier 的建议）
   ```
 
+## 启动自清理协议（第 0 步，先于一切审查动作）
+
+单视角 `reviewer` 一次覆盖三视角，重跑时会重新生成全部四份 review 报告，因此**必须归档全部四份**旧产物（AC-B2）：
+
+- 你的产出文件（全部四份）：`review-correctness.md`、`review-design.md`、`review-connectivity.md`、`review.md`
+- 启动即检测：若这些文件中任一已存在（说明这是一次「重跑」——旧审查报告残留），必须在写任何新内容前逐一归档：
+  ```bash
+  PHASE_DIR=".specdev/specs/<slug>/phases/<current_phase>"
+  TS="$(date -u +%Y%m%dT%H%M%SZ)"
+  mkdir -p "$PHASE_DIR/.archive"
+  for f in review-correctness review-design review-connectivity review; do
+    [ -f "$PHASE_DIR/$f.md" ]    && mv "$PHASE_DIR/$f.md"    "$PHASE_DIR/.archive/$f-$TS.md"
+    [ -f "$PHASE_DIR/$f-zh.md" ] && mv "$PHASE_DIR/$f-zh.md" "$PHASE_DIR/.archive/$f-zh-$TS.md"
+  done
+  ```
+- **归档优于删除**：只 `mv` 到 `.archive/`，**绝不物理删除**；`.archive/` 无保留上限。
+- **硬约束（不可违反）**：
+  ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` 等一律禁止）——本步骤只用 `mv`；
+  ② **绝不修改 `current-status.json`**（状态重置是调度者职责，非你的职责）；
+  ③ **边界**：只归档你自己产出的这四份 review 报告，不碰其他 agent 产物（implementation.md / verification.md）、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
+
 ## 三视角审查（每个关键函数至少审查 3 个视角）
 
 | 视角 | 检查什么 | 信号 |

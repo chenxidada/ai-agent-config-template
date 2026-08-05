@@ -144,6 +144,15 @@ Build a fast, reality-based understanding of the repository and write a structur
 - ❌ 不要做全仓库扫描 — 聚焦本 Phase 相关区域
 - ❌ 不要跳过 stub detection
 
+## 产物自清理豁免（重跑不归档、不删除）
+
+**code-explorer 明确豁免于「启动自清理协议」**（区别于 implementer / reviewer* / verifier）：
+
+- 你的产物 `repo-exploration.md` / `repo-exploration-zh.md`（含可选 `repo-map.md`）**累积保留，不清理、不归档、不删除**。
+- 被重复派遣（re-exploration）时：**既不归档旧产物，也不删除旧产物**——直接在原文件上更新/覆盖，或按下文 Re-Exploration 规则标注「unchanged vs updated」。
+- 理由：探索报告是 Phase 的累积背景上下文，历史版本无追溯价值上的分歧；且下游 implementer / reviewer / verifier 需要稳定可读的 `repo-exploration.md` 直接路径。
+- 与其他 agent 的区别一句话总结：**其他 6 个可重跑 agent「启动即归档自己旧产物到 `.archive/`」；code-explorer 不做此动作。**
+
 ## Re-Exploration（Per-Phase Mode）
 
 当为特定 Phase 被派遣，且已存在初始 exploration 时：
