@@ -100,8 +100,12 @@ FAILMSG
     exit 0
 fi
 
-# ── 成功路径：注入恢复状态表（AC-S3）──
-# 本 Phase 仅注入状态表；流程/角色锚定块（emit_anchoring_block）由 Phase 2 追加。
+# ── 成功路径：注入恢复状态表（AC-S3）+ 流程与角色锚定块（AC-A1~A3/A5）──
+# Phase 2 Core A：在状态表之后拼接 emit_anchoring_block 的输出，二者一起进入
+# 决策 1 的 JSON additionalContext。锚定块由共享 emit_anchoring_block 产出，
+# 与 context-snapshot.sh 写入的锚定文本逐字一致（AC-A5）。
+# ⚠️ 只在此成功分支拼接锚定；fail-loud / 静默分支绝不注入（避免伪造状态语境）。
+# 不手动转义——emit_recovery_json 的 jq --arg 自动处理多行/反引号/$。
 RECOVERY_BODY=$(cat <<RECOVERY
 📌 活跃工作流检测到 — 自动恢复上下文（sessionStart）
 
@@ -120,6 +124,10 @@ RECOVERY_BODY=$(cat <<RECOVERY
 如用户未要求特定操作，请向用户简要报告当前进度并等待指示。
 RECOVERY
 )
+
+# 追加流程与角色锚定块（AC-A1 强制读 .mdc / AC-A2 三条铁律 / AC-A3 阶段化提示 / AC-A5 权威声明）
+RECOVERY_BODY="$RECOVERY_BODY
+$(emit_anchoring_block "$CURRENT_STAGE")"
 
 emit_recovery_json "$RECOVERY_BODY"
 exit 0

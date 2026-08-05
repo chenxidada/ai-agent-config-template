@@ -17,19 +17,23 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/status-read.sh
 source "$HOOK_DIR/lib/status-read.sh"
 
+# ── 用 HOOK_DIR 反推项目根（本脚本位于 <root>/.cursor/hooks/），与 session-recovery.sh 对齐 ──
+# 避免 cwd 不在项目根时读不到 active-workflow（SF-1：两条恢复链路路径处理需一致）。
+PROJECT_ROOT="$(cd "$HOOK_DIR/../.." && pwd)"
+
 INPUT=$(cat 2>/dev/null || echo '{}')
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # ── 检查是否有活跃工作流 ──
 # 无 active-workflow → 静默（不写恢复指南），仍 echo {} + exit 0（AC-F4 边界）
-ACTIVE_FILE=".specdev/active-workflow"
+ACTIVE_FILE="$PROJECT_ROOT/.specdev/active-workflow"
 if [ ! -f "$ACTIVE_FILE" ]; then
     echo '{}'
     exit 0
 fi
 
 SLUG=$(head -1 "$ACTIVE_FILE" | tr -d '[:space:]')
-SPEC_DIR=".specdev/specs/$SLUG"
+SPEC_DIR="$PROJECT_ROOT/.specdev/specs/$SLUG"
 STATUS_FILE="$SPEC_DIR/current-status.json"
 
 # 状态文件不存在 → 静默（AC-F4 边界），仍 echo {} + exit 0
@@ -93,6 +97,11 @@ cat > "$SPEC_DIR/recovery-instructions.md" <<RECOVERY
 - **循环次数**: $LOOP_COUNT
 - **快照时间**: $TIMESTAMP
 RECOVERY
+
+# ── Phase 2 Core A：追加流程与角色锚定块（AC-A4/A5）──
+# 仅在此成功分支追加（fail-loud 分支绝不追加，避免伪造状态语境）。
+# 由共享 emit_anchoring_block 产出，与 session-recovery.sh 注入的锚定文本逐字一致（AC-A5）。
+emit_anchoring_block "$CURRENT_STAGE" >> "$SPEC_DIR/recovery-instructions.md"
 
 # preCompact 是 observation-only hook，不能阻止压缩
 echo '{}'
