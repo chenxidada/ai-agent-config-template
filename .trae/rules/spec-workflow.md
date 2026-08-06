@@ -338,12 +338,28 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 4. 按下文「级联作废规则」重置全部下游步骤为 "pending"（只向下游，不向上游）
         │
         ▼
+4.5 【仅重跑 reviewer 时】若 review.md 已存在，先归档它到
+    phases/<phase>/.archive/review-<UTC时间戳>.md（详见下文「review.md 归档例外」）
+        │
+        ▼
 5. 按 §Per-Phase Git 分支管理 确保处在 impl-<phase> 分支
         │
         ▼
 6. 派发 X → X 启动时自清理（归档自己旧产物到 .archive/）→ 从干净状态重新工作
-   （你只翻状态；旧产物的归档由 X 及各下游 agent 在各自被派发时自行完成，你绝不代劳归档）
+   （你只翻状态；agent 产物的归档由 X 及各下游 agent 在各自被派发时自行完成，你绝不代劳归档 agent 产物）
 ```
+
+### review.md 归档例外（唯一由调度者归档的产物）
+
+**背景**：并行三视角流程下，`review.md` 是**你（调度者）合并 3 份 review-*.md 后产出的**，不是任何一个 reviewer agent 的产物。因此重跑 reviewer 时：
+- 3 个并行 reviewer 各自归档自己的 `review-correctness/design/connectivity.md`（其「启动自清理协议」覆盖）；
+- 但 `review.md` 不在任何 reviewer 的自清理边界内 → 无人归档 → 会被下一轮合并静默覆盖，丢失上一轮判决历史，违反「归档优于删除」。
+
+**规则**：重跑 reviewer（无论三视角并行还是 /brief 单视角）前，**若 `phases/<phase>/review.md` 已存在，由你（调度者）先将其归档**到 `phases/<phase>/.archive/review-<UTC时间戳>.md`（时间戳用 `date -u +%Y%m%dT%H%M%SZ`），再派发 reviewer。
+
+- 这是「调度者不代劳归档 agent 产物」铁律的**唯一例外**——因为 review.md 本就是调度者自己的产物，归档它属于调度者清理自己的产出，不冲突。
+- 单视角 `/brief` 流程中 reviewer 会归档全部 4 份（含 review.md），此时先检查 review.md 是否仍在直接路径，在才归档，避免重复。
+- 归档方式：`mv`（不是 git），绝不用 git 还原工作区。
 
 ### 级联作废规则（AC-B10，只向下游、不向上游）
 
@@ -362,7 +378,7 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 
 ```
 ❌ 禁止：调度者用 git（reset/checkout/clean/restore）还原工作区来「清除」旧产物 —— 归档是 agent 的职责，git 破坏分支隔离
-❌ 禁止：调度者替 agent 归档产物 —— 你只翻 current-status.json 状态，agent 自己归档
+❌ 禁止：调度者替 agent 归档产物 —— 你只翻 current-status.json 状态，agent 自己归档（唯一例外：review.md 是调度者自己的产物，重跑 reviewer 前由调度者归档，见「review.md 归档例外」）
 ❌ 禁止：重派上游却不级联作废下游 —— 会残留过期的 review/verification 产物
 ❌ 禁止：向上游作废（如重跑 reviewer 却把 implementer 也置 pending）—— 只向下游
 ❌ 禁止：重派前不把该步骤 completed→pending、不把 loop_count 归零
