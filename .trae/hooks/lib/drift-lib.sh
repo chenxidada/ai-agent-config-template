@@ -10,7 +10,7 @@
 #   2) 计数读写    — read_counter / bump_or_reset / reset_counter (AC-A3 / A6 / A10)
 #   3) 命令归类    — is_build_test_cmd + CMD_BUILD_TEST_RE        (Q-A)
 #   4) 文件有效性  — drift_file_valid                (AC-B7，镜像 check_file_valid)
-#   5) 期望产出清单 — register_expected / scan_missing_expected    (AC-B6)
+#   5) 期望产出清单 — register_expected / scan_missing_expected / mark_checked (AC-B6)
 #   放行窗口      — mark_allowed / is_allowed        (AC-A9，供 Phase 2 用)
 #
 # 未来引入方（source 本文件）：
@@ -426,4 +426,49 @@ scan_missing_expected() {
     done < "$DRIFT_EXPECTED_FILE"
 
     return "$found"
+}
+
+# ============================================
+# mark_checked <session_id> <expected_path>   (AC-B6 回写，防重复报)
+# ============================================
+# 将 expected-outputs.jsonl 中「session 匹配 且 expected 路径匹配」的条目 checked 置 true，
+# 原地重写整个 jsonl（临时文件 + mv 原子替换）。scan_missing_expected 只读不写，本原语补写回。
+# 校验后调用一次即可让该缺失条目不再在后续 SubagentStop 重复报。
+# 参数：sid 可为空（空则不按 session 过滤，仅按 expected 匹配）；expected 必填。
+# 无清单文件 / jq 不可用 / expected 空 → return 1（可失败，需包裹）；成功回写 → return 0。
+mark_checked() {
+    local sid="${1:-}"
+    local target="${2:-}"
+
+    if [ -z "$target" ] || [ ! -f "$DRIFT_EXPECTED_FILE" ]; then
+        return 1
+    fi
+
+    local tmp row row_sid row_expected updated
+    tmp="${DRIFT_EXPECTED_FILE}.tmp.$$"
+    : > "$tmp" 2>/dev/null || return 1
+
+    while IFS= read -r row; do
+        [ -z "$row" ] && continue
+        # 无效 JSON 行原样保留，不误删
+        if ! printf '%s' "$row" | jq empty 2>/dev/null; then
+            printf '%s\n' "$row" >> "$tmp"
+            continue
+        fi
+        row_sid=$(printf '%s' "$row" | jq -r '.session_id // ""' 2>/dev/null || echo "")
+        row_expected=$(printf '%s' "$row" | jq -r '.expected // ""' 2>/dev/null || echo "")
+        # session 过滤（sid 非空时才比对）+ expected 精确匹配 → 置 checked=true
+        if [ "$row_expected" = "$target" ] && { [ -z "$sid" ] || [ "$row_sid" = "$sid" ]; }; then
+            if updated=$(printf '%s' "$row" | jq -c '.checked = true' 2>/dev/null); then
+                printf '%s\n' "$updated" >> "$tmp"
+            else
+                printf '%s\n' "$row" >> "$tmp"
+            fi
+        else
+            printf '%s\n' "$row" >> "$tmp"
+        fi
+    done < "$DRIFT_EXPECTED_FILE"
+
+    mv "$tmp" "$DRIFT_EXPECTED_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null; return 1; }
+    return 0
 }

@@ -52,6 +52,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/subagent-contract.sh",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

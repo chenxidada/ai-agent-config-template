@@ -526,6 +526,48 @@ Phase N 准备实施
 
 ***
 
+## 子 agent 产出契约登记 — 派发前必做（漂移守卫 SubagentStop 接入）
+
+**你（调度者）在派发 `implementer` / `reviewer-*` / `verifier` 之前，必须先把该子 agent 的「约定产出文件」登记到期望产出清单。** 登记后 `SubagentStop` hook（`.trae/hooks/subagent-contract.sh`）才能在子 agent 完成时校验其产出是否真正生成、非空、含结构标记——若缺失/不对路则 block 出提示，回灌为新 query 提醒你重派。
+
+### 登记动作
+
+派发子 agent 前，用 `register_expected <agent> <期望产出绝对路径> <session_id>` 向 `/tmp/.trae-drift-expected-outputs.jsonl` 追加一行（`checked:false`）。可 source `drift-lib.sh` 后调用：
+
+```bash
+source .trae/hooks/lib/drift-lib.sh
+# 以 phase-id、slug、session_id 拼出绝对路径后登记
+register_expected implementer "$PWD/.specdev/specs/<slug>/phases/<phase>/implementation.md" "<session_id>"
+```
+
+### agent → 约定产出文件映射（登记时用此表）
+
+| 子 agent | 约定产出文件（相对 `phases/<phase>/`） |
+|----------|----------------------------------------|
+| `code-explorer` | `repo-exploration.md` |
+| `implementer` | `implementation.md` |
+| `reviewer-correctness` | `review-correctness.md` |
+| `reviewer-design` | `review-design.md` |
+| `reviewer-connectivity` | `review-connectivity.md` |
+| `verifier` | `verification.md` |
+
+### 机制说明与局限（如实告知）
+
+- 这是**「依赖调度者登记」的兜底机制**：`SubagentStop` stdin 是否携带 agent 标识未经官网确认（HYPOTHESIS，倾向不带），因此 hook **不赌 stdin 标识**，改为读你预先登记的期望清单来判断"谁该产出什么"。
+- **局限（现实取舍）**：若你**忘记登记**某次派发，则该次子 agent 完成时清单无对应条目，hook 静默放行（**漏报，但绝不误报**——AC-B6 铁律）。因此每个派发点都应显式登记，勿遗漏。
+- **防重复报**：hook 校验后会用 `mark_checked` 把已报条目标记 `checked=true`，同一缺失不会在后续 `SubagentStop` 重复报。
+- **绝不绑定 Trae `Stop` 事件**：`SubagentStop` 是独立事件键，与 `Stop`（主调度者停止）平级，二者互不干扰（AC-B1）。
+
+### 铁律
+
+```
+❌ 禁止：派发子 agent 却不登记期望产出 → SubagentStop 无从校验
+✅ 正确：每次派发 implementer/reviewer-*/verifier 前 register_expected 登记
+✅ 正确：登记路径必须是绝对路径，且用 DAG JSON 的 phase-id 拼接
+```
+
+***
+
 ## 并行三视角 Reviewer — Merge 规则
 
 **implementer 完成后，同时委托 3 个 reviewer（并行执行），各自独立产出，最后合并判决。**
