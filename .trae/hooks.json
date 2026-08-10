@@ -13,6 +13,18 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "RunCommand",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .trae/hooks/post-tool-drift.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "loop_limit": 5,

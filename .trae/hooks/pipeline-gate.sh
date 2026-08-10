@@ -1,6 +1,5 @@
 #!/bin/bash
 # ============================================
-echo "[DEBUG] pipeline-gate.sh invoked with tool=$TOOL_NAME cmd=$CMD" >> /tmp/hook-debug.log 2>/dev/null
 # pipeline-gate.sh — Human Gate 程序化门禁 (Trae 版 v2)
 # 绑定: PreToolUse (matcher: Write|Edit|RunCommand)
 # schema: .specdev/specs/{slug}/current-status.json
@@ -19,6 +18,9 @@ set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/status-read.sh
 source "$HOOK_DIR/lib/status-read.sh"
+# shellcheck source=lib/drift-lib.sh
+# 块 A 第二段（PreToolUse）：读 /tmp 漂移计数 → 达阈对构建/测试命令 ask 弹窗
+source "$HOOK_DIR/lib/drift-lib.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -244,6 +246,30 @@ if [ "$TOOL_NAME" = "RunCommand" ]; then
     fi
     # ── 危险命令守卫（本 feature，插在 rm -rf / 之后、git gate 之前）──
     check_dangerous_command "$CMD"
+
+    # ── 块 A 第二段（漂移熔断 PreToolUse，agent-drift-guard/phase-2）──
+    # 命令执行前读 /tmp 计数：若本次是构建/测试类命令且已连续同类失败达阈值
+    # → ask() 弹窗交用户裁决（绝不 exit 2 硬杀，AC-A5/A7）。
+    # 库函数在 set -euo pipefail 下必须 if/|| 包裹（design §关键风险点）。
+    if is_build_test_cmd "$CMD"; then
+        read_counter || true
+        if [ "${DC_COUNT:-0}" -ge "${DRIFT_THRESHOLD:-3}" ]; then
+            # ── SF-2 修复（方案①：每次达阈都 ask，不提前 mark_allowed）──
+            # 旧方案在 ask 返回前就 mark_allowed 写 300s 放行窗口，但 PreToolUse hook 输出
+            # JSON 后即退出、无法回读弹窗裁决 → 用户即便点「拒绝」，300s 内下一条同类命令
+            # 仍被静默放行（SF-2 安全漏洞）。改为每次达阈都 ask，把裁决权完整交还用户，
+            # 符合「每次都让用户决定」的安全语义。
+            # AC-A9「不重复打扰」由「命令成功 → PostToolUse reset_counter 清零」天然覆盖：
+            # 用户放行后若命令成功，计数清零不再达阈；若仍失败=确实该再次提醒，语义正确。
+            # 偏差：不再维护 300s 时间窗放行标记（详见 implementation.md 偏差2）。
+            # SF-3：根因文案统一来自 drift-lib.sh 的 root_cause_guidance()（与 PostToolUse 一致）
+            DRIFT_MSG=$(root_cause_guidance "$DC_COUNT" "${DRIFT_THRESHOLD:-3}" "$CMD")
+            ask "${DRIFT_MSG}
+
+如你确认已定位根因、要继续执行，请点「允许」；若同类命令仍失败将再次提醒。"
+        fi
+    fi
+
     # ── git commit/push 必须经用户显式允许 ──
     if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
         # 文件标记：/tmp/git-commit-allowed 存在且 300s 内创建则放行

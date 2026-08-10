@@ -234,12 +234,28 @@ bump_or_reset() {
     # 读当前计数（缺失时得到默认 count=0）
     read_counter || true
 
+    # ── SF-1 修复：session_id 缺失时降级为 fingerprint-only 计数 ──
+    # 同类判定分两层：
+    #   1) 指纹必须一致（核心归类依据，不可降级）；
+    #   2) session 隔离是「加分项」——仅当当前 sid 与已存 sid **两者都非空**时才要求相等；
+    #      任一为空（拿不到 session_id）→ 降级：不因缺 sid 就判异类/重置为 1。
+    # 这样即使真实环境完全提取不到 session_id，只要指纹一致仍能累加到阈值触发熔断，
+    # 修复「缺 sid → count 恒卡 1、熔断静默失效」（verifier V7b/V7c 复现的主路径缺陷）。
+    local fp_match=1 sid_match=1
+    if [ -z "$fp" ] || [ "$fp" != "$DC_FP" ]; then
+        fp_match=0
+    fi
+    # 仅当双方 sid 都非空且不相等时，才视为跨会话（判异类）；缺 sid 一侧则降级放行。
+    if [ -n "$sid" ] && [ -n "$DC_SID" ] && [ "$sid" != "$DC_SID" ]; then
+        sid_match=0
+    fi
+
     local new_count
-    if [ -n "$fp" ] && [ "$fp" = "$DC_FP" ] && [ -n "$sid" ] && [ "$sid" = "$DC_SID" ]; then
-        # 同类：session + 指纹都匹配 → 累加
+    if [ "$fp_match" -eq 1 ] && [ "$sid_match" -eq 1 ]; then
+        # 同类：指纹一致 + 未检出跨会话（含缺 sid 降级）→ 累加
         new_count=$((DC_COUNT + 1))
     else
-        # 异类（session 切换 / 指纹变化 / 首次）→ 重置为 1 并换指纹/session（AC-A6）
+        # 异类（指纹变化 / 明确跨会话 / 首次）→ 重置为 1 并换指纹/session（AC-A6）
         new_count=1
     fi
 
@@ -268,6 +284,29 @@ reset_counter() {
     DC_UPDATED=0
     export DC_COUNT DC_FP DC_EXIT DC_SID DC_UPDATED
     return 0
+}
+
+# ============================================
+# root_cause_guidance <count> <threshold> <cmd>   (AC-A8 / SF-3)
+# ============================================
+# 输出统一的漂移根因指引文案（单一维护点）。PostToolUse(post-tool-drift.sh) 达阈软注入
+# 与 PreToolUse(pipeline-gate.sh) 达阈 ask 弹窗**共用**本函数，避免两处文案内联发散
+# （SF-3 修复）。调用方可在返回文本后按需追加自己的差异行（如 pre 侧的「点允许放行」提示）。
+# 纯输出函数（cat heredoc），无可失败中间命令，set -euo pipefail 下可安全 $() 捕获。
+root_cause_guidance() {
+    local count="${1:-?}"
+    local threshold="${2:-$DRIFT_THRESHOLD}"
+    local cmd="${3:-}"
+    cat <<EOF
+🛑 命令漂移熔断：同一类构建/测试命令已连续失败 ${count} 次（阈值 ${threshold}，失败指纹一致）。
+
+请立即停止「换个写法再试一次」的试错循环——继续盲试只会重复同一个根因错误。改为：
+  1. 完整重读最近一次的错误输出，定位真正的根因（依赖缺失？路径错误？语法/类型错误？配置不符？）；
+  2. 重读相关源文件、构建配置（如 package.json / Makefile / CMakeLists / tsconfig / Cargo.toml）与本 Phase 的 spec.md / repo-exploration.md，确认前提假设是否成立；
+  3. 若根因仍不明，向用户/上游说明卡点，不要继续以同一方式反复执行。
+
+失败命令：${cmd}
+EOF
 }
 
 # ============================================
