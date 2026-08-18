@@ -155,15 +155,31 @@ The tf/k8s importers emit `ranksep`/`nodesep` in the graph JSON automatically (i
 
 For any other language, produce the same graph JSON from any analyzer (e.g. `dependency-cruiser` for richer JS/TS resolution, `go-callvis` for Go call graphs) and feed it to autolayout the same way.
 
-## Edge routing after auto-layout
+## Edge routing after auto-layout (MANDATORY)
 
-Dot already routes edges orthogonally as part of its layout pass (`splines=ortho`), so the result usually needs no further routing. When the output still has edges cutting across shapes (common in dense graphs with many inter-group edges), pass the produced `.drawio` through `drawio --layout libavoid` for a second routing-only pass — it keeps every autolayout vertex position and only reroutes the connectors around the shapes:
+Dot already routes edges orthogonally as part of its layout pass (`splines=ortho`), but the result frequently still has edges cutting across shapes — especially in dense graphs with many inter-group edges. **You MUST always run the libavoid routing pass after autolayout** (requires draw.io CLI ≥ v30):
 
 ```bash
 drawio --layout libavoid diagram.drawio -o diagram.drawio
 ```
 
-This is a pure CLI operation (no Graphviz needed), but requires draw.io CLI ≥ v30.
+This keeps every autolayout vertex position and only reroutes the connectors around shapes. It is a pure CLI operation (no Graphviz needed).
+
+**If draw.io CLI < v30 or unavailable:** skip this step but compensate by increasing `--ranksep` and `--nodesep` by 50% (e.g., default ranksep=1.0 → use 1.5) to give edges more room to route cleanly.
+
+**After libavoid, ALWAYS run validate.py:**
+
+```bash
+python3 <this-skill-dir>/scripts/validate.py diagram.drawio --strict
+```
+
+If validate.py reports edge crossings or edge-shape overlaps:
+1. First attempt: increase `--ranksep` or `--nodesep` by 0.5 and re-run autolayout + libavoid
+2. Second attempt: try the other direction (`TB` ↔ `LR`) with `--tune`
+3. Third attempt: manually add waypoints to the specific crossing edges in the XML
+4. If all 3 fail: proceed with a warning to the user that some crossings remain
+
+**This validate step is NOT optional.** Do not skip it to save time. Layout quality is the #1 user complaint and this step catches issues deterministically.
 
 ## Limitations
 
