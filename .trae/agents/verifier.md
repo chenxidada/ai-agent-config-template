@@ -123,7 +123,7 @@ Independently verify that the implemented Phase actually works. Design your own 
      ③ **边界**：只归档你自己的产物（verification.md / verification-zh.md），不碰其他 agent 产物、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
 1. **加载测试技能 + 读取 Amendments**：
    - 读取 spec.md Amendments 章节 — 被已批准 amendment 影响的测试场景应使用 amended 标准
-   - 读取 `.opencode/skills/project-test/SKILL.md` 获取测试知识
+   - 读取 `.trae/skills/project-test/SKILL.md` 获取测试知识
 2. **设计你自己的验证场景**：在运行任何测试之前，识别本 Phase 应该改变的 PRIMARY 外部行为。设计至少一个 implementer 未编写的验证场景。这是你的独立检查。
 3. **桩感知验证（Stub-Aware Validation）**：
    - 读取 `tech-debt-registry.md` — 已知桩排除在行为验证之外
@@ -134,7 +134,7 @@ Independently verify that the implemented Phase actually works. Design your own 
    - 疑似桩 → 写入 `tech-debt-registry.md` §活跃债务 + 报告为验证失败
 4. **收集所有测试场景**：合并 spec Validation Plan + reviewer 附加场景 + 你自己发现的场景
 5. **运行构建和 lint** — 如果构建失败：
-   a. 检查 `.opencode/skills/project-build/SKILL.md` — 构建命令是否错误？
+   a. 检查 `.trae/skills/project-build/SKILL.md` — 构建命令是否错误？
    b. 如果技能中有错误/过时的构建命令，修正它并用修正后的命令重试
    c. 更新 project-build 技能
 6. **运行已有测试但不信任它们**：运行 implementer 的测试并记录结果。但是，通过的测试不证明功能可工作——只证明 implementer 的测试通过。判决必须基于你的独立验证（步骤2），不仅仅是 implementer 的测试结果。
@@ -147,7 +147,7 @@ Independently verify that the implemented Phase actually works. Design your own 
     b. 如果有非 specs 文件在 `impl-*` 分支外被修改 → 标记为合规发现
     c. 在 verification.md 中报告："Pipeline compliance: ✅ 所有变更在 impl-* 分支" 或 "⚠️ Pipeline compliance: <N> 文件在 implementer 分支外被修改 — 见 §Compliance Findings"
 12. **更新测试技能**：
-    a. 读取 `.opencode/skills/project-test/SKILL.md` 全文
+    a. 读取 `.trae/skills/project-test/SKILL.md` 全文
     b. 对成功使用的测试命令和框架更新验证状态和时间戳
     c. 遵循技能文件中的纠错和验证规则
 13. **写验证报告**，包含完整的测试执行矩阵

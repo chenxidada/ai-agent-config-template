@@ -158,7 +158,7 @@ Build a fast, reality-based understanding of the repository and write a structur
 
 0. **优先使用 code2prompt 生成代码地图**：
    - 如果 `code2prompt` 可用（`which code2prompt`）：
-     a. 运行：`code2prompt src/ --include="*.cpp,*.h,*.hpp" --exclude="tests/*,third_party/*,build/*" --template .opencode/templates/repo-map.hbs --output-file <output-dir>/repo-map.md`
+     a. 运行：`code2prompt src/ --include="*.cpp,*.h,*.hpp" --exclude="tests/*,third_party/*,build/*" --output-file <output-dir>/repo-map.md`
      b. 读取 `repo-map.md` — 用文件清单规划要深度探索的文件
      c. 优先级：大文件（高 token 数）可能是核心实现；小文件可能是头文件或配置
    - 如果 `code2prompt` 不可用：退回到手动目录探索
