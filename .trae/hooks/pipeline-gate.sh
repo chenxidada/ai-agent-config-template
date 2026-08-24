@@ -21,6 +21,10 @@ source "$HOOK_DIR/lib/status-read.sh"
 # shellcheck source=lib/drift-lib.sh
 # 块 A 第二段（PreToolUse）：读 /tmp 漂移计数 → 达阈对构建/测试命令 ask 弹窗
 source "$HOOK_DIR/lib/drift-lib.sh"
+# shellcheck source=lib/verdict-parse.sh
+# Class C（Phase 3）：verifier 判决解析（parse_verdict / max_residual_severity /
+# verdict_is_self_inconsistent）→ HG-3 门禁按 Q-3 用 ask 暴露非 PASS/缺判决/自相矛盾
+source "$HOOK_DIR/lib/verdict-parse.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -475,6 +479,15 @@ if echo "$TARGET_FILE" | grep -q "verification\.md$"; then
             fi
         fi
     fi
+    # AC-13：写入的 verification.md 必须含判决字段（镜像 review.md 的「判决」关键字要求，
+    # 但适配 verifier 的标题格式 `## 判决：` 而非 review.md 的粗体格式）。
+    # Q-3/AC-17：verifier 路径用 ask（非 deny）暴露缺失判决，让用户决定。
+    VERI_NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_str // empty' 2>/dev/null)
+    if [ -n "$VERI_NEW_CONTENT" ]; then
+        if ! echo "$VERI_NEW_CONTENT" | grep -qP '^##\s*判决\s*[：:]'; then
+            ask "⚠️ verification.md 缺失判决字段：写入内容未包含 \`## 判决：<PASS/PARTIAL/FAIL>\` 标题行。verifier 必须明确报告判决。是否仍要写入？"
+        fi
+    fi
     validate_phase_id deny
     allow
 fi
@@ -504,6 +517,23 @@ if echo "$TARGET_FILE" | grep -q "current-status\.json$"; then
             VERDICT=$(grep -oP '判决.*?\*\*\s*\K[^*]+' "$PHASE_DIR/review.md" 2>/dev/null | head -1 | tr -d ' ')
             if [ "$VERDICT" = "MUST-FIX" ]; then
                 deny "⛔ 流程不完整：review.md 判决为 MUST-FIX，不能标记 HG-3 通过。请先修复并重新审查。"
+            fi
+
+            # ── Class C（Phase 3）：verifier 判决校验（Q-3/AC-17 一律用 ask，绝不 deny）──
+            # 门禁是兜底非硬拦截：暴露 verifier 判决问题让用户决定，不硬堵 HG-3。
+            # 校验顺序：无判决 → 非 PASS → 自相矛盾（ask 调 exit 0，第一个触发者胜出）。
+            VERI_FILE="$PHASE_DIR/verification.md"
+            V_VERDICT=$(parse_verdict "$VERI_FILE" || echo "")
+            if [ -z "$V_VERDICT" ]; then
+                # AC-15 + AC-18：无可解析判决（缺判决行 / 多值枚举行）
+                ask "⚠️ HG-3 触发条件【缺失判决】：verification.md 无可解析的判决字段（判决行缺失，或残留 \`PASS / PARTIAL / FAIL\` 多值枚举）。verifier 必须报告单一判决值。是否仍标记 HG-3 通过？"
+            elif [ "$V_VERDICT" != "PASS" ]; then
+                # AC-14 + AC-18：判决非 PASS（FAIL/PARTIAL）
+                ask "⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 $V_VERDICT（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？"
+            elif verdict_is_self_inconsistent "$VERI_FILE"; then
+                # AC-16 + AC-18：判决=PASS 但残余含 CRITICAL/MEDIUM（含「已降级/downgraded」SOA 模式）
+                V_SEV=$(max_residual_severity "$VERI_FILE")
+                ask "⚠️ HG-3 触发条件【自相矛盾】：verifier 判决=PASS 但残余风险区含 $V_SEV 级风险（PASS 定义要求无 CRITICAL/MEDIUM 残余；含私自「已降级/downgraded」即 SOA 模式）。判决与残余风险自相矛盾。是否仍标记 HG-3 通过？"
             fi
         fi
     fi
