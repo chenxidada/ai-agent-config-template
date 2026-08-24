@@ -201,7 +201,7 @@ MSG
 等待用户回复：
 - 用户说"不通过"/"需要修改" → 停止，了解修改内容
 - 用户说"通过"/"验收通过"/"确认" → **一次性执行全部**：
-  - touch /tmp/git-commit-allowed && git add -A && git commit -m "impl-<phase-id>: <概要>"
+  - touch /tmp/git-commit-allowed && git add <本 Phase 实际改动的文件（依据 HG-3 已展示的 git status -s 清单显式列举，禁止 -A / . 盲加）> && git commit -m "impl-<phase-id>: <概要>"
   - git checkout main && git merge impl-<phase-id> && git branch -d impl-<phase-id>
   - 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
   - 如有下一 Phase：更新 `"current_phase": "phase-N-xxx"` 并创建新分支

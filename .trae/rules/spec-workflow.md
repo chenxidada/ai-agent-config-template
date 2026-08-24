@@ -96,7 +96,7 @@ alwaysApply: true
 3. 问用户："Phase 是否通过验收？"
    - 用户说"不通过"/"需要修改" → 停止，说明需要修改什么
    - 用户说"通过"/"验收通过"/"确认" → **一次性执行全部**：
-     - touch /tmp/git-commit-allowed && git add -A && git commit -m "Phase <id>: <改动概要>"
+     - touch /tmp/git-commit-allowed && git add <本 Phase 实际改动的文件（依据 HG-3 已展示的 git status -s 清单显式列举，禁止 -A / . 盲加）> && git commit -m "Phase <id>: <改动概要>"
      - git checkout main && git merge impl-<id> && git branch -d impl-<id>
      - 更新 current-status.json (hg3=passed, current\_phase=下一 Phase)
      - KB 同步（异步）
@@ -252,7 +252,7 @@ Phase 通过 HG-3 验收后，**同一轮**内完成 commit + merge，不分开�
 HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清单）
   │
   ├─ 用户确认"通过" →
-  │   touch /tmp/git-commit-allowed && git add -A && git commit -m "Phase <phase-id>: <概要>"
+  │   touch /tmp/git-commit-allowed && git add <本 Phase 实际改动的文件（依据 HG-3 已展示的 git status -s 清单显式列举，禁止 -A / . 盲加）> && git commit -m "Phase <phase-id>: <概要>"
   ├─ git checkout main && git merge impl-<current_phase>
   ├─ git branch -d impl-<current_phase>
   │
