@@ -497,6 +497,40 @@ if echo "$TARGET_FILE" | grep -q "current-status\.json$"; then
     # 读取即将写入的新内容，检测是否在推进 HG-3 或切换 Phase
     NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_str // empty' 2>/dev/null)
 
+    # ── AC-E9（GAP-1）：verifier 失败回路上限硬阻断（镜像上方 loop_count>=2 硬 deny）──
+    # 防御纵深对称：reviewer MUST-FIX 回路在 gate 有 loop_count>=2 硬 deny（约 L437），
+    # verifier 失败回路此前仅有 advance.sh 软引导。此处补齐 gate 层程序化硬停：
+    # 当 verifier_loop_count >= 2 且本次写入是「推进动作」（切换 current_phase 或 hg3=passed）时，
+    # 用 deny（exit 2）硬停死循环，逼迫用户介入决策。
+    # 与 Class C 的 verifier 判决 ask 校验隔离共存：ask 针对判决内容合法性，本 deny 针对回路次数上限。
+    # 注：合法 HG-3 通过会把 verifier_loop_count 重置为 0（AC-E7），故推进时仍带 >=2 即异常。
+    if [ -n "$NEW_CONTENT" ]; then
+        # 优先从即将写入的 NEW_CONTENT 读；不可解析则回退当前状态文件；均用 // 0 兜底
+        VLC=$(echo "$NEW_CONTENT" | jq -r '.verifier_loop_count // empty' 2>/dev/null)
+        if [ -z "$VLC" ]; then
+            VLC=$(jq -r '.verifier_loop_count // 0' "$STATUS_FILE" 2>/dev/null)
+        fi
+        [ -z "$VLC" ] && VLC=0
+        case "$VLC" in
+            ''|*[!0-9]*) VLC=0 ;;
+        esac
+
+        # 推进动作判定：设置 hg3=passed，或将 current_phase 切换到与当前不同的值
+        IS_ADVANCE=0
+        if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
+            IS_ADVANCE=1
+        else
+            NEW_PHASE=$(echo "$NEW_CONTENT" | jq -r '.current_phase // empty' 2>/dev/null)
+            if [ -n "$NEW_PHASE" ] && [ -n "$CURRENT_PHASE" ] && [ "$NEW_PHASE" != "$CURRENT_PHASE" ]; then
+                IS_ADVANCE=1
+            fi
+        fi
+
+        if [ "$IS_ADVANCE" -eq 1 ] && [ "$VLC" -ge 2 ]; then
+            deny "⛔ verifier 验证循环已达上限（verifier_loop_count=$VLC >= 2）。请用户介入决定下一步。"
+        fi
+    fi
+
     # 检查是否试图设置 hg3=passed
     if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
         if [ -n "$CURRENT_PHASE" ]; then
