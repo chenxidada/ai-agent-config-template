@@ -23,6 +23,10 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/status-read.sh
 source "$HOOK_DIR/lib/status-read.sh"
+# shellcheck source=lib/verdict-parse.sh
+# Class C：verifier 判决解析（parse_verdict / max_residual_severity /
+# verdict_is_self_inconsistent）→ HG-3 门禁按 Q-3 用 ask 暴露非 PASS/缺判决/自相矛盾
+source "$HOOK_DIR/lib/verdict-parse.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -130,6 +134,33 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                 
                 NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // .tool_input.new_str // empty' 2>/dev/null)
                 
+                # ── AC-E9：verifier 失败回路上限硬阻断（镜像 .trae 的 IS_ADVANCE 结构）──
+                # 当 verifier_loop_count >= 2 且本次写入是「推进动作」（hg3=passed 或 current_phase 切换）时，
+                # deny 硬停死循环，逼迫用户介入。与 Class C 的 ask 校验隔离：ask 针对判决内容，本 deny 针对回路次数。
+                if [ -n "$NEW_CONTENT" ]; then
+                    VLC=$(echo "$NEW_CONTENT" | jq -r '.verifier_loop_count // empty' 2>/dev/null)
+                    if [ -z "$VLC" ] && [ -f "$STATUS_FILE" ]; then
+                        VLC=$(jq -r '.verifier_loop_count // 0' "$STATUS_FILE" 2>/dev/null)
+                    fi
+                    [ -z "$VLC" ] && VLC=0
+                    case "$VLC" in
+                        ''|*[!0-9]*) VLC=0 ;;
+                    esac
+                    IS_ADVANCE=0
+                    if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
+                        IS_ADVANCE=1
+                    else
+                        NEW_PHASE=$(echo "$NEW_CONTENT" | jq -r '.current_phase // empty' 2>/dev/null)
+                        if [ -n "$NEW_PHASE" ] && [ -n "$CURRENT_PHASE" ] && [ "$NEW_PHASE" != "$CURRENT_PHASE" ]; then
+                            IS_ADVANCE=1
+                        fi
+                    fi
+                    if [ "$IS_ADVANCE" -eq 1 ] && [ "$VLC" -ge 2 ]; then
+                        echo "{\"permission\":\"deny\",\"user_message\":\"⛔ verifier 验证循环已达上限（verifier_loop_count=$VLC >= 2）。请用户介入决定下一步。\"}"
+                        exit 0
+                    fi
+                fi
+
                 # 检查是否试图设置 hg3=passed
                 if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
                     if [ -n "$CURRENT_PHASE" ]; then
@@ -149,6 +180,26 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                         VERDICT=$(grep -oP '判决.*?\*\*\s*\K[^*]+' "$PHASE_DIR/review.md" 2>/dev/null | head -1 | tr -d ' ')
                         if [ "$VERDICT" = "MUST-FIX" ]; then
                             echo '{"permission":"deny","user_message":"⛔ 流程不完整：review.md 判决为 MUST-FIX，不能标记 HG-3 通过。请先修复并重新审查。"}'
+                            exit 0
+                        fi
+
+                        # ── Class C：verifier 判决校验（Q-3 用 ask，绝不 deny）──
+                        # 门禁是兜底非硬拦截：暴露 verifier 判决问题让用户决定，不硬堵 HG-3。
+                        # 校验顺序：无判决 → 非 PASS → 自相矛盾（ask exit 0，第一个触发者胜出）。
+                        VERI_FILE="$PHASE_DIR/verification.md"
+                        V_VERDICT=$(parse_verdict "$VERI_FILE" || echo "")
+                        if [ -z "$V_VERDICT" ]; then
+                            # AC-15：无可解析判决
+                            echo "{\"permission\":\"ask\",\"user_message\":\"⚠️ HG-3 触发条件【缺失判决】：verification.md 无可解析的判决字段（判决行缺失，或残留多值枚举）。verifier 必须报告单一判决值。是否仍标记 HG-3 通过？\"}"
+                            exit 0
+                        elif [ "$V_VERDICT" != "PASS" ]; then
+                            # AC-14：判决非 PASS
+                            echo "{\"permission\":\"ask\",\"user_message\":\"⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 $V_VERDICT（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？\"}"
+                            exit 0
+                        elif verdict_is_self_inconsistent "$VERI_FILE"; then
+                            # AC-16：判决=PASS 但残余含 CRITICAL/MEDIUM
+                            V_SEV=$(max_residual_severity "$VERI_FILE")
+                            echo "{\"permission\":\"ask\",\"user_message\":\"⚠️ HG-3 触发条件【自相矛盾】：verifier 判决=PASS 但残余风险区含 $V_SEV 级风险。判决与残余风险自相矛盾。是否仍标记 HG-3 通过？\"}"
                             exit 0
                         fi
                     fi

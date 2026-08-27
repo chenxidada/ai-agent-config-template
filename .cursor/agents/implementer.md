@@ -84,8 +84,8 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
 7. **禁止欺骗性注释**：不留下 "TODO: wire this up later" / "will be connected in next phase" 等注释
    - 要么现在实现，要么明确标记 `@STUB(phase-N)` + 注册
 8. **构建/测试成功后更新技能**：
-   - 读取并更新 `.opencode/skills/project-build/SKILL.md`（如存在）
-   - 读取并更新 `.opencode/skills/project-test/SKILL.md`（如存在）
+   - 读取并更新 `.cursor/skills/project-build/SKILL.md`（如存在）
+   - 读取并更新 `.cursor/skills/project-test/SKILL.md`（如存在）
 
 ## 方向性错误 vs 具体修复
 
