@@ -15,6 +15,9 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/status-read.sh
 source "$HOOK_DIR/lib/status-read.sh"
+# shellcheck source=lib/verdict-parse.sh
+# Class E：复用 verdict-parse.sh 判决解析库，杜绝与 pipeline-gate.sh 漂移
+source "$HOOK_DIR/lib/verdict-parse.sh"
 
 INPUT=$(cat 2>/dev/null || echo '{}')
 EXIT_CODE=$(echo "$INPUT" | jq -r '.exit_code // 0')
@@ -122,26 +125,102 @@ elif echo "$AGENT_LOWER" | grep -q "reviewer"; then
 MSG
 
 elif echo "$AGENT_LOWER" | grep -q "verifier"; then
-    cat <<'MSG'
+    # ── 情况 D：verifier 完成 — 按「判决 × 最高残余严重性」矩阵分流（Class E）──
+    # 解析复用 verdict-parse.sh，与 pipeline-gate.sh 共享同一解析逻辑。
+    # 读取 current_phase（本 hook 不全局调用 read_status，按需读取）
+    CURRENT_PHASE=$(jq -r '.current_phase // empty' "$STATUS_FILE" 2>/dev/null || echo "")
+    HG3=$(jq -r '.human_gates.hg3 // "pending"' "$STATUS_FILE" 2>/dev/null || echo "pending")
+    PHASE_DIR=".specdev/specs/$SLUG/phases/$CURRENT_PHASE"
+    VERI_FILE="$PHASE_DIR/verification.md"
+
+    if [ -f "$VERI_FILE" ] && [ -n "$CURRENT_PHASE" ]; then
+        V=$(parse_verdict "$VERI_FILE" || echo "")
+        SEV=$(max_residual_severity "$VERI_FILE")
+        # verifier_loop_count 独立于 reviewer loop_count
+        VLC=$(jq -r '.verifier_loop_count // 0' "$STATUS_FILE" 2>/dev/null || echo "0")
+
+        # ── 分支 1：FAIL（任意残余）或 PARTIAL+CRITICAL → 回 implementer ──
+        if [ "$V" = "FAIL" ] || { [ "$V" = "PARTIAL" ] && [ "$SEV" = "CRITICAL" ]; }; then
+            if [ "$VLC" -ge 2 ]; then
+                cat <<MSG
+⛔ **verifier 失败回路已达上限（verifier_loop_count = $VLC >= 2）**
+
+verifier 判决：**$V**（最高残余严重性：$SEV）
+输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
+
+## 🚨 升级用户（不再自动回流）
+
+verifier 失败回路已连续 $VLC 轮，达到上限（2，镜像 reviewer）。
+**禁止再自动派 implementer**。请将情况升级给用户决定：
+- 方向性问题（设计/架构错误）→ 用户确认后由调度者重建分支、回到设计阶段
+- 具体但反复未解决的问题 → 用户决定是否放宽验收范围或接受 Known Gaps
+
+**不要自动继续。不要替用户做决定。**
+MSG
+            else
+                FAIL_NOTE=""
+                if [ "$V" = "PARTIAL" ]; then
+                    FAIL_NOTE="（PARTIAL 含 CRITICAL 残余，视同 FAIL）"
+                fi
+                cat <<MSG
+🔁 **verifier 判决非通过 → 自动回 implementer 修复**
+
+verifier 判决：**$V**（最高残余严重性：$SEV）
+输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
+
+## 下一步（镜像 reviewer MUST-FIX 回路）
+
+判决为 $V$FAIL_NOTE，验收标准未达成。
+请由调度者执行：
+1. **verifier_loop_count +1**（当前 = $VLC，上限 2）
+2. 确保处在 \`impl-<phase-id>\` 分支后，委托 **implementer** 修复 verification.md 列出的问题
+3. implementer 完成后重新走 reviewer → verifier
+
+**不要标记 HG-3 通过。不要替用户做决定。**
+MSG
+            fi
+
+        # ── 分支 2：PARTIAL + 最高 MEDIUM（无 CRITICAL）→ ask 语义，用户二选一 ──
+        elif [ "$V" = "PARTIAL" ] && [ "$SEV" = "MEDIUM" ]; then
+            cat <<MSG
+⚠️ **verifier 判决 PARTIAL（最高残余：MEDIUM）→ 需用户抉择**
+
+verifier 判决：**PARTIAL**（最高残余严重性：MEDIUM，无 CRITICAL）
+输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
+
+## ⏸️ 请向用户呈现未验证项并让其二选一（不得静默进 HG-3）
+
+先向用户展示 verification.md「残余风险」区块中的 MEDIUM 项，然后询问：
+
+- **A) 接受残余风险 → 进入 HG-3 验收**：用户接受后，按常规 HG-3 流程继续
+- **B) 回流修复 → 委托 implementer**：用户选择修复后，由调度者 verifier_loop_count +1（当前 = $VLC，上限 2）→ 委托 implementer 补齐 MEDIUM 项 → 重新 reviewer → verifier
+
+**不要自动继续。不要替用户做决定。**
+MSG
+
+        # ── 分支 3：PARTIAL + LOW only / PASS / 无判决 → 进 HG-3 ──
+        else
+            cat <<MSG
 ✅ **verifier 已完成**
 
-输出文件：`.specdev/specs/<workflow>/phases/<phase>/verification.md`
+verifier 判决：**${V:-无可解析判决}**（最高残余严重性：$SEV）
+输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## ⏸️ Human Gate 3 — Phase 验收
 
 请将验证报告呈现给用户。
 
-**先展示改动清单**：运行 `git diff --stat` + `git status -s`，让用户知道哪些文件将被提交。
+**先展示改动清单**：运行 \`git diff --stat\` + \`git status -s\`，让用户知道哪些文件将被提交。
 
 等待用户回复：
 - 用户说"不通过"/"需要修改" → 停止，了解修改内容
 - 用户说"通过"/"验收通过"/"确认" → **一次性执行全部**：
-  - touch /tmp/git-commit-allowed && git add -A && git commit -m "impl-<phase-id>: <概要>"
+  - touch /tmp/git-commit-allowed && git add <本 Phase 实际改动的文件> && git commit -m "impl-<phase-id>: <概要>"
   - git checkout main && git merge impl-<phase-id> && git branch -d impl-<phase-id>
-  - 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0`
-  - 如有下一 Phase：更新 `"current_phase": "phase-N-xxx"` 并创建新分支
+  - 更新 \`current-status.json\`: \`"hg3": "passed"\`, \`"loop_count": 0\`, \`"verifier_loop_count": 0\`
+  - 如有下一 Phase：更新 \`"current_phase": "phase-N-xxx"\` 并创建新分支
 
-⚠️ 禁止盲 `git add -A`：必须先用 `git diff --stat` + `git status -s` 展示改动清单。
+⚠️ 禁止盲 \`git add -A\`：必须先用 \`git diff --stat\` + \`git status -s\` 展示改动清单，显式列举要提交的文件。
 
 ## 📚 Knowledge Base Sync (非阻塞)
 
@@ -153,9 +232,22 @@ Phase 验收后，异步同步该 Phase 全套 spec 文档到知识库：
 
 ⚠️ **同步是异步的，不影响 pipeline 推进。**
 
+**不要自动继续。不要替用户做决定。**
+MSG
+        fi
+    else
+        cat <<'MSG'
+✅ **verifier 已完成**
+
+输出文件：`.specdev/specs/<workflow>/phases/<phase>/verification.md`
+
+## ⏸️ Human Gate 3 — Phase 验收
+
+请将验证报告呈现给用户。
 
 **不要自动继续。不要替用户做决定。**
 MSG
+    fi
 
 elif echo "$AGENT_LOWER" | grep -q "code-explorer"; then
     echo "🔎 **code-explorer** 已完成。现在可以继续工作流的下一步。"
