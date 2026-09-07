@@ -136,7 +136,7 @@ Independently verify that the implemented Phase actually works. Design your own 
    - **归档优于删除**：只 `mv` 到 `.archive/`，**绝不物理删除**；`.archive/` 无保留上限。
    - **辅助目录范围外**：`test-scripts/` 与 `screenshots/` 属于可累积覆盖的工作产物，**不在自清理归档范围内**（重跑时脚本原地覆盖即可）；本协议只归档 `verification.md`（及 `-zh.md`）。
    - **硬约束（不可违反）**：
-     ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` 等一律禁止）——本步骤只用 `mv`；注意与下文步骤 11 的 `git log`（只读、用于合规检查）区分，自清理阶段严禁任何 git 调用；
+     ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` / `stash` 等一律禁止）——本步骤只用 `mv`；注意与下文步骤 11 的 `git log`（只读、用于合规检查）区分，自清理阶段严禁任何 git 调用；
      ② **绝不修改 `current-status.json`**（状态重置是调度者职责，非你的职责）；
      ③ **边界**：只归档你自己的产物（verification.md / verification-zh.md），不碰其他 agent 产物、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
 1. **加载测试技能 + 读取 Amendments**：

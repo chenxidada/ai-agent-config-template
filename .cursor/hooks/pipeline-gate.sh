@@ -90,25 +90,8 @@ allow_with_heartbeat() {
     exit 0
 }
 
-# ── Shell 安全检查 ──
+# ── Shell 流程门禁（命令安全拦截已迁移到 shell-guard.sh via beforeShellExecution）──
 if [ "$TOOL_NAME" = "Shell" ]; then
-    CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
-    if echo "$CMD" | grep -qE 'rm -rf /[^a-z]|sudo rm -rf|:\(\)\{ :|:& \};:'; then
-        cat <<'BLOCK'
-{"permission":"deny","user_message":"⛔ 危险命令被拦截"}
-BLOCK
-        exit 0
-    fi
-    # ── git commit/push 必须经用户显式允许 ──
-    if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
-        if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
-            allow_with_heartbeat
-        fi
-        cat <<'BLOCK'
-{"permission":"deny","user_message":"⛔ git commit/push 被拦截。Agent 不允许未经用户明确同意的提交操作。\\n如你确实需要提交，请回复「允许提交」后由 Agent touch /tmp/git-commit-allowed 再执行。"}
-BLOCK
-        exit 0
-    fi
     allow_with_heartbeat
 fi
 

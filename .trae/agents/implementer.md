@@ -63,7 +63,7 @@ Implement the current Phase according to `<spec_dir>/phases/<phase>/spec.md`. Wr
      ```
    - **归档优于删除**：只 `mv` 到 `.archive/`，**绝不物理删除**；`.archive/` 无保留上限。
    - **硬约束（不可违反）**：
-     ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` 等一律禁止）——本步骤只用 `mv`；
+     ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` / `stash` 等一律禁止）——本步骤只用 `mv`；
      ② **绝不修改 `current-status.json`**（状态重置是调度者职责，非你的职责）；
      ③ **边界**：只归档你自己的产物（implementation.md / implementation-zh.md），不碰其他 agent 产物、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
 1. **Git 分支校验（硬性第一步，不可跳过）**：

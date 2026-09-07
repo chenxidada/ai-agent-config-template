@@ -27,6 +27,13 @@
         "timeout": 10
       }
     ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/shell-guard.sh",
+        "failClosed": true,
+        "timeout": 10
+      }
+    ],
     "subagentStop": [
       {
         "command": ".cursor/hooks/pipeline-advance.sh",

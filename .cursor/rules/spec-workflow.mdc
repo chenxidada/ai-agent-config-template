@@ -215,16 +215,14 @@ Phase N 的 HG-3 通过，用户确认进入 Phase N+1
 code-explorer 完成
   │
   ├─ 1. 检查当前是否已在 impl-<phase-id> 分支（bash: git branch --show-current）
-  │     - 如果是目标分支（Must-Fix 回路场景）→ 跳到步骤 5，不重复创建
+  │     - 如果是目标分支（Must-Fix 回路场景）→ 跳到步骤 4，不重复创建
   │     - 如果不是 → 继续下一步
   │
-  ├─ 2. git stash 保存未提交的更改（如果有）
+  ├─ 2. git checkout main（回到主分支，确保分支从干净基线上创建）
   │
-  ├─ 3. git checkout main（回到主分支，确保分支从干净基线上创建）
+  ├─ 3. git checkout -b impl-<phase-id>
   │
-  ├─ 4. git checkout -b impl-<phase-id>
-  │
-  └─ 5. 委托 implementer
+  └─ 4. 委托 implementer
 ```
 
 ### 分支合并回 main（HG-3 用户确认"通过"时一次性执行）
@@ -358,7 +356,7 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 ### 铁律
 
 ```
-❌ 禁止：调度者用 git（reset/checkout/clean/restore）还原工作区来「清除」旧产物 —— 归档是 agent 的职责，git 破坏分支隔离
+❌ 禁止：调度者用 git（reset/checkout/clean/restore/stash）还原工作区来「清除」旧产物 —— 归档是 agent 的职责，git 破坏分支隔离
 ❌ 禁止：调度者替 agent 归档产物 —— 你只翻 current-status.json 状态，agent 自己归档（唯一例外：review.md 是调度者自己的产物，重跑 reviewer 前由调度者归档，见「review.md 归档例外」）
 ❌ 禁止：重派上游却不级联作废下游 —— 会残留过期的 review/verification 产物
 ❌ 禁止：向上游作废（如重跑 reviewer 却把 implementer 也置 pending）—— 只向下游

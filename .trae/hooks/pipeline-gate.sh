@@ -282,6 +282,10 @@ if [ "$TOOL_NAME" = "RunCommand" ]; then
         fi
         deny "⛔ git commit/push 被拦截。Agent 不允许未经用户明确同意的提交操作。\n如你确实需要提交，请回复「允许提交」后由 Agent touch /tmp/git-commit-allowed 再执行。"
     fi
+    # ── git stash 禁止 —— 防止 agent 自作主张藏起工作区改动 ──
+    if echo "$CMD" | grep -qE '\bgit stash\b'; then
+        deny "⛔ git stash 被禁止。不允许使用 stash 隐藏工作区改动，这会导致 Phase 实现代码丢失。如需切换分支，请先完成当前 Phase 的 commit + merge 流程。"
+    fi
     allow
 fi
 
