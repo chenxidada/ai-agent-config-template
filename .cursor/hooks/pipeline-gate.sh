@@ -25,6 +25,7 @@
 #   · current_phase 必须 ∈ phase-plan.md DAG JSON 的 phases[].id
 #   · 实施类 Agent 必须位于 impl-<current_phase> 分支
 #   · repo-exploration.md 未产出 → 不放行 implementer
+#   · design.md 缺「现状依据」或证据指向不存在的位置 → 不放行 hg2（L1–L5）
 #   · UI Phase 缺 ui-spec.md / visual-baseline.md → 不放行 implementer
 #   · UI Phase 原型未确认（.prototype-approved 缺失）→ 不放行 reviewer/verifier
 #   · review.md 判决 MUST-FIX 或 Must-Fix 区有 🔴 → 不放行 verifier / hg3
@@ -100,6 +101,91 @@ check_file_valid() {
             return 1
         fi
     fi
+    return 0
+}
+
+# ── design.md「现状依据」校验（L1–L5，v8.4 新增）──
+# 为什么存在：plan-generator 的 Input 原本不含任何代码库信息，架构决策只能凭空生成。
+# 但「不许猜」是不可验收的主观纪律 —— 本项目的经验是「写在文档里的纪律等于没有纪律」。
+# 故把它变成可判定的形式：设计必须列出它依赖的现状事实，每条给出 `路径:行号` 证据。
+#
+# 级别：
+#   L1 `## 现状依据` 章节存在
+#   L2 章节内至少 MIN_ROWS 条证据
+#   L3 每条形态为 `路径:行号`
+#   L4 路径在仓库中真实存在（PROJECT_ROOT 或 spec 目录下）
+#   L5 行号 <= 该文件实际行数
+#
+# ⚠️ 边界（必须在代码里写清，否则会重演「以为有保护」）：
+#    本函数保证 **「证据指向真实位置」**，不保证 **「证据支持该断言」**。
+#    后者是语义判断，属 reviewer-design 的职责 —— 门禁做不到，也永远不该假装能做到。
+#
+# ⚠️ 逃生舱：显式声明「本设计不依赖现有代码」→ 跳过 L2–L5。
+#    「无依据」必须是一个**显式声明**而非沉默默认 —— 与 ui_relevant:false 必须写理由同理。
+#
+# ⚠️ 实现约束：不得用 `grep -P`（PCRE 是 GNU 扩展，BSD grep 会以退出码 2 失败，
+#    在 if 结构中表现为静默反向放行）。一律 -E / sed / awk。
+check_design_evidence() {
+    local FILE="$1"
+    local MIN_ROWS="${2:-1}"
+
+    # L1：章节存在
+    local SECTION
+    SECTION=$(awk '/^##[[:space:]]*现状依据/{f=1;next} f && /^##[[:space:]]/{exit} f' "$FILE" 2>/dev/null)
+    if [ -z "$SECTION" ]; then
+        emit_deny "⛔ 设计缺少「现状依据」章节：$(project_rel "$FILE") 必须包含 \`## 现状依据\`，逐条列出本设计依赖的现有代码事实及其证据（形如 \`src/x.ts:42\`）。若本设计确实不依赖任何现有代码，必须显式写出「本设计不依赖现有代码：<理由>」——「无依据」必须留痕，不能是沉默默认。"
+    fi
+
+    # 逃生舱：显式声明不依赖现有代码
+    if printf '%s' "$SECTION" | grep -qE '本设计不依赖现有代码' 2>/dev/null; then
+        return 0
+    fi
+
+    # L3：抽取 evidence token（反引号包裹的 `path:line`）
+    local EVIDENCE
+    EVIDENCE=$(printf '%s' "$SECTION" | grep -oE '`[^`]*:[0-9]+`' 2>/dev/null | tr -d '`')
+
+    # L2：条数
+    local COUNT
+    COUNT=$(printf '%s\n' "$EVIDENCE" | grep -c '[^[:space:]]' 2>/dev/null)
+    case "$COUNT" in ''|*[!0-9]*) COUNT=0 ;; esac
+    if [ "$COUNT" -lt "$MIN_ROWS" ]; then
+        emit_deny "⛔ 「现状依据」章节无有效证据：$(project_rel "$FILE") 的该章节内未找到任何形如 \`路径:行号\` 的证据条目（至少需要 ${MIN_ROWS} 条）。注意：散文式描述（「现有架构大致是…」）不是证据。"
+    fi
+
+    # L4 + L5：逐条核验真实性
+    # ⚠️ 用 here-string 而非管道：管道会创建子 shell，里面的 emit_deny 只能退出子 shell，
+    #    门禁将带 0 退出码继续执行 → 静默放行。
+    local entry p ln target actual
+    while IFS= read -r entry; do
+        [ -z "$entry" ] && continue
+        p="${entry%:*}"
+        ln="${entry##*:}"
+        [ -z "$p" ] && continue
+
+        # 路径解析：先 PROJECT_ROOT 相对，再 spec 目录相对（两者都是真实位置）
+        target=""
+        if [ -e "$PROJECT_ROOT/$p" ]; then
+            target="$PROJECT_ROOT/$p"
+        elif [ -e "$SPEC_DIR/$p" ]; then
+            target="$SPEC_DIR/$p"
+        fi
+
+        # L4
+        if [ -z "$target" ]; then
+            emit_deny "⛔ 「现状依据」含不存在的路径：\`${p}\` （在 $(project_rel "$FILE") 中作为证据引用）。门禁会核验每条证据指向的位置是否真实存在 —— 请改为真实路径，或删除该条断言。"
+        fi
+
+        # L5（仅对普通文件；目录无行号概念）
+        if [ -f "$target" ]; then
+            actual=$(wc -l < "$target" 2>/dev/null || printf '0')
+            case "$actual" in ''|*[!0-9]*) actual=0 ;; esac
+            if [ "$ln" -gt "$actual" ]; then
+                emit_deny "⛔ 「现状依据」行号越界：\`${p}:${ln}\` 指向 $(project_rel "$target")，但该文件只有 ${actual} 行。请核对行号。"
+            fi
+        fi
+    done <<< "$EVIDENCE"
+
     return 0
 }
 
@@ -420,6 +506,8 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
             || emit_deny "⛔ 流程不完整：尝试标记 HG-2 通过，但 design.md 不存在或内容无效。"
         check_file_valid "$SPEC_DIR/phase-plan.md" 10 \
             || emit_deny "⛔ 流程不完整：尝试标记 HG-2 通过，但 phase-plan.md 不存在或内容无效。"
+        # 设计必须基于现状，而非凭空生成（L1–L5，见 check_design_evidence 注释）
+        check_design_evidence "$SPEC_DIR/design.md" 1
     fi
 
     # ── 检查是否试图设置 hg1_5=passed（视觉基准确认，仅 UI 工作流）──
@@ -624,7 +712,30 @@ case "$SUBAGENT" in
         ;;
 
     code-explorer)
-        validate_phase_id
+        # ── 双模式分流（v8.4 新增）──
+        # code-explorer 有 4 个文档场景，其中 3 个发生在「尚未拆分 Phase」时：
+        #   /research 独立调研、/plan 架构设计前、/bugfix 根因分析前
+        # 此前对它们一律套 validate_phase_id → 因 current_phase 为空而 deny，
+        # 即「设计前调研」这条能力被门禁自己关闭了。实测：在任一工作流内部
+        # 派发 code-explorer 一律 deny，唯一可达路径是「状态文件根本不存在」
+        # （那是 bootstrap 分支的副作用，不是设计）。
+        if [ -n "$CURRENT_PHASE" ]; then
+            # Phase 级模式：输出到 phases/<phase>/，Phase ID 必须 ∈ DAG JSON
+            validate_phase_id
+        else
+            case "$CURRENT_STAGE" in
+                requirement-analysis|architecture-design)
+                    # 工作流级模式：无 Phase 可校验。code-explorer 是只读 agent，
+                    # 且实施类 agent 的阶段检查独立生效（见上方阶段一致性检查），
+                    # 因此放行它不构成「绕过 HG-2 进入实施」的通道。
+                    ;;
+                *)
+                    # fail-closed：current_phase 为空却已进入实施阶段 = 状态损坏。
+                    # hg3 写入同样依赖 current_phase 定位产物目录，此处放行会掩盖损坏。
+                    emit_deny "⛔ 状态不一致：current_phase 为空，但 current_stage=\`${CURRENT_STAGE}\`。实施阶段的 Phase 为空说明 $(project_rel "$STATUS_FILE") 已损坏（HG-3 写入也依赖该字段定位 Phase 产物）。请先修复状态文件。"
+                    ;;
+            esac
+        fi
         emit_allow
         ;;
 

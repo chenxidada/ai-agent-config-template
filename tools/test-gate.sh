@@ -31,12 +31,31 @@ printf 'demo\n' > "$SB/.specdev/active-workflow"
 PHASE_DIR="$SB/.specdev/specs/demo/phases/phase-1"
 SPEC_DIR="$SB/.specdev/specs/demo"
 
+# 供 design.md「现状依据」引用的真实文件（v8.4 起门禁核验证据路径是否存在、行号是否越界）。
+# 必须真实存在于沙箱内 —— 否则「证据指向真实位置」这条校验无法被测试证明。
+# ⚠️ 证据只能用**沙箱内**的路径：PROJECT_ROOT 由 payload 的 workspace_roots[0] 决定，
+#    指向沙箱而非真实仓库，引用仓库内路径会被 L4 正确拒绝。
+mkdir -p "$SB/src"
+printf 'export const a = 1;\nexport const b = 2;\nexport const c = 3;\nexport const d = 4;\nexport const e = 5;\n' > "$SB/src/demo.ts"
+printf 'export const timeout = 3000;\nexport const retries = 2;\n' > "$SB/src/config.ts"
+
 # 基线 spec 文件：hg1/hg2 检查要求它们存在且有效。
 # 注意：写入的 status JSON 通常包含全部 human_gates 字段，因此
 # 「已 passed 的 hg1/hg2」每次写入都会被重新校验 —— 这是既有的设计（v7 同）。
 base_specs() {
     printf '# 需求\n\n## 验收标准\n%s\n' "$(seq 1 12 | sed 's/^/- AC/')" > "$SPEC_DIR/requirements.md"
-    printf '# 设计\n\n## 架构决策\n%s\n' "$(seq 1 12 | sed 's/^/- 决策/')"    > "$SPEC_DIR/design.md"
+    # design.md 必须含「现状依据」章节（v8.4 起 hg2=passed 会校验 L1–L5）。
+    # 证据刻意指向沙箱内**真实存在**的文件与**合法**行号 —— 夹具要还原"合格的设计"，
+    # 而不是给门禁留一个绕过口（那会让新校验在测试里永远为绿）。
+    {
+        printf '# 设计\n\n'
+        printf '## 现状依据\n\n'
+        printf '| 事实 | 证据 |\n|------|------|\n'
+        printf '| 沙箱基线文件导出 5 个常量 | `src/demo.ts:1` |\n'
+        printf '| 沙箱配置定义超时与重试 | `src/config.ts:2` |\n'
+        printf '\n## 架构决策\n'
+        seq 1 12 | sed 's/^/- 决策/'
+    } > "$SPEC_DIR/design.md"
     # phase-plan.md 需 ≥10 行（gate 的 hg2 内容完整性检查，v7 既有行为），
     # 故这里写成含散文 + DAG JSON 代码块的真实形态。
     cat > "$SPEC_DIR/phase-plan.md" <<'PP'
@@ -277,6 +296,89 @@ chk "deny" "$(p_task implementer)" "DAG 缺 ui 字段 → deny ← 旧实现当�
 
 echo "── 13. 未知工具 / 只读工具不干扰 ──"
 chk "allow" "$(jq -nc --arg ws "$SB" '{tool_name:"Read",workspace_roots:[$ws],tool_input:{file_path:"/x"}}')" "Read → allow"
+
+echo "── 14. code-explorer 双模式分流（旧实现对「设计前调研」一律 deny）──"
+# 旧实现无条件套 validate_phase_id：current_phase 为空即 gate_unknown → deny。
+# 后果是 /plan、/bugfix 的设计前调研、以及任一工作流内的 /research 全部不可达。
+# 唯一可达路径是「状态文件根本不存在」（bootstrap 分支的副作用，非设计）。
+# 设计/需求阶段状态：current_phase 为空
+write_design_status() { # write_design_status <current_stage> [hg1]
+    cat > "$SB/.specdev/specs/demo/current-status.json" <<EOF
+{
+  "slug": "demo",
+  "description": "门禁测试",
+  "created": "2026-09-15T00:00:00Z",
+  "current_stage": "$1",
+  "current_phase": "",
+  "loop_count": 0,
+  "human_gates": { "hg1": "${2:-passed}", "hg2": "pending", "hg3": "pending" },
+  "phases": {},
+  "last_update": "2026-09-15T00:00:00Z"
+}
+EOF
+}
+write_design_status architecture-design
+chk "allow" "$(p_task code-explorer)" "空 current_phase + architecture-design → allow ← 旧实现 deny（设计前调研被门禁关闭）"
+write_design_status requirement-analysis pending
+chk "allow" "$(p_task code-explorer)" "空 current_phase + requirement-analysis → allow ← 旧实现 deny"
+write_design_status phase-implementation
+chk "deny" "$(p_task code-explorer)" "空 current_phase + phase-implementation → deny（状态损坏，fail-closed）"
+
+echo "── 15. design.md「现状依据」L1–L5（hg2=passed 时校验）──"
+# 夹具恢复干净基线（base_specs 会重写 design.md / phase-plan.md）
+base_specs
+H2='{"slug":"demo","current_stage":"architecture-design","loop_count":0,"human_gates":{"hg1":"passed","hg2":"passed","hg3":"pending"}}'
+p_hg2_payload() { # p_hg2_payload <content>
+    jq -nc --arg c "$1" --arg ws "$SB" \
+        '{tool_name:"Write",workspace_roots:[$ws],tool_input:{file_path:($ws+"/.specdev/specs/demo/current-status.json"),content:$c}}'
+}
+
+write_design() { # write_design <现状依据章节正文>
+    {
+        printf '# 设计\n\n## 现状依据\n\n%s\n\n## 架构决策\n' "$1"
+        seq 1 12 | sed 's/^/- 决策/'
+    } > "$SPEC_DIR/design.md"
+}
+
+# L1：无章节
+{
+    printf '# 设计\n\n## 架构决策\n'
+    seq 1 12 | sed 's/^/- 决策/'
+} > "$SPEC_DIR/design.md"
+write_design_status architecture-design
+chk "deny" "$(p_hg2_payload "$H2")" "L1 design.md 无「现状依据」章节 → deny"
+
+# L3：只有散文，无 `path:line`
+write_design '现有架构大致采用分层设计，鉴权位于中间件层。'
+write_design_status architecture-design
+chk "deny" "$(p_hg2_payload "$H2")" "L3 仅有散文描述、无 \`路径:行号\` → deny"
+
+# L4：路径不存在
+write_design '| 事实 | 证据 |
+|------|------|
+| 某不存在的文件 | `src/nonexistent.ts:1` |'
+write_design_status architecture-design
+chk "deny" "$(p_hg2_payload "$H2")" "L4 证据指向不存在的路径 → deny（编造路径被抓）"
+
+# L5：行号越界
+write_design '| 事实 | 证据 |
+|------|------|
+| 配置定义 | `src/config.ts:99` |'
+write_design_status architecture-design
+chk "deny" "$(p_hg2_payload "$H2")" "L5 行号超出文件实际行数 → deny（编造行号被抓）"
+
+# 逃生舱：显式声明不依赖现有代码
+write_design '本设计不依赖现有代码：本 Phase 仅新增独立脚本，不引用任何既有模块。'
+write_design_status architecture-design
+chk "allow" "$(p_hg2_payload "$H2")" "显式声明「本设计不依赖现有代码」→ allow（无依据必须留痕，不能是沉默默认）"
+
+# 绿：证据真实且行号合法
+write_design '| 事实 | 证据 |
+|------|------|
+| 沙箱基线导出常量 | `src/demo.ts:1` |
+| 沙箱配置含超时 | `src/config.ts:2` |'
+write_design_status architecture-design
+chk "allow" "$(p_hg2_payload "$H2")" "L1–L5 全通过（证据指向真实位置且行号合法）→ allow"
 
 rm -rf "$SB"
 printf '\n结果：%d 通过 / %d 失败\n' "$pass" "$fail"

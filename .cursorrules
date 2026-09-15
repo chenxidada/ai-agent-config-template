@@ -37,7 +37,7 @@
 |-------|------|
 | `requirement-analyst` | 需求分析 → requirements.md（UI 工作流追加 ui-spec.md） |
 | `plan-generator` | 架构设计 + Phase 拆分 → design.md + phase-plan.md |
-| `code-explorer` | 只读代码探索（**每个 Phase 前强制**） |
+| `code-explorer` | 只读代码探索（**双模式：架构设计前 workflow 级 × 每个 Phase 前 phase 级**） |
 | `implementer` | 按 spec 实现代码 |
 | `reviewer-correctness` | 并行审查①：实现正确性 |
 | `reviewer-design` | 并行审查②：设计一致性 |
@@ -51,12 +51,15 @@
 
 ```
 /feature → requirement-analyst → 🛑 HG-1 需求确认
-         → plan-generator       → 🛑 HG-1.5 视觉基准（仅 UI）
-         → 🛑 HG-2 方案确认
-         → code-explorer → implementer → [🛑 原型确认（仅 UI）] → reviewer×4 → verifier
-         → 🛑 HG-3 Phase 完成
-         → (下一 Phase 循环)
+        → code-explorer（workflow 级：设计前调研）→ plan-generator → 🛑 HG-1.5 视觉基准（仅 UI）
+        → 🛑 HG-2 方案确认
+        → code-explorer（phase 级）→ implementer → [🛑 原型确认（仅 UI）] → reviewer×4 → verifier
+        → 🛑 HG-3 Phase 完成
+        → (下一 Phase 循环)
 ```
+
+> `plan-generator` 需要现状事实而尚未调研时会返回「⏸ STOP & EXPLORE」→ 派 `code-explorer` → **续做**设计。
+> 这不是 escalation，不需要用户决策，也不过任何 HG。
 
 ## 目录结构
 

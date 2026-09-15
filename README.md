@@ -32,7 +32,7 @@ ai-agent-config-template/
 │   └── mcp.json                    # knowledge-base + playwright MCP
 ├── .trae/                          # Trae 侧配置（Agent + 命令 + Hook + 模板）
 ├── tools/                          # hook 行为测试（test-verdict / test-gate / test-shell-guard
-│                                   #   / test-hook-contract / test-drift，共 133 项断言）
+│                                   #   / test-hook-contract / test-drift，共 142 项断言）
 ├── .specdev/                       # 工作流运行时目录（specs/ 在导入后生成）
 │   ├── ui-spec-template.md         # /feature 初始化时复制
 │   ├── constitution-template.md
@@ -60,6 +60,8 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 |------|------|------|
 | Spec 唯一真相源 | `.specdev/specs/<slug>/` | 需求/设计/每 Phase 的实现与验证全落盘 |
 | Human Gate | `pipeline-gate.sh` 程序化阻断 | 用户未明确确认前，物理上无法进入下一阶段 |
+| 设计必须基于现状 | `design.md` 的「现状依据」章节 + 门禁 L1–L5 | 架构决策不能凭空生成；证据须指向仓库中真实存在的位置 |
+| Stop & Explore | `escalation-protocol.md` | 设计需要现状事实时**先查再写**，而不是用「大概/通常」猜（不占用 escalation 通道） |
 | 反狡辩体系 | 每个子Agent 的专属反狡辩表 | 防止 AI 用「编译通过」「写了 N 个测试」跳过关键步骤 |
 | 三层约束 | Rules（静态）+ Hooks（动态）+ Subagents（独立上下文） | 抗上下文压缩 |
 
@@ -69,10 +71,12 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 /feature <描述>
   → requirement-analyst        → requirements.md (+ ui-spec.md 若有界面)
   → 🛑 HG-1  需求确认
-  → plan-generator             → design.md + phase-plan.md + (design-system/ + visual-baseline.md)
+  → code-explorer（工作流级：设计前调研）→ repo-exploration.md
+  → plan-generator             → design.md（含「现状依据」）+ phase-plan.md
+                                 + (design-system/ + visual-baseline.md)
   → 🛑 HG-1.5 视觉基准确认（仅 UI 工作流）
-  → 🛑 HG-2  方案确认
-  → [每个 Phase] code-explorer → git 分支 → implementer
+  → 🛑 HG-2  方案确认（门禁校验 design.md 现状依据 L1–L5）
+  → [每个 Phase] code-explorer（Phase 级）→ git 分支 → implementer
                    → 🛑 原型确认（仅 UI Phase：先出静态原型并停止）
                    → implementer 接入真实逻辑
                    → 4 个并行 reviewer（correctness / design / connectivity / visual）
@@ -124,7 +128,7 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 |-------|------|
 | `requirement-analyst` | 需求分析（EARS 格式 AC）+ UI 相关性判定 → `requirements.md` / `ui-spec.md` |
 | `plan-generator` | 架构设计 + Phase DAG + design system + 视觉基准 |
-| `code-explorer` | 每 Phase 前的代码调研（含 UI 组件/主题盘点）→ `repo-exploration.md` |
+| `code-explorer` | 代码库调研**双模式**：设计前（工作流级）／每 Phase 前（Phase 级，含 UI 组件盘点）→ `repo-exploration.md` |
 | `implementer` | 按 spec 实现（UI Phase 走原型先行协议） |
 | `reviewer-correctness` | 并行审查：实现正确性 + 桩检测 |
 | `reviewer-design` | 并行审查：设计一致性 |

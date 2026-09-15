@@ -83,6 +83,78 @@ The agent determines that what's being asked is logically or physically impossib
 
 ---
 
+## Stop & Explore（与 Stop & Escalate 并列的一条独立通路）
+
+**核心区分**：
+
+| | `Stop & Escalate` | `Stop & Explore` |
+|---|---|---|
+| 场景 | 我查不出来 / 查出来也不该我决定 | **我能查到，但我现在还没查** |
+| 动作 | 交出去（用户 / 上游） | **停下来先查**，查完**自己做** |
+| 占用 escalation 通道？ | 是（🟡/🔴/⚫） | **否** —— 不产生级别、不需要用户决策 |
+| 谁执行 | 用户或上游 agent | 调度者派 `code-explorer`，然后**续做**原 agent |
+
+**为什么需要它**：Trigger C（Uncertainty Beyond Threshold）的判据是
+「missing information **cannot be reasonably inferred**」。而设计阶段最常缺的信息
+（"现有模块怎么做的"）**是能查到的，只是没查**。若无这条通路，agent 只剩两个选择：
+**猜**，或**为一件本该自己查的事去打扰用户** —— 两者都是失败。
+
+### 触发信号（任一命中即触发）
+
+| # | 信号 |
+|:--:|---|
+| 1 | 要引用任何现有**文件 / 函数 / 接口 / 配置项**，但尚未证实其存在与形态 |
+| 2 | 出现「复用现有的 X」「扩展现有的 Y」「沿用当前的 Z」 |
+| 3 | 做**选型决策**（「用 A 而不是 B」）却不知道 A/B 在仓库中的现状 |
+| 4 | 需要遵循「**现有约定**」（命名 / 错误处理 / 测试方式 / 目录结构） |
+| 5 | 上游文档（需求 / ui-spec）假定某行为或组件**已经存在** |
+| 6 | 自检时出现「应该」「大概」「通常」「推测」「按惯例」 |
+
+**判据一句话**：**若你无法为某条断言给出 `路径:行号`，那它就还没有资格成为结论。**
+
+### 输出格式（以此**代替**正常输出）
+
+```markdown
+## ⏸ STOP & EXPLORE — 需要代码调研
+
+**From:** `<agent-name>`
+**待确认项：** N 条
+
+### 我卡在哪里
+
+<为什么这些事实不能靠推断得到；它们分别影响哪项决策>
+
+### 需要确认的事实（全部列出，编号）
+
+| # | 需要确认的事实 | 为什么影响决策 | 建议查证位置 |
+|:--:|---|---|---|
+| 1 | <事实> | <影响> | <目录/文件/关键词> |
+
+### 建议的调研范围
+
+<具体目录 / 文件 / 关键词，帮 code-explorer 聚焦，避免全仓库扫描>
+```
+
+### 🔴 两条铁律
+
+1. **批量收集后再返回**：收集完**全部**待确认项，一次性返回。逐个返回会让
+   一次设计产生多次「agent → 调度者 → explorer → 续做」往返，机制会因太贵而被绕过。
+2. **不得用 `Stop & Explore` 替代 `Stop & Escalate`**：查完之后若结论是
+   「需求与现状冲突，必须改需求」——那是 Trigger B，走 escalation，不是"查完自己改需求"。
+
+### 调度者的响应
+
+```
+1. 收到 STOP & EXPLORE（不是 escalation，不触发用户决策）
+2. 派发 code-explorer（workflow 模式 → repo-exploration.md）
+3. 续做原 agent（不重新开始、不归档其产物），附上报告路径
+4. 原 agent 把查实的事实落进产物（如 design.md 的「现状依据」章节）后继续
+```
+
+**不涉及任何 Human Gate** —— 它在 HG-1 之后、HG-2 之前自然发生，用户仍在 HG-2 做方案确认。
+
+---
+
 ## Escalation Output Format
 
 When an agent escalates, it MUST produce output in this format INSTEAD OF its normal output:

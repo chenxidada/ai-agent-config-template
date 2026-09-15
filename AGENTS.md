@@ -41,8 +41,24 @@
 | 写入内容解析为空 → 所有 `grep` 不匹配 | 「读不出去」被当成「没发现问题」 |
 | Agent 名字不在白名单 → 走默认分支 | 拼错一个字母即可让全部门禁失效 |
 | Hook 输出字段名写错 | 链路**静默失效**（如 sessionStart 的 `additionalContext` vs `additional_context`），测试与日志都显示正常 |
+| `code-explorer` 无条件套 `validate_phase_id` | 它的 4 个调用场景中 **3 个发生在 `current_phase` 为空时** → 「设计前调研」这条能力被门禁自己关闭；`/plan` 的文档流程从写下那天起就无法执行 |
+| `design.md` 只校验「≥10 行 + 含 `##`」 | 架构决策可以**完全基于推断**通过 HG-2；而 `reviewer-design` 的职责是「对照 design.md **与代码库既有约定**」—— 偏差在最贵的地方才暴露 |
 
-详细勘误与逐条修复记录见 `.cursor/hooks/CHANGELOG.md`；行为测试在 `tools/test-*.sh`（**5 个套件，133 项断言**，全部可重跑）。
+详细勘误与逐条修复记录见 `.cursor/hooks/CHANGELOG.md`；行为测试在 `tools/test-*.sh`（**5 个套件，142 项断言**，全部可重跑）。
+
+### 「设计必须基于现状」的可验收化
+
+「不许猜」是不可验收的主观纪律（与「UI 不得用抽象形容词」同类）。本项目把它变成可判定的形式：
+
+| 机制 | 位置 | 强制方式 |
+|---|---|---|
+| `code-explorer` 双模式（workflow 级 / phase 级） | `code-explorer.md` | 门禁按 `current_phase` 是否为空分流 |
+| `design.md` 必须有「现状依据」章节，每条带 `路径:行号` | `solution-design-output.md` | 门禁在 `hg2=passed` 校验 L1–L5 |
+| `Stop & Explore`（需要事实时先查再设计） | `escalation-protocol.md` | agent 契约（**不占用 escalation 通道**） |
+
+> ⚠️ **边界**：门禁保证「**证据指向真实位置**」（路径存在 + 行号不越界），
+> **不保证**「**证据支持该断言**」—— 后者是语义判断，属 `reviewer-design`。
+> 不要因为门禁是绿的，就以为设计依据一定正确。
 
 ## 调度者架构（Cursor 侧现行）
 
@@ -119,7 +135,7 @@ When two agents disagree on facts (not design decisions):
 
 | 事实类别 | 谁赢 |
 |---------|------|
-| 仓库现状（文件/依赖/调用链是否存在） | `code-explorer` |
+| 仓库现状（文件/依赖/调用链是否存在） | `code-explorer`（workflow 级报告用于设计依据，phase 级报告用于实施范围） |
 | 实测结果（测试是否通过、行为是否正确） | `verifier` |
 | 需求解释（AC 到底要求什么） | `requirement-analyst` |
 | 视觉偏差（是否偏离冻结 token / 布局骨架） | `reviewer-visual`，必要时以截图证据为准 |

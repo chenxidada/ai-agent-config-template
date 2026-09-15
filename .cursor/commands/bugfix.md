@@ -30,14 +30,24 @@ Bug 修复流程简化了架构设计阶段（不需要完整的 Phase 拆分）
 
 ### 第三步：修复方案（HG-1 确认后）
 
+**先调研，再分析根因** —— 根因分析必须基于代码实际状态，不能凭 bug 描述推断。
+
+委托 `code-explorer`（**workflow 模式**，此时 `current_phase` 为空）：
+- 产出 `.specdev/specs/<slug>/repo-exploration.md`
+- 重点：疑似出问题的调用链、相关函数的**实际实现**（而非签名）、已有测试覆盖情况、相关桩代码
+
 委托 `plan-generator`：
-- 分析根因
+- 读取 requirements.md + **repo-exploration.md**
+- 分析根因（必须引用 `repo-exploration.md` 中的具体位置，形如 `文件:行号`）
 - 设计修复方案
-- 输出 `.specdev/specs/<slug>/design.md`（精简版，含修复方案和影响分析）
+- 输出 `.specdev/specs/<slug>/design.md`（精简版，含 **现状依据** 章节 + 修复方案 + 影响分析）
+
+> 若 `plan-generator` 返回「⏸ STOP & EXPLORE」→ 再次派 `code-explorer` → **续做**。
 
 完成后 → 🛑 **HG-2**：向用户确认修复方案。
 
 用户确认：`"hg2": "passed"` + `"current_phase": "phase-1-fix"`
+> 门禁会在写入 `hg2=passed` 时校验 `design.md` 的「现状依据」章节（L1–L5）
 
 ### 第四步：实施 → 审查 → 验证（HG-2 确认后）
 

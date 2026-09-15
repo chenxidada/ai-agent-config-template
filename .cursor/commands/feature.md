@@ -80,9 +80,28 @@
 ### 第四步：架构设计（HG-1 确认后）
 
 委托 `plan-generator` 设计架构+拆分 Phase，输出：
-- `.specdev/specs/<slug>/design.md`（含 **UI / Design System** 章节）
+- `.specdev/specs/<slug>/design.md`（含 **现状依据** 章节 + **UI / Design System** 章节）
 - `.specdev/specs/<slug>/phase-plan.md`（DAG JSON **每个 Phase 必须标注 `ui: true/false`**）
 - `.specdev/specs/<slug>/phases/<phase-id>/spec.md`（每个 Phase 一个）
+
+**设计必须有现状依据（不是凭需求凭空设想）**：
+
+`plan-generator` 的 Input 包含**工作流级** `.specdev/specs/<slug>/repo-exploration.md`。
+若它需要依赖现有代码却还没有调研报告，会走 `Stop & Explore` 停下来要调研 —— 你的响应：
+
+```
+收到「⏸ STOP & EXPLORE」输出（这不是 escalation，不需要用户决策）
+  1. 派发 code-explorer（workflow 模式 → <spec_dir>/repo-exploration.md）
+  2. 续做 plan-generator（不重新开始、不归档其产物），告知报告路径
+  3. plan-generator 把查实的事实落进 design.md「现状依据」章节后继续
+```
+
+> ⚠️ 不要因为它"停下来"就以为是异常 —— 这是**设计应有的动作**：
+> 与 escalation 不同，它不需要用户决策，也不需要过任何 Human Gate。
+> ⚠️ **设计依赖的桩不是实现**：`tech-debt-registry.md` 里的桩不能作为设计依据。
+
+`design.md` 的 `## 现状依据` 章节**由门禁在 HG-2 时程序化校验**（L1–L5：章节存在 / 至少 1 条证据 /
+每条形如 `` `路径:行号` `` / **路径真实存在** / **行号不越界**）。确实不依赖现有代码时必须显式声明。
 
 **UI 工作流额外产出**（任一 Phase `ui: true` 时强制执行）：
 - `python3 .cursor/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<slug>"`
@@ -128,10 +147,12 @@
 
 对每个 Phase（从 Phase 1 开始）：
 
-**0. Per-Phase Code Exploration（每个 Phase 前强制执行）**：
+**0. Per-Phase Code Exploration（每个 Phase 前强制执行，phase 模式）**：
 委托 `code-explorer` 调研当前代码库状态。
 - 产出：`phases/<phase>/repo-exploration.md`（10-section 结构化报告）+ `repo-exploration-zh.md`
 - implementer/reviewer/verifier 必须读取此报告
+- ⚠️ 与**工作流级**调研（`<spec_dir>/repo-exploration.md`，设计阶段产出）是**两份不同产物**，不可混用：
+  Phase 级回答「本 Phase 要改哪些文件」，工作流级回答「现有架构与约定是什么」
 
 **0.5 创建 Phase 分支（强制，`pipeline-gate.sh` 会程序化校验）**：
 ```bash
