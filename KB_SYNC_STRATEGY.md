@@ -80,21 +80,22 @@
 - debugging -> task，必要时补 topic
 - manual -> 根据内容选择最合适对象
 
-## 5. OpenCode 侧实现
+## 5. Cursor 侧实现
 
-OpenCode 模板当前通过这些文件落实：
+当前模板通过这些文件落实：
 
-- `AGENTS.md`
-- `.opencode/agents/knowledge-manager.md`
-- `.opencode/snippets/kb-sync-sop.md`
-- `.opencode/plugins/kb-sync-runtime.mjs`
-- `.opencode/hooks/kb-sync-runtime-plugin.md`
+- `AGENTS.md` — 「Knowledge Base MCP」章节定义同步触发点与 KB Sync Rules
+- `.cursor/rules/spec-workflow.mdc` — 「Knowledge Base 同步」章节定义各 Human Gate 通过后的目标路径与文档清单
+- `.cursor/hooks/context-snapshot.sh` — `preCompact` 时生成上下文压缩快照
+- `.cursor/skills/conversation-sync-kb/SKILL.md` — 压缩同步的具体操作流程（snapshot + daily）
 
 其中：
 
-- runtime plugin 负责压缩触发和手动触发提示增强
-- workflow snippets 负责阶段触发
-- knowledge-manager 负责把触发真正执行成 KB 写入
+- 压缩触发由 `context-snapshot.sh` 在 `preCompact` 事件捕获
+- 阶段触发由 `spec-workflow.mdc` 在 HG-1 / HG-2 / HG-3 后的动作清单定义
+- **同步的实际执行者是调度者**（直接调用 MCP 工具），不存在专职的知识库 agent
+
+Trae 侧的对应实现在 `.trae/`（同一套策略，独立载体）。
 
 ## 6. 完成标准
 
@@ -121,7 +122,7 @@ OpenCode 模板当前通过这些文件落实：
 
 ## 9. 渲染友好规则
 
-- 默认遵循 `.opencode/templates/kb-rendering-guideline.md`
+- 只写入 MCP 结构化对象，不额外生成独立的渲染规范文件
 - 少用内联代码包裹工具名，避免正文出现大段代码样式
 - 少把一条 bullet 写得过长，优先拆成短句和短列表
 - 知识库正文优先写成可读说明，不写成工具调用手册

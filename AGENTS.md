@@ -4,16 +4,15 @@
 
 本项目以 Cursor 为**首要平台**进行开发流程工具设计。
 
-> ⚠️ **`.opencode/` 目录已退化为历史参考**：其中已无 `skills/`、`snippets/`、`agents/` 子目录。
-> 下文凡引用 `.opencode/skills/...`、`.opencode/snippets/...`、`.opencode/agents/...` 的内容均为 OpenCode 时代残留，
-> **不要在 Cursor 下按那些路径调用**。Cursor 侧的权威定义在 `.cursor/` 下（见下节「Cursor 侧实际结构」）。
+> **权威定义在 `.cursor/` 下**（Trae 侧镜像在 `.trae/`，两者独立维护）。任何本文件与 `.cursor/rules/spec-workflow.mdc` 不一致之处，**以 `spec-workflow.mdc` 为准**。
 
 | 特性 | 路径 | 说明 |
 |------|------|------|
-| 核心规则 | `.cursor/rules/spec-workflow.mdc` | Always Apply — 3 Human Gate + 反狡辩准则 |
+| 核心规则 | `.cursor/rules/spec-workflow.mdc` | Always Apply — 4 Human Gate（HG-1.5 仅 UI）+ 反狡辩准则 |
 | 子 Agent | `.cursor/agents/` | 11 个聚焦子Agent（含反狡辩表） |
 | 命令 | `.cursor/commands/` | `/feature` + `/bugfix` + `/brief` + `/research` + `/specify` + `/plan` + `/implement` + `/status` + `/wiki` |
-| 钩子 | `.cursor/hooks/` | Human Gate 门禁（preToolUse）+ 自动推进（subagentStop）+ 压缩快照（preCompact） |
+| 钩子 | `.cursor/hooks/` | Human Gate 门禁（preToolUse）+ 命令安全守卫（beforeShellExecution）+ 压缩快照（preCompact）+ 会话恢复（sessionStart）+ 漂移提醒（subagentStop）。变更历史见 `.cursor/hooks/CHANGELOG.md` |
+| 共享库 | `.cursor/hooks/lib/` | `emit.sh`（输出原语）/ `verdict-parse.sh`（判决解析）/ `status-read.sh`（状态读取） |
 | Skill | `.cursor/skills/` | ui-ux-pro-max / code2prompt / drawio-skill / project-build / project-test 等 |
 | 片段 | `.cursor/snippets/` | escalation-protocol.md、ui-skill-usage.md |
 | MCP | `.cursor/mcp.json` | knowledge-base + playwright |
@@ -25,53 +24,61 @@
 
 ### 核心设计原则
 - Spec 是唯一真相源（所有决策写入 `.specdev/specs/`）
-- Human Gate 强制停止确认（需求 → 方案 → Phase 完成）
+- Human Gate 强制停止确认（需求 → 视觉基准（仅 UI）→ 方案 → Phase 完成）
 - 实施类子Agent（implementer/reviewer/verifier）不能自己声明"完成"，必须经过独立验证
 
-## Orchestrator Architecture
+### 门禁的失败哲学：fail-closed
 
-<!--
-  ⚠️ 本章为 OpenCode 时代的编排规范，**与 Cursor 侧的实际实现存在命名差异**。
-  下游若在 Cursor 下工作，请以 `.cursor/rules/spec-workflow.mdc` 为准。
+> 本项目的门禁**不是**靠"拦住危险操作"体现价值，而是靠**拒绝在信息不足时假装放行**。
+> 每一次"读不出来/解析不了/名字不认识"的处置都必须显式决定，且默认是**拒绝**。
 
-  命名对照（左 = 下文旧称，右 = Cursor 侧实际）：
-  | 旧称 | Cursor 侧实际 |
-  |------|------|
-  | repo-explorer | code-explorer |
-  | validator | verifier |
-  | reviewer | reviewer-correctness / reviewer-design / reviewer-connectivity / reviewer-visual |
-  | requirement-analyst | requirement-analyst（同名） |
-  | program-planner / solution-architect | plan-generator |
-  | knowledge-manager | 调度者按 `spec-workflow.mdc` 的 KB 同步章节直接执行 |
-  | specs/master-spec.md | `.specdev/specs/<slug>/requirements.md` |
-  | specs/phases/<id>/ | `.specdev/specs/<slug>/phases/<id>/` |
-  | enforcement-gate.mjs | `.cursor/hooks/pipeline-gate.sh` |
-  | 2 个 Human Gate | 3 个 Human Gate（+ UI 工作流的 HG-1.5） |
-  | max 3 rounds | max 2 rounds |
--->
+已确认过的真实教训（均已成为测试用例）：
 
-This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator is the default primary agent and the only agent the user interacts with directly.
+| 症状 | 曾经的后果 |
+|------|-----------|
+| `preToolUse` 返回 `permission:"ask"` | **官方文档明确该值被接受但不执行** → 等同放行。HG-3 的非 PASS 判决因此可被静默放行 |
+| 状态文件读失败 → 降级为"全 pending" | 最严重的 fail-open：`current_phase` 为空时 `hg3=passed` **零校验**写入 |
+| 写入内容解析为空 → 所有 `grep` 不匹配 | 「读不出去」被当成「没发现问题」 |
+| Agent 名字不在白名单 → 走默认分支 | 拼错一个字母即可让全部门禁失效 |
+| Hook 输出字段名写错 | 链路**静默失效**（如 sessionStart 的 `additionalContext` vs `additional_context`），测试与日志都显示正常 |
 
-### Orchestrator Rules
+详细勘误与逐条修复记录见 `.cursor/hooks/CHANGELOG.md`；行为测试在 `tools/test-*.sh`（**5 个套件，133 项断言**，全部可重跑）。
 
-- The Orchestrator dispatches subagents via the Task tool, one stage at a time
-- The Orchestrator passes only summaries + file paths downward; subagents read full files themselves
-- Subagents return only 3-5 sentence summaries + output file paths upward; full documents never flow back
-- All subagent outputs go to the `specs/` directory
-- The Orchestrator maintains `specs/current-status.md` after every stage completion
-- After context compression, the Orchestrator must immediately read `specs/current-status.md` to recover state
-- Two fixed Human Gates: before implementation, and after each sub-spec completes
-- reviewer must-fix triggers auto-loop to implementer (max 3 rounds)
-- validator fail triggers auto-loop to implementer (max 3 rounds)
-- Exceed max rounds -> escalate to user
-- **Phase Preparation**: Before each new Phase, run repo-explorer (Stage 4.5) to explore the current codebase, writing to `specs/phases/<phase-id>/repo-exploration.md`. Optionally run code-analyst (Stage 4.6) for deep per-phase analysis.
-- **Every phase has independent exploration**: Each phase gets its own per-phase exploration at `specs/phases/<phase-id>/repo-exploration.md`. The global `specs/exploration/repo-exploration.md` from Stage 1 serves as background for early planning stages (requirement-analyst, program-planner) before per-phase explorations are generated.
-- **Phase Entry Gate**: Before Phase Preparation for Phase 2+, read `specs/tech-debt-registry.md` and present inherited debt to user for confirmation
-- **Tech Debt Registry**: All agents read and write `specs/tech-debt-registry.md` as the single source of truth for outstanding technical debt. New stubs are registered; resolved stubs are moved to resolved section.
-- **Pipeline iron rule**: Every sub-spec MUST go through the full implementer → reviewer → validator cycle. The orchestrator has NO authority to skip any stage. The ONLY exception is when the user explicitly says "跳过审查" or "跳过验证".
-- **Enforcement plugin awareness**: The `enforcement-gate.mjs` plugin programmatically blocks the Orchestrator from editing non-specs files and running unauthorized commands. If the Orchestrator receives a "Permission denied" message, it indicates a pipeline bypass was blocked — the Orchestrator MUST delegate the blocked action to the appropriate subagent immediately.
-- **Agent outputs are direct**: Agents no longer return content summaries to the orchestrator. They return only file paths. The orchestrator reads output files directly when it needs to make decisions. Agents read upstream output files directly — no information passes through orchestrator summarization.
-- **Interaction Protocol (UPDATED)**: All user input falls into Category A (pipeline commands) or Category B (everything else). There is NO Category C. If reading any file is needed to answer, the Orchestrator MUST dispatch a subagent.
+## 调度者架构（Cursor 侧现行）
+
+本项目采用 Orchestrator（调度者）驱动的多 Agent 工作流。**调度者是用户唯一直接交互的 Agent**，其职责与边界见 `.cursor/rules/spec-workflow.mdc`。
+
+### 调度者职责
+
+- 通过 Task 工具**一次一个阶段**地派发子 Agent
+- 只向下传摘要 + 文件路径；子 Agent 自行读取完整文件
+- 子 Agent 只向上回文件路径 + 判决信号；完整文档不回流
+- 所有子 Agent 产物落盘到 `.specdev/specs/<slug>/`
+- 每个阶段结束后维护 `.specdev/specs/<slug>/current-status.json`
+- 上下文压缩后立即读取 `current-status.json` 恢复状态
+- reviewer 判决 MUST-FIX → **由调度者**回流 implementer（`loop_count` +1，上限 2 轮，超过即升级给用户；**没有任何 hook 会代你回流**）
+
+### 调度者**不能**做的事
+
+| 禁止 | 原因 |
+|------|------|
+| 自己写实现代码 | 无 spec 追踪、无分支隔离。必须委托 `implementer` |
+| 自己审查代码质量 | 缺少独立上下文，无法客观判断。必须委托 `reviewer-*` |
+| 自己运行验证测试 | 必须委托 `verifier`（保持验证独立性） |
+| 在用户未确认前推进 Human Gate | Human Gate 的全部价值就是"不被绕过" |
+| 让 implementer 在 `main` 上编码 | 每个 Phase 必须在 `impl-<phase-id>` 分支上工作 |
+
+> ⚠️ 「调度者不得自己写实现代码」目前**只有 Rules 层劝阻，没有 hook 程序化拦截**（决策：不启用）。
+> `pipeline-gate.sh` 只校验对 `current-status.json` 的写入，其余写入一律放行。
+>
+> ⚠️ **这条缺口的实际爆炸半径比「写实现代码」更大**：调度者也可以直接写
+> `implementation.md` / `review-*.md` / `verification.md`（含 `## 判决：PASS`），
+> 而 HG-3 的流程完整性校验是「文件存在 + 判决行可解析」—— **无法区分作者**。
+> 即：**文件级的伪造路径可以造出一次看起来完整的审查+验证**。
+>
+> 部分收紧是可行的（deny 对 `phases/**` 下除 `review.md` 外的写入 —— `review.md` 本就是调度者的合并产物），
+> **但前提是先实测 `preToolUse` 能否区分调用者**：若不能区分，该规则会把 reviewer / implementer 自己的产物写入一并拦掉，属不可用。
+> 未实测 → 未实施。详见 `.cursor/hooks/CHANGELOG.md` §8.6 P1。
 
 ### Escalation Rules
 
@@ -102,55 +109,60 @@ Examples of ⚫ CRITICAL triggers:
 When two authoritative sources disagree, resolve by this hierarchy (highest wins):
 1. Original design document (user-provided)
 2. User verbal/written confirmation during pipeline
-3. `specs/requirements/requirements.md`
-4. `specs/master-spec.md`
-5. `specs/phases/<phase-id>/requirements.md`
-6. `specs/phases/<phase-id>/phase-spec.md`
-7. `specs/phases/<phase-id>/slices/<id>/sub-spec.md`
+3. `.specdev/specs/<slug>/requirements.md`
+4. `.specdev/specs/<slug>/ui-spec.md`（UI 工作流）
+5. `.specdev/specs/<slug>/design.md`
+6. `.specdev/specs/<slug>/visual-baseline.md`（冻结 token，UI 工作流）
+7. `.specdev/specs/<slug>/phases/<phase-id>/spec.md`
 
 When two agents disagree on facts (not design decisions):
-1. `repo-explorer` wins on repository reality
-2. `validator` wins on empirical test results
-3. `requirement-analyst` wins on requirements interpretation
-4. `reviewer` and `implementer` disagreement → escalate to Orchestrator for deadlock resolution
+
+| 事实类别 | 谁赢 |
+|---------|------|
+| 仓库现状（文件/依赖/调用链是否存在） | `code-explorer` |
+| 实测结果（测试是否通过、行为是否正确） | `verifier` |
+| 需求解释（AC 到底要求什么） | `requirement-analyst` |
+| 视觉偏差（是否偏离冻结 token / 布局骨架） | `reviewer-visual`，必要时以截图证据为准 |
+| `reviewer-*` 与 `implementer` 僵持 | 升级给调度者裁决；调度者无法裁决则升级给用户 |
 
 **NEVER default to "the agent that ran later wins."**
 
 ### Subagent Rules
 
-- Each subagent writes its complete output to the designated file in `specs/`
-- Each subagent also writes a Chinese translation to `<path>-zh.md`
-- Each subagent returns ONLY the output file path (plus verdict signals for reviewer/validator) to the Orchestrator
-- Each subagent reads upstream output files directly from `specs/` based on its Input definition
+- Each subagent writes its complete output to the designated file in `.specdev/specs/<slug>/`
+- Each subagent returns ONLY the output file path (plus verdict signals for reviewer/verifier) to the Orchestrator
+- Each subagent reads upstream output files directly based on its Input definition
 - Subagents must not expand scope beyond what upstream documents define
 
-### Pipeline Commands
-
-- `/feature <desc>` - New feature development (unified pipeline)
-- `/bugfix <desc>` - Bug investigation and fix (unified pipeline)
-- `/rebuild <desc>` - System rebuild (unified pipeline)
-- `/idea <desc>` - Idea exploration (stops after solution-architect, no implementation)
-- `/analyze <desc>` - Codebase/module analysis (human-readable report, no code changes)
-
-`/feature`, `/bugfix`, and `/rebuild` share the same unified pipeline structure. The intent tag determines scope and emphasis, not the pipeline shape. See `ORCHESTRATOR_ARCHITECTURE.md` for the complete architecture specification.
-
-### Delegation Matrix
-
-| Responsibility | Agents | Notes |
-|---------------|--------|-------|
-| Maintain tech-debt-registry | `implementer`, `reviewer`, `validator`, Orchestrator | Update registry when creating/detecting/resolving stubs |
 
 ## Knowledge Base MCP
 
 This project integrates with a personal Knowledge Base through MCP. Use knowledge-base tools as the default persistence and retrieval layer for notes, summaries, research, and prior conversations.
 
-MCP is the preferred sync path in this template. When MCP is unavailable in subagent context, knowledge-manager falls back to writing pending sync files to `specs/kb-pending/` for later retry.
+MCP is the preferred sync path in this template.
+
+> ⚠️ **KB 同步由调度者直接执行**，不存在专职的知识库 agent。
+> 调度者按 `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成。
+> 同步是**非阻塞**的：发起即继续，失败不阻塞 Pipeline。
+
+### 同步触发点
+
+| 触发点 | 目标路径 | 内容 |
+|--------|---------|------|
+| HG-1 通过 | `Projects/<slug>/Topics/` | `requirements.md` |
+| HG-2 通过 | `Projects/<slug>/Decisions/` | `design.md` |
+| HG-3 通过（**不可跳过**） | `Projects/<slug>/Phases/<phase-id>/` | `spec.md` / `repo-exploration.md` / `implementation.md` / `review.md` / `verification.md` |
+| 上下文压缩 | `Projects/<slug>/Snapshots/` | 压缩会话摘要 |
+| 用户显式要求 | 按用户指示 | 立即同步 |
+
+MCP 不可用时，将待同步内容写入 `.specdev/specs/<slug>/kb-pending/` 供后续重试。
+
 
 ## Browser MCP
 
 This project also exposes a Playwright MCP server (`playwright`) so that subagents can drive a real headless browser for UI validation: navigate pages, click, fill forms, take snapshots / screenshots, observe console messages and network requests.
 
-- **Configured in**: `.cursor/mcp.json`（Cursor 侧生效）；`opencode.jsonc -> mcp.playwright` 与 `.mcp.json` 为镜像配置
+- **Configured in**: `.cursor/mcp.json`（Cursor 侧生效）；`.mcp.json` 为 Trae / Claude Code / Windsurf 共用的镜像配置
 - **Backend**: reuses the system Chrome at `/usr/bin/google-chrome`, headless + isolated + no-sandbox by default
 - **使用者**：
   - `verifier` — **`ui: true` 的 Phase 中为强制手段**，不可用则降级 bash + 项目内 Playwright，并判 `PARTIAL` + 标 `visual-blocking: true`
@@ -160,8 +172,7 @@ This project also exposes a Playwright MCP server (`playwright`) so that subagen
 
 ## UI/UX Skill 与视觉信息链（Cursor 侧）
 
-> 本节描述 **Cursor 侧实际生效的实现**。`.opencode/` 目录当前仅保留 OpenCode 时代的编排说明作为历史参考，
-> 其中引用的 `.opencode/skills/`、`.opencode/snippets/`、`.opencode/agents/` **均不存在**，不要按那些路径调用。
+> 本节描述 **Cursor 侧实际生效的实现**。Trae 侧的对应实现见 `.trae/`（同一套流程、独立载体）。
 
 ### Skill 位置与调用方
 
@@ -241,9 +252,10 @@ These skills start as empty skeletons. Agents update them after successful opera
 
 ## Tech Debt Registry
 
-`specs/tech-debt-registry.md` is the unified technical debt registry. All phases share one file.
+`.specdev/specs/<slug>/tech-debt-registry.md` 是本工作流所有技术债的**唯一定义来源**（每个工作流一份，非全局一份）。
+模板：`.specdev/tech-debt-registry-template.md`（`/feature` 初始化时自动复制）。
 
-> Cursor 侧实际路径：`.specdev/specs/<slug>/tech-debt-registry.md`（每个工作流一份，非全局一份）。
+> ⚠️ 「`A 依赖 B 接口」这类跨模块假设必须先查注册表**再**信任 —— 注册表里的桩不是实现。
 
 ### Rules
 
@@ -252,9 +264,27 @@ These skills start as empty skeletons. Agents update them after successful opera
 - **Read before trusting**: Before depending on an existing interface, check if it's in the registry
 - **Update on resolution**: When a stub is filled in, move it from "active" to "resolved"
 - **Cross-reference on review**: Reviewer compares code against registry to catch unregistered stubs
-- **Validate on verification**: Validator uses registry to skip known stubs and flag suspected new ones
+- **Validate on verification**: Verifier uses registry to skip known stubs and flag suspected new ones
 
-**⚠️ ENFORCEMENT: These tools are listed for SUBAGENT use (primarily `knowledge-manager`). The Orchestrator MUST NOT use knowledge-base MCP tools directly for sync operations — dispatch `knowledge-manager` instead. The Orchestrator MAY use `search_documents` and `list_documents` ONLY for locating relevant prior work when asked. All create/update/sync operations go through `knowledge-manager`.**
+### 程序化强制（gate 层）
+
+`pipeline-gate.sh` 在写入 `hg3=passed` 时会校验注册表：
+
+1. 注册表文件必须存在（不存在 → deny，并提示从模板复制）
+2. 本 Phase 实际产出的 `@STUB(...)` 标记必须能在注册表中找到对应条目
+
+**没有登记的桩 = 不允许通过 Phase 验收。** 这条是程序化的，不依赖 agent 自觉。
+
+### 分工
+
+| 角色 | 职责 |
+|------|------|
+| `implementer` | 创建 `@STUB(phase-N)` 后立即注册；编码完成后自检是否有未注册的桩 |
+| `reviewer-*` | 发现未标注的桩/缺陷 → 新增条目；对照注册表，已知桩不误报为「新发现」 |
+| `verifier` | 独立验证发现的疑似桩 → 新增条目；已知桩跳过行为验证 |
+| 调度者 | Phase Entry Gate 时向用户呈现继承债务；Phase Closure 时同步推迟项 |
+
+**⚠️ 关于 KB 工具：调度者可直接调用 `search_documents` / `list_documents` 用于**定位**相关工作；create/update/sync 按上面的「Knowledge Base MCP」章节执行。**
 
 ## Preferred Tool Categories
 
@@ -320,28 +350,7 @@ Use these tools for document-centric workflows:
 - When organizing content: use folders and tags rather than leaving notes unstructured
 - When a task produces durable value: prefer saving a structured document over leaving it only in chat history
 
-## Knowledge Base Sync
-
-<!--
-  ⚠️ Cursor 侧差异：**没有 `knowledge-manager` agent，也没有 `.opencode/snippets/kb-sync-sop.md`
-     与 `.opencode/project-config.md`**。KB 同步由调度者（Cursor Agent）按
-     `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成。
-     权威说明以 `spec-workflow.mdc` 为准，下文保留 OpenCode 侧原始描述供对照。
--->
-
-KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only job is to **dispatch it at the right time**. All sync procedures, object models, naming conventions, and merge rules are defined in `knowledge-manager.md` and the KB sync SOP — the Orchestrator does not need to know these details.
-
-### Mandatory Dispatch Points
-
-| When | What to Sync |
-|------|-------------|
-| After requirement-analyst completes / HG-1 passed | Topic Doc（`requirements.md`） |
-| After HG-2 passed | Decision Doc（`design.md`） |
-| After verifier completes / HG-3 passed (**NEVER skip**) | Task Doc（`verification.md`，UI 工作流含 `visual-baseline.md`） |
-| On context compression | Snapshot Doc + Daily Digest (if pipeline has progressed) |
-| On explicit user request (e.g. "同步知识库") | Immediate sync per user instruction |
-
-### Rules
+### KB Sync Rules
 
 - `project` 标识取自工作流 slug（`.specdev/specs/<slug>/` 目录名）
 - A checkpoint is not complete until sync action has actually executed and returned success or failure
@@ -349,3 +358,4 @@ KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only
 - On compression recovery, check `.specdev/specs/<slug>/current-status.json` for any pending KB checkpoints and execute them before continuing
 - If KB sync is unavailable, write pending files to `.specdev/specs/<slug>/kb-pending/` and retry at pipeline end
 - `[KB_PENDING]` files contain full sync content with YAML frontmatter for retry
+

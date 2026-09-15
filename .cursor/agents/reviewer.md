@@ -124,7 +124,7 @@ Review the implementation against the Phase spec and design document. Focus on c
 - ❌ 不重新定义需求
 - ❌ 不把 review 变成重新实现
 - ❌ 不隐藏结构或可读性问题（测试通过不代表代码好）
-- ❌ 不重复 validator 的输出（当问题本质是设计或代码质量时）
+- ❌ 不重复 verifier 的输出（当问题本质是设计或代码质量时）
 
 ## Stop & Escalate Conditions
 

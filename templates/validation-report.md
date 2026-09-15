@@ -1,13 +1,17 @@
 # Validation Report
 
+> ⚠️ 本文件当前**未被任何文档或命令引用**（孤儿模板）。verifier 的实际产物契约见
+> `.cursor/agents/verifier.md` 与 `.specdev/specs/<slug>/phases/<phase-id>/verification.md`。
+> 保留仅作参考；若确认无用请删除。
+
 **Sub-Spec**: `<sub-spec-id>`
 **Phase**: `<phase-id>`
 **Date**: `<YYYY-MM-DD>`
 
 ## 1. Overview
 
-- **Verdict**: pass / partial / fail
-- **Validator**: automated
+- **Verdict**: PASS / PARTIAL / FAIL
+- **Verifier**: automated
 - **Validation scope**: what was tested and what was explicitly excluded
 
 ## 2. Test Execution Matrix
@@ -58,12 +62,12 @@ _Cosmetic, logging, or non-functional gaps._
 ### Stage Execution Check
 | Pipeline Stage | Dispatched? | Output File Exists? | Notes |
 |---------------|:-----------:|:-------------------:|-------|
-| repo-explorer | ✅ / ❌ | ✅ / ❌ | |
+| code-explorer | ✅ / ❌ | ✅ / ❌ | |
 | requirement-analyst | ✅ / ❌ | ✅ / ❌ | |
-| solution-architect | ✅ / ❌ | ✅ / ❌ | |
+| plan-generator | ✅ / ❌ | ✅ / ❌ | |
 | implementer | ✅ / ❌ | ✅ / ❌ | |
-| reviewer | ✅ / ❌ | ✅ / ❌ | |
-| validator | ✅ / ❌ | ✅ / ❌ | |
+| reviewer-correctness / design / connectivity / visual | ✅ / ❌ | ✅ / ❌ | |
+| verifier | ✅ / ❌ | ✅ / ❌ | |
 
 ### Branch Integrity Check
 | File Modified | Branch | Agent | Compliance |

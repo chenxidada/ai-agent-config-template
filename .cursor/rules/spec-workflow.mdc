@@ -41,6 +41,7 @@ alwaysApply: true
 | `/plan` | 架构设计专用 | 已有需求，需设计方案 | ✅ 输出 DAG | — |
 | `/implement` | 执行实施 | HG-2 已通过 | 单 Phase | ✅ 四视角 |
 | `/status` | 查看进度 + 债务快照 | 随时 | — | — |
+| `/wiki` | 项目 Wiki 文档维护 | Feature 完成后 / 独立调用 | — | — |
 
 > **UI 工作流差异**：当 `ui_relevant: true` 时，`/feature` 与 `/implement` 额外经过
 > HG-1.5 视觉基准确认、UI Phase 原型确认门禁，且 `reviewer-visual` 与 verifier 的视觉验证强制生效。
@@ -167,7 +168,7 @@ alwaysApply: true
 
 ### HG 状态更新规则（程序化执行）
 
-**pipeline-gate.sh 和 pipeline-advance.sh 主动阻止跳过 HG。但 HG 状态的更新（`specs/current-status.md` 中 ⏳→✅）只能你在用户确认后手动执行。这是你最重要的职责。**
+**pipeline-gate.sh 程序化阻止跳过 HG（HG-1/1.5/2 未过不放行下游 Agent；`hg3=passed` 写入时校验完整流程 + 判决 + 证据）。但 HG 状态的更新（`current-status.json` 中 `pending`→`passed`）只能你在用户确认后手动执行。这是你最重要的职责。**
 
 #### HG 状态更新时机
 
@@ -215,7 +216,7 @@ alwaysApply: true
 
 #### ⚠️ 禁止对 HG 状态的操作
 
-- ❌ 在子Agent 完成后立刻更新 HG 状态为 ✅（pipeline-advance.sh 不再做这个）
+- ❌ 在子Agent 完成后立刻更新 HG 状态为 ✅（**没有任何 hook 会代你推进** —— Cursor 侧的 subagentStop 推进 hook `pipeline-advance.sh` 已删除；取而代之的 `drift-reminder.sh` **只发提醒、绝不推进**，见 `.cursor/hooks/CHANGELOG.md`）
 - ❌ 在用户回复「看看」「再说」「我考虑一下」后更新 HG 状态
 - ❌ 同时更新多个 HG 状态（一次只能过一个 HG）
 - ❌ 回退已经 ✅ 的 HG 状态（除非用户明确要求重新设计）
@@ -295,7 +296,22 @@ Phase N 的 HG-3 通过，用户确认进入 Phase N+1
 ```
 ❌ 禁止：Phase 2+ 不读 tech-debt-registry.md 就直接开始实施
 ❌ 禁止：用户说「先开始吧，债后面再说」直接跳过 —— 必须明确处理策略
+❌ 禁止：声称「已完成」却在代码/文档里留下未登记的 `@STUB(...)`（gate 会在 hg3 处 deny）
 ✅ 正确：先呈现债务，用户决策后更新 registry，再开始实施
+```
+
+### 程序化强制（gate 层，不可绕过）
+
+`pipeline-gate.sh` 在写入 `hg3=passed` 时**强制校验技术债登记**：
+
+1. `.specdev/specs/<slug>/tech-debt-registry.md` 必须存在（缺失 → deny，提示从模板复制）
+2. 本 Phase 产物（`implementation.md` / `review.md` / `verification.md`）中声明的每个 `@STUB(...)` 标记，
+   都必须能在注册表中找到对应条目（查无 → deny，列出未登记的标记）
+
+**意义**：「桩必须先登记」此前只是 `AGENTS.md` 里的文本约束，与多数纯文本规则一样会被跳过。
+现在它变成了「不登记就过不了 Phase 验收」。
+
+gate **不做**的事：不扫源码（成本高、误伤大）、不要求「本 Phase 必须新增条目」（无债的 Phase 是正常的）。
 ```
 
 ---
@@ -446,7 +462,28 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 | verifier | （仅自身，无下游） | implementer、reviewer |
 
 - 「作废」= 你把下游步骤状态置 `pending`；下游 agent 被重新派发时按其「启动自清理协议」归档自己旧产物。
-- Cursor 的 `pipeline-advance.sh`（subagentStop）**按 stdin 的 `agent_name` 分支打印下一步引导，从不 stat 任何 `<file>.md`、也不读 `phases[].` 步骤状态**。因此归档产物对 advance 完全不可见，级联作废（下游步骤置 `pending`）不依赖文件存在推断即可产生正确的引导态——归档只是把过期产物移出直接路径供追溯，advance 行为不受任何影响。
+- ⚠️ **Cursor 侧的 subagentStop 推进 hook（`pipeline-advance.sh`）已删除**。它依赖 stdin 的 `agent_name` 字段，而 Cursor 的 `subagentStop` 只提供 `subagent_type`（无 `agent_name`），且该事件的唯一合法输出字段是 `followup_message`（非纯文本 markdown）—— 两个协议错误叠加，使它从未产生过任何引导（详见 `.cursor/hooks/CHANGELOG.md`）。现在「下一步该做什么」由 `spec-workflow.mdc`（Always Apply，抗压缩）承载。
+- ⚠️ **`subagentStop` 上现在挂的是 `drift-reminder.sh`，它不是推进器，是刹车**（详见下节）。
+- ⚠️ **`sessionStart` 的注入只能覆盖「新建会话」场景**，不是压缩后、也不是子Agent 返回后。别把它当成流程推进机制。
+
+### `drift-reminder.sh` — 漂移提醒（只提醒，绝不推进）
+
+**定位**：Cursor 的 `subagentStop` **确实支持** `followup_message`（可在子Agent 完成后自动续跑对话），但那会**主动对抗「HG 必须停下等用户确认」这条铁律**。因此本 hook 被刻意收窄为「只在检测到漂移时踩一次刹车」。
+
+| 检测项 | 触发条件 |
+|---|---|
+| D1 审查报告未合并 | 存在 `review-*.md` 但 `review.md` 缺失 |
+| D2 MUST-FIX 未回流 | `review.md` 判决 MUST-FIX，但 `current-status.json` 的 `loop_count` 仍为 0 |
+| D3 原型门禁被绕过 | UI Phase 原型仍标「待确认」，却已存在审查/验证产物 |
+
+**防刷屏**：依赖 payload 自带的 `loop_count`（该 subagentStop follow-up 已触发次数），`loop_count >= 1` 即静默 → **每个子Agent 最多提醒一次**。
+（刻意不自建 /tmp 标记或时间窗：v7 的心跳文件就是「自建状态 + 无消费者」被删除的，不要重蹈。）
+
+**收到提醒时你该做什么**：停下核对产物与状态 → 向用户报告真实进度 → 等指示。**不要**把提醒当成「可以继续下一步」的许可。
+若判断为误报，向用户说明理由后继续，并在 `current-status.json` 之外留痕（如向用户报告即可，不要静默忽略）。
+
+
+- 级联作废（下游步骤置 `pending`）本就是**调度者职责**，与 hook 无关；归档只是把过期产物移出直接路径供追溯，不影响任何自动行为。
 
 ### 铁律
 
@@ -547,7 +584,7 @@ HG-3 通过，用户确认
 | 代码调研（per-Phase） | `code-explorer` | `.specdev/specs/<slug>/phases/<phase>/repo-exploration.md` | — |
 | Git 分支创建 | *Cursor Agent 执行* | `impl-<phase-id>` 分支 | **每个 Phase 前** |
 | Phase Entry Gate | *Cursor Agent 读 registry* | 向用户呈现债务清单 → 用户决策 | **仅 Phase 2+** |
-| Phase 实施 | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md` | **HG-3** |
+| Phase 实施 | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md` | **HG-3 + gate 校验债务登记** |
 | KB 同步 | *Cursor Agent 调用 MCP* | Knownbase 中的 topic/decision/task 对象 | **每个 HG 通过后** |
 
 ---
@@ -682,7 +719,10 @@ implementer 完成（UI Phase 还需先过原型门禁）
 > 🔴 **判决行契约（下游 hook 依赖）**：合并后的 `review.md` 判决行**必须只含单一值**，例如 `## 判决：MUST-FIX`。
 > 绝不原样保留 `## 判决：PASS / MUST-FIX / SHOULD-FIX` 这种多值枚举 ——
 > `pipeline-gate.sh` 的 `parse_review_verdict` 会把多值枚举判为「无可解析判决」，
-> 导致 MUST-FIX 拦截失效（并把 hg3 门禁降级为向用户提问）。
+> 而 gate 对「无法解析」的处置是 **deny**（fail-closed），因此：
+> ① 该门禁会硬阻断 hg3 写入，**不会**放行；② 但你的合并报告本身会被判为无效，需要重写。
+> 另外 gate 还做「自陈 + 证据」双判：`review.md` 自陈 PASS，但 Must-Fix 区实测有 🔴
+> （**含 4 份 `review-*.md` 原始报告**）时仍然 deny —— 所以合并时不得弱化任何 MUST-FIX。
 
 ### 铁律
 
@@ -815,7 +855,8 @@ plan-generator 产出 phase-plan.md DAG JSON
 | UI Phase 未确认原型就派发 reviewer/verifier | 放弃了整条链上唯一低成本的视觉纠偏机会 |
 | 在 `ui-spec.md` 里写抽象形容词（"美观/现代/简洁"） | 无法验收 = 等于没写，implementer 只能即兴发挥 |
 | UI Phase 缺少 `ui-spec.md` 或 `visual-baseline.md` 就开始实施 | 无界面契约、无冻结合基准 → reviewer-visual 与 verifier 都无从判定 |
-| 合并 review.md 时留多值枚举判决行 | `parse_review_verdict` 会判为无可解析判决 → MUST-FIX 拦截失效 |
+| 合并 review.md 时留多值枚举判决行 | gate 对「无可解析判决」是 **deny**（fail-closed）→ 硬阻断 hg3 写入，合并报告本身被判无效、需要重写 |
+| 合并时弱化任一 reviewer 的 MUST-FIX | gate 同时清点 4 份 `review-*.md` 原始报告的 Must-Fix 区 🔴 条目；自陈 PASS 也会被证据推翻 |
 | 用 `grep -P` 写 hook 正则 | PCRE 是 GNU 扩展；macOS BSD grep 会以退出码 2 失败，而多数用法在 `if ! ...` 中 → 静默反向放行。一律用 `-E` / `sed` / `awk` |
 | 用 `stat -c %Y` 取文件时间 | `-c` 是 GNU 扩展；macOS BSD stat 直接失败 → 回落到 0 → 时间差恒 > 窗口 → 逃生舱标记（`/tmp/git-commit-allowed`、`/tmp/command-guard-allowed`）**恒不生效**。用 `stat --version` 探测后回退 `stat -f %m`（见 `_file_mtime`） |
 | 变量后紧跟多字节字符且不加 `{}` | 如 `"（$p）"`：bash 3.2（macOS 自带）会把多字节字符吞进变量名 → 开了 `set -u` 的 hook 直接 `unbound variable` **exit 1**，而 Trae 把非 2 退出码当「继续执行」→ **门禁 fail open**（本项目的危险命令守卫曾因此整体失效）。一律写 `"（${p}）"` |

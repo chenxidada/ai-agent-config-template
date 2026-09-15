@@ -155,7 +155,7 @@
 - `project`
 - `trigger`
 - `sourceType: ai-chat`
-- `sourceTool: opencode`
+- `sourceTool: cursor`
 - `updatedAt`
 - `relatedTaskId` 或相关对象引用
 

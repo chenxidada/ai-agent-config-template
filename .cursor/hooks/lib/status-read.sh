@@ -9,13 +9,11 @@
 # 引入方（source 本文件）：
 #   - context-snapshot.sh   (preCompact) — read_status
 #   - pipeline-gate.sh      (preToolUse) — read_status
-#   - pipeline-advance.sh   (subagentStop) — 仅 source（AC-F3 收敛一致），不调用 read_status；
-#                                             其引导逻辑由 stdin 的 agent_name 驱动，不依赖 HG 字段推断，
-#                                             故不强行插入 read_status 调用（详见 pipeline-advance.sh 头部注释）。
-#   - session-recovery.sh   (sessionStart，Phase 1 建立) — read_status + emit_anchoring_block
+#   - session-recovery.sh   (sessionStart) — read_status + emit_anchoring_block
 #
 # read_status "$STATUS_FILE"
-#   成功: 导出 CURRENT_STAGE / HG1 / HG2 / HG3 / HG1_5 / CURRENT_PHASE / LOOP_COUNT / DESCRIPTION 八个变量, return 0
+#   成功: 导出 CURRENT_STAGE / HG1 / HG2 / HG3 / HG1_5 / CURRENT_PHASE /
+#         LOOP_COUNT / VERIFIER_LOOP_COUNT / DESCRIPTION 九个变量, return 0
 #   失败: 向 stderr 打印 `STATUS_READ_ERROR: <原因 + 缺失字段名 + 文件路径>`, return 非零
 #
 # 四步校验:
@@ -23,6 +21,11 @@
 #   2) `jq empty` 验证 JSON 合法
 #   3) 关键字段存在 (.human_gates 且含 hg1/hg2/hg3；.current_stage)
 #   4) 用正确路径 .human_gates.hgN 读值（历史 bug：曾用顶层 .hgN）
+#
+# ⚠️ 数字字段清洗（fail-closed 的一部分）:
+#   LOOP_COUNT / VERIFIER_LOOP_COUNT 若为 `"abc"` 之类的非数字，调用方
+#   `[ "$LOOP_COUNT" -ge 2 ]` 会抛错并令条件为假 → **熔断静默失效**。
+#   清洗收敛在本文件这一处（而非每个调用方各自防御），导出的值保证是纯数字。
 #
 # ⚠️ HG1_5 为**可选字段**（Phase 1 视觉信息链新增），故意不纳入步骤 3 的必填循环：
 #   存量工作流的 current-status.json 不含 hg1_5，若强制校验会让 failClosed:true 的
@@ -37,7 +40,7 @@
 #   在 `if`/`||`/`&&` 上下文中调用时，bash 会在函数体内临时禁用 set -e，
 #   因此函数内部的中间命令失败不会误杀调用方。
 #
-# 成功路径必定给全部 7 个导出变量赋值（含 // 默认值），避免调用方 set -u 触发 unbound。
+# 成功路径必定给全部 9 个导出变量赋值（含 // 默认值），避免调用方 set -u 触发 unbound。
 # ============================================
 
 read_status() {
@@ -76,7 +79,7 @@ read_status() {
         fi
     done
 
-    # ── 步骤 4：用正确路径 .human_gates.hgN 读值并导出（8 个变量全部赋值）──
+    # ── 步骤 4：用正确路径 .human_gates.hgN 读值并导出（9 个变量全部赋值）──
     CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$status_file" 2>/dev/null)
     HG1=$(jq -r '.human_gates.hg1 // "pending"' "$status_file" 2>/dev/null)
     HG2=$(jq -r '.human_gates.hg2 // "pending"' "$status_file" 2>/dev/null)
@@ -84,9 +87,20 @@ read_status() {
     # HG1_5 可选：缺失 → "n/a"（存量工作流向前兼容，语义为「不阻塞」）
     HG1_5=$(jq -r '.human_gates.hg1_5 // "n/a"' "$status_file" 2>/dev/null)
     CURRENT_PHASE=$(jq -r '.current_phase // ""' "$status_file" 2>/dev/null)
-    LOOP_COUNT=$(jq -r '.loop_count // 0' "$status_file" 2>/dev/null)
     DESCRIPTION=$(jq -r '.description // ""' "$status_file" 2>/dev/null)
-    export CURRENT_STAGE HG1 HG2 HG3 HG1_5 CURRENT_PHASE LOOP_COUNT DESCRIPTION
+
+    # 数字字段：非数字一律归 0（否则调用方的 `-ge` 比较会抛错 → 熔断静默失效）
+    LOOP_COUNT=$(jq -r '.loop_count // 0' "$status_file" 2>/dev/null)
+    case "$LOOP_COUNT" in
+        ''|*[!0-9]*) LOOP_COUNT=0 ;;
+    esac
+    VERIFIER_LOOP_COUNT=$(jq -r '.verifier_loop_count // 0' "$status_file" 2>/dev/null)
+    case "$VERIFIER_LOOP_COUNT" in
+        ''|*[!0-9]*) VERIFIER_LOOP_COUNT=0 ;;
+    esac
+
+    export CURRENT_STAGE HG1 HG2 HG3 HG1_5 CURRENT_PHASE \
+        LOOP_COUNT VERIFIER_LOOP_COUNT DESCRIPTION
     return 0
 }
 
@@ -119,7 +133,7 @@ emit_anchoring_block() {
 ### 你的角色三条铁律（复述并遵守）
 
 1. **不实施 / 不审查 / 不验证（只委托）** — 你是 Cursor Agent，担任**调度者**：讨论需求 → 设计方案 → 委托子 Agent 执行 → 等待用户确认。你不自己写实现代码（委托 implementer）、不自己审查代码（委托 reviewer）、不自己运行验证（委托 verifier）。
-2. **Human Gate 不可跳** — HG-1 需求确认 / HG-2 方案确认 / HG-3 Phase 完成确认，三个节点必须停下等待用户**明确确认**（如「确认」「开始实施」「验收通过」）；禁止跳过 Human Gate 直接委托下一阶段子 Agent；用户说「看看」「好的」等模糊回复不算通过。
+2. **Human Gate 不可跳** — HG-1 需求确认 / **HG-1.5 视觉基准确认（仅 UI 工作流）** / HG-2 方案确认 / HG-3 Phase 完成确认，四个节点必须停下等待用户**明确确认**（如「确认」「开始实施」「验收通过」）；UI Phase 另有**原型确认门禁**（用户确认原型前不得派发 reviewer / verifier）；禁止跳过 Human Gate 直接委托下一阶段子 Agent；用户说「看看」「好的」等模糊回复不算通过。
 3. **Phase ID 来自 DAG JSON、禁止自编** — current_phase 必须原样取自 `phase-plan.md` 中 DAG JSON 的 `phases[].id`，任何 Agent 或调度者都不得自己另起名字。
 
 ### 下一步如何确定流程
@@ -144,15 +158,16 @@ ANCHOR
 ### 当前阶段：architecture-design（架构设计）
 
 - ✅ 该做：委托 `plan-generator` 产出 `design.md` + `phase-plan.md` + 各 phase `spec.md`；产出后向用户展示架构决策 + Phase 拆分，等待 **HG-2** 明确确认。
-- ⛔ 不能做：**不能委托 implementer**；HG-2 未过不能进入实施；不能自己设计架构。
+- ⚠️ **UI 工作流（任一 Phase `ui: true`）**：顺序是 **HG-1.5 先于 HG-2** —— 先把 `visual-baseline.md` 的 2-3 套候选风格与 `design-system/` 关键 token 呈现给用户选定并冻结，再进入 HG-2。两者不要合并成一次确认。
+- ⛔ 不能做：**不能委托 implementer**；HG-2 未过不能进入实施；UI 工作流未过 HG-1.5 不得进入 HG-2；不能自己设计架构。
 ANCHOR
             ;;
         phase-implementation)
             cat <<'ANCHOR'
 ### 当前阶段：phase-implementation（Phase 实施）
 
-- ✅ 该做：每个 Phase 前**先委托 `code-explorer`** → 建 `impl-<phase-id>` 分支 → 委托 `implementer` → 4 个并行 reviewer（correctness / design / connectivity / visual）→ `verifier`；每个 Phase 完成后等待 **HG-3** 验收。current_phase 必须取自 DAG JSON。
-- ⛔ 不能做：不能跳过 code-explorer / reviewer / verifier；不能自己写、审、验代码；HG-3 未过不能进入下一 Phase。
+- ✅ 该做：每个 Phase 前**先委托 `code-explorer`** → 建 `impl-<phase-id>` 分支 → 委托 `implementer` →**（UI Phase：先把原型截图呈现给用户确认，`touch .prototype-approved` 后再续做）**→ 4 个并行 reviewer（correctness / design / connectivity / visual）→ `verifier`；每个 Phase 完成后等待 **HG-3** 验收。current_phase 必须取自 DAG JSON。
+- ⛔ 不能做：不能跳过 code-explorer / reviewer / verifier；不能自己写、审、验代码；UI Phase 未确认原型不得派发 reviewer / verifier（`pipeline-gate.sh` 会 deny）；HG-3 未过不能进入下一 Phase。
 ANCHOR
             ;;
         *)

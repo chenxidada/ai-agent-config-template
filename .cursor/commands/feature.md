@@ -15,6 +15,9 @@
    └── ...
    ```
 3. 写入 `.specdev/active-workflow`（内容：工作流 slug）
+   > ⚠️ **顺序不能颠倒**：必须先写 `active-workflow`，再初始化 `current-status.json`。
+   > `pipeline-gate.sh` 会拒绝「无活跃工作流却写入状态文件」，但允许初始化路径
+   > （状态文件不存在 + 全部 HG 为 pending + `current_phase` 为空）。写反会导致工作流无法启动。
 4. 初始化 `current-status.json`：
    ```json
    {
@@ -35,11 +38,13 @@
    ```
    > `hg1_5` **不在此处预置** —— 它是可选字段，只在 requirement-analyst 判定 `ui_relevant: true` 后
    > 于 HG-1.5 阶段加入。纯后端工作流永远不会写入它（保证与存量工作流的形状一致）。
-4. 将 `.specdev/constitution-template.md` 复制到 `.specdev/specs/<slug>/constitution.md`（如果目标目录中尚不存在该文件）
-5. 将 `.specdev/tech-debt-registry-template.md` 复制到 `.specdev/specs/<slug>/tech-debt-registry.md`
-6. 将 `.specdev/ui-spec-template.md` 复制到 `.specdev/specs/<slug>/ui-spec.md`
+5. 将 `.specdev/constitution-template.md` 复制到 `.specdev/specs/<slug>/constitution.md`（如果目标目录中尚不存在该文件）
+6. 将 `.specdev/tech-debt-registry-template.md` 复制到 `.specdev/specs/<slug>/tech-debt-registry.md`
+   > ⚠️ 这个文件不是装饰：`pipeline-gate.sh` 在写 `hg3=passed` 时会校验它存在，且本 Phase 声明的每个
+   > `@STUB(...)` 都必须能在其中找到条目，否则 **deny**。漏复制会导致 Phase 根本无法验收。
+7. 将 `.specdev/ui-spec-template.md` 复制到 `.specdev/specs/<slug>/ui-spec.md`
    - requirement-analyst 判定 `ui_relevant: false` 时，该文件保持空骨架，后续阶段全部跳过 UI 检查
-7. 更新 `.specdev/specs/workflows.json`（全局索引）：
+8. 更新 `.specdev/specs/workflows.json`（全局索引）：
    ```json
    { "<slug>": { "status": "active", "created": "...", "description": "..." } }
    ```
@@ -50,7 +55,7 @@
 - `.specdev/specs/<slug>/requirements.md`
 - `.specdev/specs/<slug>/ui-spec.md`（**仅当 UI 相关性判定为 true**；含页面清单 / ASCII 布局骨架 / 状态矩阵 / 响应式行为）
 
-完成后，`pipeline-advance.sh` hook 会触发 HG-1 停止。
+完成后，**你必须主动停下**并向用户展示需求摘要，等待 HG-1 明确确认（没有 hook 会代你推进 —— subagentStop 推进 hook 已删除，见 `.cursor/hooks/CHANGELOG.md`）。
 
 ### 第三步：Human Gate 1 — 需求确认 🛑
 
@@ -84,7 +89,9 @@
   → 落盘 `design-system/<slug>/MASTER.md` + `design-system/<slug>/pages/`
 - `.specdev/specs/<slug>/visual-baseline.md`（2-3 套候选风格 + 冻结 token 表）
 
-完成后，hook 自动触发：**UI 工作流先 HG-1.5，再 HG-2**。
+完成后，**必须由你主动进入 HG-1.5**：先展示视觉基准，用户选定后才走 HG-2。
+（**没有 hook 会自动触发任何 Human Gate** —— subagentStop 推进 hook `pipeline-advance.sh` 已删除，
+取而代之的 `drift-reminder.sh` 只会提醒漂移、绝不推进。）
 
 ### 第四点五步：Human Gate 1.5 — 视觉基准确认 🛑（仅 UI 工作流）
 
@@ -126,6 +133,14 @@
 - 产出：`phases/<phase>/repo-exploration.md`（10-section 结构化报告）+ `repo-exploration-zh.md`
 - implementer/reviewer/verifier 必须读取此报告
 
+**0.5 创建 Phase 分支（强制，`pipeline-gate.sh` 会程序化校验）**：
+```bash
+git checkout main && git checkout -b impl-<phase-id>
+```
+- 分支名必须是 `impl-` + DAG JSON 中的 `id`（如 `impl-phase-1-p0-core`）
+- 不在该分支上派发 implementer → **deny**
+- 同一 Phase 的 MUST-FIX 回路**不要**重复创建，停在已有分支上即可
+
 **1. implementer**：按 `phases/<phase>/spec.md` 实现代码
    - 输入：spec.md + design.md + **repo-exploration.md** + tech-debt-registry.md
    - **UI Phase 额外输入**：`ui-spec.md` + `visual-baseline.md` + `design-system/<slug>/MASTER.md`
@@ -162,7 +177,7 @@ DAG JSON 中该 Phase `ui: true` 时，implementer 会**先只做静态原型并
      - 视觉证据缺失 → 判决强制 PARTIAL 且标 `visual-blocking: true`，**不得静默放行**
    - 如判决 FAIL → 回到步骤 1（修复后重审+重验，最多 2 轮）
 
-完成后，hook 自动触发 HG-3 停止。
+完成后，**你必须主动停下并进入 HG-3**（没有 hook 会自动触发停止 —— `pipeline-advance.sh` 已删除）。
 
 ### 第七步：Human Gate 3 — Phase 完成确认 🛑
 
@@ -172,7 +187,21 @@ DAG JSON 中该 Phase `ui: true` 时，implementer 会**先只做静态原型并
 3. 询问：「是否通过验收？进入下一个 Phase 还是需要修改？」
 4. **停止，等待用户确认**
 
-用户确认后：更新 `current-status.json` — `"hg3": "passed"`, `"loop_count": 0`
+用户确认后，**同一轮内一次性完成**（不要拆成两次确认）：
+
+1. 先展示改动清单：`git diff --stat` + `git status -s`（让用户看到将被提交的文件）
+2. 提交 + 合并 + 删分支：
+   ```bash
+   touch /tmp/git-commit-allowed
+   git add <上一步清单中显式列举的本 Phase 文件>   # 禁止 git add -A / .
+   git commit -m "Phase <phase-id>: <改动概要>"
+   git checkout main && git merge impl-<phase-id> && git branch -d impl-<phase-id>
+   ```
+   > `git commit` 会被 `shell-guard.sh` 拦为 `ask`（弹窗确认）。`/tmp/git-commit-allowed`
+   > 是「事先同意」的快速通道，marker 新鲜时直接放行、不弹窗。
+3. 更新 `current-status.json`：`"hg3": "passed"`, `"loop_count": 0`
+4. KB 同步（异步，不阻塞）
+5. 若是最后一个 Phase → 委托 `wiki` agent 更新 `docs/wiki/`
 
 ### 第七点五步：Phase Entry Gate — 债务继承确认（仅 Phase 2+）🛑
 
@@ -187,7 +216,12 @@ DAG JSON 中该 Phase `ui: true` 时，implementer 会**先只做静态原型并
 
 ### 第八步：继续下一个 Phase
 
-Phase Entry Gate 通过后，更新 `current-status.json`（新 `current_phase`, `hg3` 重置为 `pending`, `loop_count` 重置为 0），委托 `code-explorer` 探索代码库 → 开始步骤 6-7。直到所有 Phase 完成。
+Phase Entry Gate 通过后：
+1. 更新 `current-status.json`（新 `current_phase` = DAG JSON 的 `id`、`hg3` 重置为 `pending`、`loop_count` 重置为 0）
+2. **创建新分支**：`git checkout main && git checkout -b impl-<新 phase-id>`
+3. 委托 `code-explorer` 探索代码库 → 开始步骤 6-7
+
+直到所有 Phase 完成。
 
 ### 第九步：完成清理
 

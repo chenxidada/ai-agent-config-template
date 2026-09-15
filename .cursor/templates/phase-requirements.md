@@ -6,7 +6,7 @@
   但在需要更精细化的需求追踪时（如 Phase 间有严格接口契约），
   可用此模板提取 Phase 专属需求。
   
-  下游消费者：plan-generator（设计范围）、implementer（硬接口定义）、reviewer/validator（验收标准）。
+  下游消费者：plan-generator（设计范围）、implementer（硬接口定义）、reviewer-correctness / verifier（验收标准）。
   
   规则：
   - 每条需求必须追溯到整体 requirements.md 的源章节+行号

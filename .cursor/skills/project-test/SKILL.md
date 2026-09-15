@@ -9,13 +9,13 @@ description: >-
 
 ## 项目测试技能
 
-本文件由 validator agent 在项目开发过程中自动维护，implementer agent 交叉验证。
+本文件由 verifier agent 在项目开发过程中自动维护，implementer agent 交叉验证。
 记录项目特有的测试知识，避免每次重新摸索。
 
 **⚠️ 维护规则**：
 - 每条知识有验证状态：✅ 已验证 / ⚠️ 已过期 / ❌ 未验证
-- 错误或过期的条目标记为 ⚠️ 而非删除，保留历史但注明不再适用
 - 同一事物的多条记录应合并，而非并列
+- 路径已不存在的条目直接删除（留着一个不存在的路径只会误导下游 agent）
 - implementer 在运行测试时也应检查并更新测试知识
 
 ---
@@ -24,108 +24,118 @@ description: >-
 
 > **状态说明**：✅=已验证可用 | ⚠️=已过期/不可用 | ❌=未验证
 
-### Enforcement Gate Plugin 测试
-- **状态**：✅ 已验证
-- **测试类型**：独立 ES Module 脚本，无框架依赖
-- **测试文件**：`.opencode/plugins/enforcement-gate.test.mjs`（实施者集成测试）
-- **验证者独立测试**：`specs/validation/phase2-enforcement-plugin/test-scripts/validator-independent-verification.mjs`（43 个额外场景）
-- **测试风格**：集成测试，mock ctx 对象 + 真实插件代码，验证 permission.ask 和 event 的外部行为
-- **测试覆盖**：77 个实施者测试 + 43 个验证者独立测试 = 120 个测试用例，覆盖 Edit Gate、Bash Gate（allowlist + denylist）、Task Gate（discussion/execution）、Event Handlers、First-run、No API fallback、Compaction 状态恢复、Unknown type pass-through、参数变化检测、端到端行为验证、多 agent 数组分发、Windows 路径规范化、共存性验证
-- **最后验证**：2026-06-16 by validator，120/120 passed（77 implementer + 43 validator）
+### Hook 行为测试（当前唯一测试体系）
+- **状态**：✅ 已验证（2026-09-15）
+- **框架**：无框架依赖，纯 bash + `jq`，每个脚本自带 mock payload 与断言计数
+- **测试对象**：`.cursor/hooks/` 下的 shell hook 与 `lib/` 共享库
+- **测试风格**：行为断言（构造模拟 payload → 调 hook → 断言 stdout JSON 的 `permission` / `additional_context` 字段），**不是**单元测试
+- **分布**：
+
+| 脚本 | 覆盖对象 | 断言数 |
+|------|---------|:--:|
+| `tools/test-gate.sh` | `pipeline-gate.sh` 的 allow/deny 分支（HG 状态、DAG 校验、分支校验、技术债登记） | 41 |
+| `tools/test-hook-contract.sh` | 事件 × 输出字段契约（防字段名写错导致静默失效）+ 文档一致性 | 27 |
+| `tools/test-shell-guard.sh` | `shell-guard.sh` 危险命令守卫 + 逃生舱 | 22 |
+| `tools/test-drift.sh` | `drift-reminder.sh` 漂移检测（D1/D2/D3）与防刷屏 | 22 |
+| `tools/test-verdict.sh` | `lib/verdict-parse.sh` 判决解析（单值 + 证据计数） | 21 |
+| **合计** | | **133** |
+
+- **最后验证**：2026-09-15 by verifier，133/133 passed
 
 ---
 
 ## 运行命令
 
-### `node .opencode/plugins/enforcement-gate.test.mjs`
+### 全部测试（回归必跑）
+
+```bash
+for t in tools/test-*.sh; do bash "$t"; done
+```
+
 - **状态**：✅ 已验证
-- **环境**：Node.js 20.16.0
-- **用途**：运行 enforcement gate 插件的完整集成测试（实施者编写）
-- **输出**：每个测试用例的 pass/fail 状态，最终统计结果
+- **环境**：Linux / macOS，需 `bash` 与 `jq`
+- **输出**：每个脚本末尾打印 `结果：N 通过 / M 失败`
 - **退出码**：0（全部通过）/ 1（有失败）
-- **最后验证**：2026-06-16 by validator
+- **预期总量**：133 通过 / 0 失败
+- **最后验证**：2026-09-15
 
-### `node specs/validation/phase2-enforcement-plugin/test-scripts/validator-independent-verification.mjs`
+### 单个套件
+
+```bash
+bash tools/test-gate.sh           # 门禁行为（改动 pipeline-gate.sh 后必跑）
+bash tools/test-verdict.sh        # 判决解析（改动 review.md 解析逻辑后必跑）
+bash tools/test-shell-guard.sh    # 命令守卫
+bash tools/test-hook-contract.sh  # 输出字段契约 + 文档一致性（改动任何 hook 输出后必跑）
+bash tools/test-drift.sh          # 漂移提醒
+```
+
+### 语法检查（改 hook 脚本后的最快反馈）
+
+```bash
+bash -n .cursor/hooks/pipeline-gate.sh
+bash -n .cursor/hooks/shell-guard.sh
+```
+
+### Git 合规检查
+
+```bash
+git branch --show-current          # 必须处于 impl-<phase-id> 分支
+git diff --name-only main..HEAD    # 改动清单
+git status --short                 # 提交前必须展示给用户
+```
+
 - **状态**：✅ 已验证
-- **环境**：Node.js 20.16.0
-- **用途**：运行验证者独立验证脚本，覆盖实施者未测试的场景（参数变化、边界条件、E2E 行为、SF1-SF3 验证）
-- **输出**：43 个测试的 pass/fail 状态
-- **退出码**：0（全部通过）/ 1（有失败）
-- **最后验证**：2026-06-16 by validator
+- **说明**：验证 Phase 是否在 `impl-*` 分支上工作（`pipeline-gate.sh` 也会在派发 implementer 时程序化校验）
 
-### ✅ 配置/Markdown 验证（Phase 3 合规验证）
+### 全仓文本一致性检查
 
-| 项目 | 值 |
-|------|-----|
-| **状态** | ✅ 已验证 |
-| **环境** | Linux, bash, git |
-| **命令** | `bash specs/validation/test-scripts/verify-phase3-compliance.sh` |
-| **说明** | 针对无编译/无运行时的 markdown 配置变更，通过 grep + diff + git log 验证内容正确性 |
-| **最后验证** | 2026-06-16 |
+```bash
+rg -n '<旧名称|旧路径>' --glob '!.git' .    # 查残留引用
+for f in $(rg -l '' --glob '*.json' --glob '!.git'); do jq empty "$f"; done   # 所有 JSON 必须合法
+```
 
-### ✅ 通用 grep 模式检查
-
-| 项目 | 值 |
-|------|-----|
-| **状态** | ✅ 已验证 |
-| **环境** | Linux, bash |
-| **命令** | `grep -r "<pattern>" .opencode/agents/` |
-| **说明** | 验证 agent 定义文件中的特定内容是否存在 |
-| **最后验证** | 2026-06-16 |
-
-### ✅ Git 合规检查
-
-| 项目 | 值 |
-|------|-----|
-| **状态** | ✅ 已验证 |
-| **环境** | Linux, git |
-| **命令** | `git log --all --oneline` / `git diff --name-only main..HEAD` / `git status --short` |
-| **说明** | 验证非 specs 文件是否在 `impl-*` 分支上修改 |
-| **最后验证** | 2026-06-16
+- **状态**：✅ 已验证（2026-09-15 全仓残留引用清理时使用）
 
 ---
 
 ## 测试环境配置
 
-- 测试在临时目录（`os.tmpdir()`）中创建隔离环境，避免污染项目目录
-- Mock `ctx` 对象提供 `directory` 和 `client.session.info` API
-- 测试临时 `specs/current-status.md` 文件控制 mode/state
-- 测试完成后自动清理临时目录
+- 测试脚本在仓库根目录执行；脚本内部自行 `cd "$(dirname "$0")/.."` 定位根目录并 source `.cursor/hooks/lib/*.sh`
+- mock payload 以 heredoc / `printf` 内联构造，不落地临时文件
+- 需要隔离文件系统状态的用例（如 `pipeline-gate.sh` 写 `current-status.json`）使用 `mktemp -d` 并在退出时清理
+- **无网络依赖**、**无 Node.js 依赖**：全部为 bash + jq
 
 ---
 
 ## 覆盖率工具
 
-*（尚无覆盖率配置）*
+*（尚无覆盖率配置 —— 行为断层测试的覆盖以断言数 + 分支清单人工核对为准）*
 
 ---
 
 ## 常见问题与解决方案
 
-*（尚无记录的测试问题）*
+### hook 改完测试没变化 / 行为没生效
+- **现象**：改了 hook 脚本，跑测试仍全绿或行为未变
+- **根因**：脚本没有执行权限，Cursor 静默跳过
+- **解决**：`chmod +x .cursor/hooks/*.sh .cursor/hooks/lib/*.sh`
+- **验证状态**：✅ 已验证
 
----
+### 测试在 macOS 上失败但在 Linux 上通过
+- **根因**：用了 GNU 扩展。`grep -P`（PCRE）和 `stat -c %Y` 在 BSD 上直接失败
+- **解决**：一律用 `grep -E` / `sed` / `awk`；取文件时间用 `stat --version` 探测后回退 `stat -f %m`
+- **验证状态**：✅ 已验证
 
-## 运行命令
-
-### 文本规则验证脚本
-- **命令**: `bash specs/validation/phase1-text-rule-hardening/test-scripts/verify-text-rules.sh`
-- **状态**: ✅ 已验证
-- **环境**: Linux, bash
-- **说明**: 验证 Phase 1 文本规则硬化的 11 项修改是否正确应用于 4 个目标文件。基于 grep/sed 的自动化检查，共 33 项检查。
-- **已知局限**: 部分 grep 正则可能因 Markdown 换行/格式变化产生误报，需手动复核。
-- **最后验证**: 2026-06-16 by validator
+### `set -u` 下脚本莫名 exit 1
+- **根因**：多字节字符紧跟变量未加花括号，bash 3.2 会把多字节字符吞进变量名 → `unbound variable`
+- **解决**：写 `"${var}）"` 而非 `"$var）"`
+- **验证状态**：✅ 已验证
 
 ---
 
 ## 注意事项
 
-- 测试中用 `.mjs` 扩展名，确保 Node.js 以 ES Module 模式加载
-- 测试的 `import` 路径与插件在实际框架中的加载路径一致（`./enforcement-gate.mjs`）
-- 新增测试应在 `enforcement-gate.test.mjs` 的 `runIntegrationTests()` 函数中追加
-- 验证者独立测试脚本从项目根目录运行，使用相对路径 `../../../../.opencode/plugins/enforcement-gate.mjs` 加载插件
-
-### Phase 1: 文本规则硬化
-- **状态**: ✅ 已验证
-- **说明**: Phase 1（Enforcement System Text Rule Hardening）修改代理配置/规则文件，不涉及代码。无需代码级自动化测试 — 验证方式为内容审计（grep/sed 检查 + 手动比对设计文档）。后续 Phase 2/3 中通过行为观察确认规则是否被遵守。
-- **最后验证**: 2026-06-16 by validator（implementer 首次记录后，validator 交叉验证并更新）
+- 测试脚本自己是「行为契约」：**改 hook 的行为前先改断言，再改实现**
+- `test-hook-contract.sh` 同时守卫文档一致性 —— 改 hook 的 `additional_context` 文案后要同步它
+- 断言数是公开承诺（README / AGENTS.md / CHANGELOG 都引用 133），新增断言时需同步更新这三处
+- 全部测试跑一次约 25 秒（`test-gate.sh` 占大头，因其反复 fork jq）

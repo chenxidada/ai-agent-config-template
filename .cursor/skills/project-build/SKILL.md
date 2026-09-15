@@ -9,14 +9,14 @@ description: >-
 
 ## 项目构建技能
 
-本文件由 implementer agent 在项目开发过程中自动维护，validator agent 交叉验证。
+本文件由 implementer agent 在项目开发过程中自动维护，verifier agent 交叉验证。
 记录项目特有的构建知识，避免每次重新摸索。
 
 **⚠️ 维护规则**：
 - 每条知识有验证状态：✅ 已验证 / ⚠️ 已过期 / ❌ 未验证
-- 错误或过期的条目标记为 ⚠️ 而非删除，保留历史但注明不再适用
 - 同一事物的多条记录应合并，而非并列
-- validator 在验证失败时也应检查并更新构建知识
+- 路径已不存在的条目直接删除（留着一个不存在的路径只会误导下游 agent）
+- verifier 在验证失败时也应检查并更新构建知识
 
 ---
 
@@ -24,12 +24,7 @@ description: >-
 
 > **状态说明**：✅=已验证可用 | ⚠️=已过期/不可用 | ❌=未验证
 
-### OpenCode 插件（.mjs）— 无需构建
-- **状态**：✅ 已验证
-- **环境**：Node.js 20.16.0
-- **说明**：`.opencode/plugins/` 下的 `.mjs` 文件是纯 JavaScript ES Module，由 OpenCode 框架直接加载执行，无需编译或构建步骤。用到的 API 仅限于标准 Node.js 模块（`fs/promises`、`path`），无外部依赖。
-- **文件**：`enforcement-gate.mjs`、`kb-sync-runtime.mjs`
-- **最后验证**：2026-06-16 by implementer，Phase 2 enforcement plugin 加载测试通过
+*（尚无已验证的构建命令 — 本仓库不含需要编译的产物）*
 
 ---
 
@@ -37,7 +32,7 @@ description: >-
 
 <!-- 格式同上，标注状态 + 环境 + 最后验证时间 -->
 
-*（尚无已验证的依赖安装信息 — 插件使用标准 Node.js API，无需额外依赖）*
+*（尚无已验证的依赖安装信息）*
 
 ---
 
@@ -47,7 +42,9 @@ description: >-
 - **状态**：✅ 已验证
 - **版本**：v20.16.0（经 nvm 管理）
 - **路径**：`/home/chendc/.nvm/versions/node/v20.16.0/bin/node`
-- **最后验证**：2026-06-16 by implementer
+- **用途**：仅供 Playwright MCP server（`npx -y @playwright/mcp@latest`）使用。**hook 与测试脚本均不依赖 Node.js**（纯 bash + jq）。
+- **依赖**：`jq` 是 hook 与测试脚本的硬依赖，缺失会导致门禁解析失败（fail-closed → deny，不会静默放行）
+- **最后验证**：2026-09-15
 
 <!-- 特殊环境变量、工具版本等，同样标注验证状态 -->
 
@@ -63,9 +60,13 @@ description: >-
 
 ## 注意事项
 
-### Phase 1: 文本规则硬化
-- **状态**: ✅ 已验证
-- **说明**: Phase 1（Enforcement System Text Rule Hardening）为纯文本配置变更，修改 `.opencode/agents/orchestrator.md`、`AGENTS.md`、`.opencode/snippets/escalation-protocol.md`、`.opencode/snippets/unified-pipeline.md`。无需编译/构建步骤。
-- **最后验证**: 2026-06-16 by implementer
+### Cursor 侧 hooks —— 无需构建（当前有效）
+- **状态**：✅ 已验证（2026-09-15）
+- **说明**：`.cursor/hooks/*.sh` 与 `.cursor/hooks/lib/*.sh` 均为 POSIX-ish bash 脚本，由 Cursor 直接执行，无编译步骤。
+- **改完必须做的事**：`chmod +x <脚本>`，否则 hook 不执行；然后跑 `tools/` 下的行为测试。
+- **回归命令**：
+  ```bash
+  for t in tools/test-*.sh; do bash "$t"; done
+  ```
+- **可移植性约束（踩过坑）**：禁止 `grep -P`；禁止 `stat -c %Y`（用 `stat --version` 探测后回退 `stat -f %m`）；多字节字符前的变量必须写 `"${var}"` 而非 `"$var"`（bash 3.2 会吞字符 → `set -u` 下 exit 1 → 门禁 fail open）。
 
-*（尚无特殊注意点）*

@@ -1,9 +1,9 @@
 # AI Agent Config Template
 
-一套只保留 `Knowledge Base MCP` 的 AI Agent 配置模板，作为你的通用模板源目录，支持：
+一套以 `Knowledge Base MCP` 为公共底座的 AI Agent 配置模板，作为你的通用模板源目录，支持：
 
-- `OpenCode`
-- `Cursor`
+- `Cursor`（首选平台）
+- `Trae`
 - `Claude Code`
 - `Windsurf`
 
@@ -13,7 +13,6 @@
 
 ```text
 ai-agent-config-template/
-├── opencode.jsonc                  # OpenCode MCP + plugin 配置（镜像）
 ├── .mcp.json                       # Claude Code / Windsurf MCP 配置（镜像）
 ├── AGENTS.md                       # 通用规则（含 Cursor 侧差异说明）
 ├── .cursorrules                    # Cursor 规则（精简版，指向 .cursor/rules/）
@@ -23,18 +22,21 @@ ai-agent-config-template/
 ├── .cursor/                        # ★ Cursor 侧权威配置（首选平台）
 │   ├── rules/                      # spec-workflow.mdc（Always Apply）
 │   ├── agents/                     # 11 个子Agent（含 reviewer-visual）
-│   ├── commands/                   # /feature /bugfix /brief /research /specify /plan /implement /status
-│   ├── hooks/                      # pipeline-gate.sh 门禁 + pipeline-advance.sh 推进 + pipeline-compact.sh
-│   │   └── lib/                    # status-read.sh / verdict-parse.sh（共享库）
+│   ├── commands/                   # /feature /bugfix /brief /research /specify /plan /implement /status /wiki
+│   ├── hooks/                      # pipeline-gate.sh 门禁 + shell-guard.sh 命令守卫 + context-snapshot.sh 压缩快照
+│   │   │                           # + session-recovery.sh 会话恢复 + drift-reminder.sh 漂移提醒（只提醒不推进）
+│   │   └── lib/                    # status-read.sh / verdict-parse.sh / emit.sh（共享库）
 │   ├── skills/                     # ui-ux-pro-max / code2prompt / drawio-skill / project-build / project-test 等
 │   ├── snippets/                   # escalation-protocol.md / ui-skill-usage.md
 │   ├── templates/                  # 需求/设计/UI 规格/视觉基准输出模板
 │   └── mcp.json                    # knowledge-base + playwright MCP
+├── .trae/                          # Trae 侧配置（Agent + 命令 + Hook + 模板）
+├── tools/                          # hook 行为测试（test-verdict / test-gate / test-shell-guard
+│                                   #   / test-hook-contract / test-drift，共 133 项断言）
 ├── .specdev/                       # 工作流运行时目录（specs/ 在导入后生成）
 │   ├── ui-spec-template.md         # /feature 初始化时复制
 │   ├── constitution-template.md
 │   └── tech-debt-registry-template.md
-├── .opencode/                      # ⚠️ OpenCode 历史参考（已无 skills/snippets/agents 子目录）
 └── README.md
 ```
 
@@ -114,40 +116,9 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 | `/status` | 查看进度 + 债务快照 | — | — |
 | `/wiki` | 项目 Wiki 文档维护 | — | — |
 
-## 建议的 `.opencode/` 目录规范
+## Cursor 侧子 Agent（11 个）
 
-> ⚠️ **以下为 OpenCode 时代约定，当前 `.opencode/` 已不再包含这些子目录**，仅在需要恢复 OpenCode 侧支持时作为参考。
-
-为了方便你后续继续扩展，当前建议这样组织 `.opencode/`：
-
-- `skills/`：可复用的 OpenCode 技能
-- `agents/`：阶段化 agent 预设或角色说明
-- `templates/`：提示模板、输出模板、报告模板
-- `hooks/`：自动化 helper、hook 说明、脚本
-- `snippets/`：短小可复用的任务片段
-
-建议原则：
-
-- 保持项目无关、可复用
-- 不在这些模板文件里写死本机路径
-- 需要环境差异时，通过环境变量或启动脚本解决
-- 任何新增内容都优先回写模板源目录，再通过 `setup.sh` 分发
-
-当前推荐的阶段化 agents：
-
-- `repo-explorer` — 仓库探查
-- `requirement-analyst` — 需求分析（支持 create/append 模式）
-- `program-planner` — 总体规划（支持 create/update 模式）
-- `task-planner` — 阶段任务拆解
-- `solution-architect` — 方案设计
-- `code-analyst` — 代码分析
-- `implementer` — 实现（必须写测试）
-- `reviewer` — 代码审查（逻辑 + 测试覆盖度）
-- `validator` — 验证（支持前端截图验证）
-- `knowledge-manager` — 知识库同步
-
-> ⚠️ 上述为 OpenCode 侧命名。**Cursor 侧实际使用 `.cursor/agents/` 下的 11 个 agent**（命名对照见 `AGENTS.md`
-> 的「命名对照」表）：
+> 下表是当前**唯一**的子 Agent 集合。任何不在此列表中的 agent 名（无论在哪个文件里出现）都已废弃。
 
 | Agent | 职责 |
 |-------|------|
@@ -163,13 +134,8 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 | `verifier` | 独立端到端验证（UI Phase 强制视觉证据） |
 | `wiki` | 项目 Wiki 文档维护 |
 
-其中知识库同步在 Cursor 侧由调度者按 `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成（无 `knowledge-manager` agent）。
+知识库同步在 Cursor 侧由调度者按 `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成。
 
-推荐的总控 workflow：
-
-- `unified-pipeline`
-
-`/feature`、`/bugfix`、`/rebuild` 共用同一条统一 pipeline，以 intent 标签区分范围和侧重点。Pipeline 以 master-spec 为中心文档，按 phase 为颗粒度循环执行：需求分析 → 总体规划 → 阶段拆解 → 方案设计 → 实现 → 审查 → 验证 → 知识同步。
 
 ## 当前 Knowledge Base 能力
 
@@ -204,7 +170,7 @@ Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件�
 - 若未设置，则尝试若干常见候选路径
 - 无法定位时，给出明确提示，由使用者补充环境变量
 
-本模板通过 `knowledge-base-mcp.sh` 统一启动 MCP，避免在 `opencode.jsonc` 或 `.mcp.json` 中写死具体仓库路径。
+本模板通过 `knowledge-base-mcp.sh` 统一启动 MCP，避免在 `.mcp.json` 或 `.cursor/mcp.json` 中写死具体仓库路径。
 
 推荐设置：
 
@@ -238,11 +204,10 @@ bash /path/to/ai-agent-config-template/setup.sh
 
 1. 复制配置文件（`.mcp.json` / `AGENTS.md` / `.cursorrules` / `knowledge-base-mcp.sh`）
 2. 同步模板中的整个 `.cursor/` 目录（规则 + 子Agent + 命令 + 钩子 + skills + snippets + mcp.json）
-3. 同步 `.specdev/` 模板（UI 规格 / 宪法 / 技术债注册表）
-4. 复制 `knowledge-base-mcp.sh`
-5. 将 `opencode.jsonc` 加入 `.gitignore`
+3. 同步 `.trae/` 目录（Agent + 命令 + Hook + 模板）
+4. 同步 `.specdev/` 模板（UI 规格 / 宪法 / 技术债注册表）
 
-> 也可只装 Cursor：`bash setup.sh --cursor`
+> 也可只装 Cursor（`bash setup.sh --cursor`）或只装 Trae（`bash setup.sh --trae`）
 
 ### 方法二：手动复制
 
@@ -323,7 +288,7 @@ chmod +x knowledge-base-mcp.sh
 - 提炼当前阶段新增的高价值信息
 - 按对象类型更新 `Task Doc`、`Topic Doc`、`Decision Doc` 或 `Daily Digest`
 - 不做实时日志式同步，只做阶段性增量同步
-- 默认通过 workflow 中的 `knowledge-manager` 阶段和全局 runtime contract 一起保证触发
+- 默认由调度者在 Human Gate 通过后按 `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 触发
 
 ### 3. 手动请求触发
 
@@ -338,7 +303,6 @@ chmod +x knowledge-base-mcp.sh
 - 先提炼内容
 - 再立即执行 MCP 同步
 - 选择最合适的知识对象，而不是一律写成 daily
-- OpenCode runtime plugin 会对显式“总结并同步”类请求追加同步指令
 
 ## 知识同步策略
 
@@ -419,7 +383,8 @@ Daily/<YYYY>/<YYYY-MM>/
 这个目录是你的配置模板源。后续任何知识库相关配置更新，都应优先同步回这里，再分发到其他项目。
 
 - **Cursor 侧扩展**（首选）：新增 skill / agent / 命令 / 钩子请放进 `.cursor/` 对应子目录，`setup.sh --cursor` 会整目录带下去。
-- **OpenCode 侧**：`.opencode/` 目前仅保留历史参考，若需恢复 OpenCode 支持，请先补齐 `agents/` `snippets/` `skills/` 子目录，并同步修正 `AGENTS.md` 与 `README.md` 中标注为「历史参考」的章节。
+- **Trae 侧扩展**：新增 agent / 命令 / hook 请放进 `.trae/` 对应子目录，并同步修正 `.trae/rules/` 中与 `.cursor/rules/` 相应的约束。
+- **跨平台一致性**：`.cursor/` 与 `.trae/` 是同一套流程的两个平台实现，改动其中一个后需检查另一个是否需要同步（两侧的规则文件是各自独立的载体，不会自动同步）。
 
 ## 当前模板默认值
 
@@ -445,10 +410,11 @@ Cursor 在选择命令时，建议按下面规则判断：
 | `/plan` | 已有需求，需设计方案 | 输出 DAG | — |
 | `/implement` | HG-2 已通过，执行实施 | 单 Phase | 四视角并行 |
 | `/status` | 随时查看进度与债务快照 | — | — |
+| `/wiki` | 项目 Wiki 文档维护 | — | — |
 
 补充判断：
 
 - **选项不确定时优先选信息量最大的**：仓库现实与影响面还不明确 → `/research`；需求模糊 → `/specify`。
 - **UI 工作流自动升级**：只要 `ui_relevant: true`，无论走哪个命令都会插入 HG-1.5、原型确认门禁、`reviewer-visual` 与强制视觉验证。
 - **非极小任务默认包含审查与验证**：`implementer` 不能自己声明完成。
-- **OpenCode 侧**：`/feature`、`/bugfix`、`/rebuild` 共用同一条 unified pipeline（详见上文 `.opencode/` 章节）。
+- **本仓库只有上表 9 个命令**（`.cursor/commands/` 实际文件为准）。`/rebuild`、`/idea`、`/analyze` **不存在**，不要在文档或对话中引用。

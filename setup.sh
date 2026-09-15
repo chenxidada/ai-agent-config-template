@@ -4,19 +4,18 @@
 #
 # 用法:
 #   cd /your/project
-#   bash /path/to/ai-agent-config-template/setup.sh [--cursor|--trae|--opencode|--all]
+#   bash /path/to/ai-agent-config-template/setup.sh [--cursor|--trae|--all]
 #
 # 选项:
 #   --cursor    仅安装 Cursor 配置（.cursor/ + .cursorrules + .mcp.json + AGENTS.md）
 #   --trae      仅安装 Trae 配置（.trae/ + .mcp.json + AGENTS.md）
-#   --opencode  仅安装 OpenCode 配置（.opencode/ + opencode.jsonc）
 #   --all       安装全部配置（默认）
 #   --force     跳过冲突确认，直接覆盖
 #
 # 功能:
 #   1. 复制 AI Agent 配置文件到当前项目
-#   2. 同步模板目录（.cursor/ / .opencode/）
-#   3. 将 opencode.jsonc 加入 .gitignore
+#   2. 同步模板目录（.cursor/ / .trae/）
+#   3. 复制 .specdev/ 运行时模板
 #
 
 set -e
@@ -32,12 +31,11 @@ for arg in "$@"; do
     case "$arg" in
         --cursor)   MODE="cursor" ;;
         --trae)     MODE="trae" ;;
-        --opencode) MODE="opencode" ;;
         --all)      MODE="all" ;;
         --force)    FORCE=true ;;
         --skip-kb-check) SKIP_KB_CHECK=true ;;
         -h|--help)
-            echo "用法: bash setup.sh [--cursor|--trae|--opencode|--all] [--force] [--skip-kb-check]"
+            echo "用法: bash setup.sh [--cursor|--trae|--all] [--force] [--skip-kb-check]"
             exit 0
             ;;
     esac
@@ -174,7 +172,6 @@ install_cursor() {
     done
 
     # .cursor/ 目录（规则 + 子Agent + 命令 + 钩子 + skills + snippets + mcp.json）
-    # 注：skills 已随 `.cursor/skills/` 一并复制，不再需要从 `.opencode/skills` 补拷贝。
     copy_dir "$SCRIPT_DIR/.cursor" "$TARGET_DIR/.cursor" ".cursor/ (规则+子Agent+命令+钩子+skills)"
 
     # .specdev/ 运行时模板（/feature 初始化工作流时会复制这些模板）
@@ -243,50 +240,6 @@ install_trae() {
 }
 
 # ============================================
-# OpenCode 配置安装
-# ============================================
-install_opencode() {
-    echo "--- OpenCode 配置 ---"
-    echo ""
-
-    # opencode.jsonc
-    copy_file "$SCRIPT_DIR/opencode.jsonc" "$TARGET_DIR/opencode.jsonc"
-
-    # .opencode/ 目录
-    copy_dir "$SCRIPT_DIR/.opencode" "$TARGET_DIR/.opencode" ".opencode/"
-
-    echo ""
-    echo "  ✅ OpenCode 配置导入完成"
-    echo ""
-    echo "  OpenCode 使用方式:"
-    echo "    直接启动 opencode，自动读取 opencode.jsonc"
-    echo ""
-
-    # ---- .gitignore ----
-    GITIGNORE="$TARGET_DIR/.gitignore"
-    ENTRY="opencode.jsonc"
-
-    if [ -f "$GITIGNORE" ]; then
-        if ! grep -qF "$ENTRY" "$GITIGNORE"; then
-            echo "$ENTRY" >> "$GITIGNORE"
-            echo "  [gitignore] 已添加 $ENTRY"
-        else
-            echo "  [gitignore] $ENTRY 已存在"
-        fi
-    else
-        if [ "$FORCE" != "true" ]; then
-            read -p "  .gitignore 不存在，是否创建? (Y/n): " confirm
-            if [[ "$confirm" == "n" || "$confirm" == "N" ]]; then
-                return
-            fi
-        fi
-        echo "$ENTRY" > "$GITIGNORE"
-        echo "  [gitignore] 已创建，包含: $ENTRY"
-    fi
-    echo ""
-}
-
-# ============================================
 # 主逻辑
 # ============================================
 
@@ -297,17 +250,12 @@ case "$MODE" in
     trae)
         install_trae
         ;;
-    opencode)
-        install_opencode
-        ;;
     all)
         echo "--- 全部配置 ---"
         echo ""
         install_cursor
         echo ""
         install_trae
-        echo ""
-        install_opencode
         ;;
 esac
 
@@ -327,7 +275,6 @@ echo ""
 echo "  各工具使用方式:"
 echo "    Cursor    → 打开项目，自定义页面查看规则/子Agent/命令/钩子"
 echo "    Trae      → SOLO 模式，Subagent 自动路由，Hook 自动生效"
-echo "    OpenCode  → 直接启动 opencode，自动读取 opencode.jsonc"
 echo "    Claude    → 自动读取 .mcp.json 和 AGENTS.md"
 echo "    Windsurf  → 自动读取 .mcp.json 和 .windsurfrules"
 echo "=========================================="

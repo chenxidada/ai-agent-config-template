@@ -13,19 +13,17 @@
 # ⚠️ exit 0 铁律：所有路径（静默 / 成功注入 / fail-loud）一律 echo 合法 JSON + exit 0，
 #    绝不 exit 2（会阻断会话）。hooks.json 中本条目用 failClosed:false。
 #
-# 决策 1（双字段注入）：注入字段名收敛到单一 emit_recovery_json 包装：
-#    同时输出 Claude-Code 兼容的嵌套形态 hookSpecificOutput.additionalContext
-#    并镜像顶层 additionalContext（无害超集，覆盖 Cursor 实际消费的候选字段）。
-#    ⚠️ 确切消费字段为 HYPOTHESIS（官网 schema 段落被截断无法逐字确认，
-#    且有上游投递 bug #155689/#156157）——需 Cursor 侧实测确认（见 implementation.md 自验清单）。
+# 决策 1（修订见 emit_recovery_json 注释）：注入字段收敛到单一出口，
+# 只输出官方文档确认的 `additional_context`。
 #
 # AC-S3：active-workflow 存在且 current-status.json 可读 → 注入状态表
 #        （slug / 描述 / current_stage / current_phase / HG-1/2/3 / loop_count）。
 # AC-S4：active-workflow 或 current-status.json 不存在 → 静默（输出空 JSON {}，不报错、不伪造）。
 # AC-F4 边界：文件存在但损坏/缺字段 → fail-loud（注入明确错误提示 JSON），不注入伪造全 pending。
 #
-# 本 Phase（phase-1-sessionstart）只注入状态表；流程/角色锚定块（emit_anchoring_block）
-# 由 Phase 2 追加，本 Phase 绝不调用。
+# ⚠️ 历史注释已过时（原文：「本 Phase 只注入状态表；emit_anchoring_block 由 Phase 2 追加」）。
+# 现状：成功路径**会**拼接 emit_anchoring_block（共享库 lib/status-read.sh），
+# 与 context-snapshot.sh 写入 recovery-instructions.md 的锚定文本逐字一致。
 # ============================================
 
 # ── source 共享状态读取片段（路径绝对化，须在任何 cd 之前）──
@@ -40,15 +38,28 @@ PROJECT_ROOT="$(cd "$HOOK_DIR/../.." && pwd)"
 # ── 非阻塞读入 stdin 事件 JSON（读入但不解析，避免阻塞）──
 INPUT=$(cat 2>/dev/null || echo '{}')
 
-# ── emit_recovery_json：决策 1 双字段注入的唯一出口 ──
-# 入参 $1 = 注入正文（可含换行）。用 jq --arg 安全转义为合法 JSON 字符串，
-# 同时写入 hookSpecificOutput.additionalContext（嵌套）与顶层 additionalContext（镜像）。
-# 无 jq 时降级为 emit '{}'（不注入 > 注入非法 JSON）。
+# ── 决策 1（已修订）：只发 Cursor 文档中存在的注入字段 ──
+# ⚠️ 历史错误（v1~ 本 Phase 首版）：注入字段曾按 Claude Code 的约定写成
+#    嵌套 `hookSpecificOutput.additionalContext` + 顶层 `additionalContext`（camelCase），
+#    并自注为「HYPOTHESIS，待实测」。
+#    现已对照官方文档确认（https://cursor.com/docs/agent/hooks，sessionStart 章节）：
+#      输出 schema 为 `{ "env": {...}, "additional_context": "<string>" }`
+#      文档全文中 `hookSpecificOutput` 出现 **0 次**、`additionalContext` 出现 **0 次**。
+#    ⇒ 旧字段名**从未被消费**，即这条恢复注入链路自建立起就没生效过（静默失效）。
+#    现改为文档字段 `additional_context`（snake_case）。
+#
+# ⚠️ 不要「为了兼容」把 camelCase 字段再镜像回来 —— 未被消费的字段不是兼容层，
+#    是让人误以为链路正常的假象（本项目的核心教训：死代码比没有代码更危险）。
+#
+# ⚠️ 另一条已确认的语义限制：sessionStart **只在新建 composer 会话时触发**
+#    （文档：「Called when a new composer conversation is created」），
+#    它**不是**压缩后的注入点。压缩后的投递通道是 always-applied 规则
+#    （spec-workflow.mdc「上下文压缩恢复」章节）+ context-snapshot.sh 落盘的
+#    recovery-instructions.md，不要指望本 hook 覆盖压缩场景。
 emit_recovery_json() {
     local body="$1"
     if command -v jq >/dev/null 2>&1; then
-        jq -n --arg ctx "$body" \
-            '{hookSpecificOutput:{hookEventName:"sessionStart",additionalContext:$ctx},additionalContext:$ctx}'
+        jq -n --arg ctx "$body" '{additional_context:$ctx}'
     else
         # jq 不可用（理论上不会：read_status 也依赖 jq）→ 输出空 JSON，保证合法 + exit 0
         echo '{}'
@@ -116,6 +127,7 @@ RECOVERY_BODY=$(cat <<RECOVERY
 | 当前阶段 | $CURRENT_STAGE |
 | 当前 Phase | ${CURRENT_PHASE:-无} |
 | HG-1（需求） | $HG1 |
+| HG-1.5（视觉基准·仅UI） | $HG1_5 |
 | HG-2（方案） | $HG2 |
 | HG-3（验收） | $HG3 |
 | 循环次数 | $LOOP_COUNT |

@@ -4,8 +4,8 @@
 
 ## 核心理念
 
-- **Spec 是唯一真相源**：所有设计决策、验收标准、审查结果都写入 `specs/` 目录
-- **Human Gate 强制确认**：3 个关键节点必须停下来等你确认（需求 → 方案 → Phase 完成）
+- **Spec 是唯一真相源**：所有设计决策、验收标准、审查结果都写入 `.specdev/specs/`
+- **Human Gate 强制确认**：关键节点必须停下来等你确认（需求 → 视觉基准 → 方案 → Phase 完成）
 - **反狡辩体系**：implementer/reviewer/verifier 各有反狡辩表，防止 AI 用借口跳过关键步骤
 - **三层约束**：Rules（静态）+ Hooks（动态程序化）+ Subagents（独立执行）
 
@@ -17,28 +17,44 @@
 
 然后按照 Human Gate 提示确认每一步即可。
 
-## 规则文件
+## 权威定义位置
 
-| 文件 | 类型 | 内容 |
-|------|------|------|
-| `.cursor/rules/spec-workflow.mdc` | Always Apply | 核心约束 + 3 个 Human Gate + 反狡辩准则 + Pipeline DAG + 压缩恢复 |
+| 内容 | 权威文件 |
+|------|---------|
+| 流程规则 / Human Gate / 反狡辩 | `.cursor/rules/spec-workflow.mdc`（Always Apply） |
+| 子 Agent（11 个） | `.cursor/agents/` |
+| 命令（9 个） | `.cursor/commands/` |
+| Hooks（门禁 + 守卫 + 快照 + 恢复） | `.cursor/hooks/`（变更历史见 `.cursor/hooks/CHANGELOG.md`） |
+| 工作流运行时状态 | `.specdev/specs/<slug>/current-status.json` |
 
-## 子Agent（6 个）
+> ⚠️ 本文件是**精简入口**，不复述细节。任何与 `spec-workflow.mdc` 不一致之处，以该文件为准。
+> ⚠️ `AGENTS.md` 与 `.trae/` 是另外两份会独立演化的载体（多平台镜像）；改动 `.cursor/` 下的流程约束后，
+> 需自行判断是否同步过去 —— 两侧不会自动同步。
 
-| Agent | 职责 | 反狡辩表 |
-|-------|------|:--:|
-| `requirement-analyst` | 需求分析 → requirements.md | - |
-| `plan-generator` | 架构设计 + Phase 拆分 → design.md + phase-plan.md | - |
-| `implementer` | 按 spec 实现代码 | ✅ 7 条 |
-| `reviewer` | 三视角审查 + 桩检测 | ✅ 5 条 |
-| `verifier` | 独立端到端验证 | ✅ 6 条 |
-| `code-explorer` | 只读代码探索 | - |
+## 子Agent（11 个）
 
-## 工作流（6 阶段 + 3 Human Gate）
+| Agent | 职责 |
+|-------|------|
+| `requirement-analyst` | 需求分析 → requirements.md（UI 工作流追加 ui-spec.md） |
+| `plan-generator` | 架构设计 + Phase 拆分 → design.md + phase-plan.md |
+| `code-explorer` | 只读代码探索（**每个 Phase 前强制**） |
+| `implementer` | 按 spec 实现代码 |
+| `reviewer-correctness` | 并行审查①：实现正确性 |
+| `reviewer-design` | 并行审查②：设计一致性 |
+| `reviewer-connectivity` | 并行审查③：集成连通性 |
+| `reviewer-visual` | 并行审查④：视觉一致性（非 UI Phase 返回 N/A） |
+| `reviewer` | 单视角审查（`/brief` 流程使用） |
+| `verifier` | 独立端到端验证（UI Phase 含强制视觉验证） |
+| `wiki` | 项目 Wiki 文档维护 |
+
+## 工作流（6 阶段 + 4 Human Gate）
 
 ```
-/feature → requirement-analyst → 🛑 HG-1 需求确认 → plan-generator → 🛑 HG-2 方案确认
-         → implementer → reviewer → verifier → 🛑 HG-3 Phase 完成
+/feature → requirement-analyst → 🛑 HG-1 需求确认
+         → plan-generator       → 🛑 HG-1.5 视觉基准（仅 UI）
+         → 🛑 HG-2 方案确认
+         → code-explorer → implementer → [🛑 原型确认（仅 UI）] → reviewer×4 → verifier
+         → 🛑 HG-3 Phase 完成
          → (下一 Phase 循环)
 ```
 
@@ -46,20 +62,22 @@
 
 ```
 .cursor/
-├── rules/spec-workflow.mdc    # 核心约束
-├── agents/                    # 6 个子Agent
-├── hooks/                     # 3 个 hook 脚本
-├── hooks.json                 # Hook 注册
-└── commands/                  # /feature + /bugfix
+├── rules/spec-workflow.mdc  # 核心约束（Always Apply）
+├── agents/                  # 11 个子Agent
+├── hooks/                   # 门禁 + 命令守卫 + 快照 + 恢复（+ lib/ 共享库）
+├── commands/                # /feature /bugfix /brief /research /specify /plan /implement /status /wiki
+├── skills/                  # ui-ux-pro-max / code2prompt / drawio-skill / project-build / project-test
+└── snippets/                # escalation-protocol / ui-skill-usage
 
-specs/                         # 所有 spec 文件
-├── current-status.md          # 工作流状态（含 HG 状态追踪）
-├── requirements.md
-├── design.md
-├── phase-plan.md
-└── phases/<phase-id>/
-    ├── spec.md
-    ├── implementation.md
-    ├── review.md
-    └── verification.md
+.specdev/
+├── active-workflow          # 当前工作流 slug
+└── specs/<slug>/
+    ├── current-status.json  # 工作流状态（含 HG 状态追踪）
+    ├── requirements.md / ui-spec.md / design.md / phase-plan.md
+    ├── visual-baseline.md   # 冻结的 Design Tokens（UI 工作流）
+    ├── tech-debt-registry.md
+    └── phases/<phase-id>/
+        ├── spec.md / repo-exploration.md / implementation.md
+        ├── review-*.md（4 视角）/ review.md（合并判决）
+        └── verification.md
 ```
