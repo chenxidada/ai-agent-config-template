@@ -886,6 +886,8 @@ plan-generator 产出 phase-plan.md DAG JSON
 | UI Phase 缺少 `ui-spec.md` 或 `visual-baseline.md` 就开始实施 | 无界面契约、无冻结合基准 → reviewer-visual 与 verifier 都无从判定 |
 | 合并 review.md 时留多值枚举判决行            | `parse_review_verdict` 会判为无可解析判决 → MUST-FIX 拦截失效 |
 | 用 `grep -P` 写 hook 正则             | PCRE 是 GNU 扩展；macOS BSD grep 会以退出码 2 失败，而多数用法在 `if ! ...` 中 → 静默反向放行。一律用 `-E` / `sed` / `awk` |
+| 用 `stat -c %Y` 取文件时间              | `-c` 是 GNU 扩展；macOS BSD stat 直接失败 → 回落到 0 → 时间差恒 > 窗口 → 逃生舱标记（`/tmp/git-commit-allowed`、`/tmp/command-guard-allowed`）**恒不生效**。用 `stat --version` 探测后回退 `stat -f %m`（见 `_file_mtime`） |
+| 变量后紧跟多字节字符且不加 `{}`             | 如 `"（$p）"`：bash 3.2（macOS 自带）会把多字节字符吞进变量名 → 开了 `set -u` 的 hook 直接 `unbound variable` **exit 1**，而 Trae 把非 2 退出码当「继续执行」→ **门禁 fail open**（本项目的危险命令守卫曾因此整体失效）。一律写 `"（${p}）"` |
 
 ***
 

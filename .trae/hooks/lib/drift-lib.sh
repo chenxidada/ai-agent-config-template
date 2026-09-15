@@ -322,10 +322,23 @@ mark_allowed() {
 # is_allowed   (AC-A9)
 # ============================================
 # 放行标记存在且 now - ts < DRIFT_ALLOW_WINDOW(300s) → return 0（在放行窗口内）；否则 return 1。
-# stat -c %Y 写法照搬 pipeline-gate.sh L186。可失败函数：调用方需包裹。
+# mtime 取法见 _file_mtime：`stat -c` 是 GNU 扩展，macOS BSD stat 下恒失败 → 标记永不放行。
+# ⚠️ pipeline-gate.sh 内有同构实现（逃生舱 _marker_fresh 消费），两处需保持一致。
+# 可失败函数：调用方需包裹。
+_file_mtime() {
+    if stat --version >/dev/null 2>&1; then
+        stat -c %Y "$1" 2>/dev/null || echo 0
+    else
+        stat -f %m "$1" 2>/dev/null || echo 0
+    fi
+}
+
 is_allowed() {
-    if [ -f "$DRIFT_ALLOWED_FILE" ] && \
-       [ $(($(date +%s) - $(stat -c %Y "$DRIFT_ALLOWED_FILE" 2>/dev/null || echo 0))) -lt "$DRIFT_ALLOW_WINDOW" ]; then
+    local mt
+    [ -f "$DRIFT_ALLOWED_FILE" ] || return 1
+    mt=$(_file_mtime "$DRIFT_ALLOWED_FILE")
+    case "$mt" in ''|*[!0-9]*) return 1 ;; esac
+    if [ $(( $(date +%s) - mt )) -lt "$DRIFT_ALLOW_WINDOW" ]; then
         return 0
     fi
     return 1

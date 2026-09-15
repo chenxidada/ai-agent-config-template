@@ -192,6 +192,29 @@ _danger_tool_match() {
     echo "$1" | grep -qE "(^|[^[:alnum:]_])$2([^[:alnum:]_]|$)"
 }
 
+# ── 辅助：跨平台文件 mtime（Unix 秒） ──
+# `stat -c` 是 GNU 扩展；macOS 自带 BSD stat 会以「illegal option」失败（stdout 空、退出码 1）。
+# 此前一律写 `stat -c %Y ... || echo 0` → 在 macOS 上恒得 0 → `now - 0` 远大于窗口
+# → 逃生舱标记**恒不生效**（touch 了也放行不了）。与 grep -P 属同一类可移植性缺陷。
+# 探测手段：BSD stat 无 --version（GNU stat 有）。
+# ⚠️ drift-lib.sh 内有同构实现（is_allowed 消费），两处需保持一致。
+_file_mtime() {
+    if stat --version >/dev/null 2>&1; then
+        stat -c %Y "$1" 2>/dev/null || echo 0
+    else
+        stat -f %m "$1" 2>/dev/null || echo 0
+    fi
+}
+
+# ── 辅助：标记文件「存在且在 N 秒内创建」（逃生舱统一判定，默认 300s 窗口） ──
+_marker_fresh() {
+    local f="$1" win="${2:-300}" mt
+    [ -f "$f" ] || return 1
+    mt=$(_file_mtime "$f")
+    case "$mt" in ''|*[!0-9]*) return 1 ;; esac
+    [ $(( $(date +%s) - mt )) -lt "$win" ]
+}
+
 # ── 危险命令守卫（AD-1 子串锚定：命令串同时含「危险工具 token」+「危险遍历根参数」→ 拦截） ──
 # 契约（关键，见 repo-exploration §5/§7）：
 #   - 无命中时必须 `return 0`（落到后续 git gate），绝不能 allow/exit 0 —— 否则绕过 git 门禁破坏 AC-11。
@@ -201,7 +224,7 @@ check_dangerous_command() {
     local CMD="$1"
 
     # 逃生舱优先 (AC-8 / AD-3)：标记文件存在且 300s 内创建 → 放行，跳过全部检查（照搬 git-commit-allowed 模式）
-    if [ -f /tmp/command-guard-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/command-guard-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+    if _marker_fresh /tmp/command-guard-allowed 300; then
         return 0
     fi
 
@@ -209,7 +232,7 @@ check_dangerous_command() {
     local p
     for p in "${DANGER_SENSITIVE_PATHS[@]}"; do
         if echo "$CMD" | grep -qF "$p"; then
-            deny "⛔ 命令被拦截 [敏感路径访问]：检测到访问敏感路径（$p），可能读写系统凭证/密钥文件（/etc/shadow、~/.ssh、id_rsa 等）。
+            deny "⛔ 命令被拦截 [敏感路径访问]：检测到访问敏感路径（${p}），可能读写系统凭证/密钥文件（/etc/shadow、~/.ssh、id_rsa 等）。
 
   待执行命令：$CMD
 
@@ -228,7 +251,7 @@ check_dangerous_command() {
         local m
         for m in "${DANGER_RECURSIVE_MODS[@]}"; do
             if _danger_tool_match "$CMD" "$m"; then
-                deny "⛔ 命令被拦截 [系统根递归修改]：检测到以文件系统根 / 或系统目录为目标的递归修改（命中：$m），可能影响系统文件。
+                deny "⛔ 命令被拦截 [系统根递归修改]：检测到以文件系统根 / 或系统目录为目标的递归修改（命中：${m}），可能影响系统文件。
 
   待执行命令：$CMD
 
@@ -240,7 +263,7 @@ check_dangerous_command() {
         local t
         for t in "${DANGER_SCAN_TOOLS[@]}"; do
             if _danger_tool_match "$CMD" "$t"; then
-                deny "⛔ 命令被拦截 [全盘扫描]：检测到以文件系统根 / 或系统目录为起点的递归扫描（命中：$t），可能极慢并消耗大量资源。
+                deny "⛔ 命令被拦截 [全盘扫描]：检测到以文件系统根 / 或系统目录为起点的递归扫描（命中：${t}），可能极慢并消耗大量资源。
 
   待执行命令：$CMD
 
@@ -289,7 +312,7 @@ if [ "$TOOL_NAME" = "RunCommand" ]; then
     # ── git commit/push 必须经用户显式允许 ──
     if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
         # 文件标记：/tmp/git-commit-allowed 存在且 300s 内创建则放行
-        if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+        if _marker_fresh /tmp/git-commit-allowed 300; then
             allow
         fi
         deny "⛔ git commit/push 被拦截。Agent 不允许未经用户明确同意的提交操作。\n如你确实需要提交，请回复「允许提交」后由 Agent touch /tmp/git-commit-allowed 再执行。"
@@ -392,10 +415,10 @@ validate_phase_id() {
     local VALID_LIST
     VALID_LIST=$(echo "$VALID_IDS" | tr '\n' ' ')
     if [ "$MODE" = "warn" ]; then
-        echo "⚠️ Phase ID \`$CURRENT_PHASE\` 不在 DAG JSON 中（有效: $VALID_LIST）" >&2
+        echo "⚠️ Phase ID \`$CURRENT_PHASE\` 不在 DAG JSON 中（有效: ${VALID_LIST}）" >&2
         return 0
     else
-        deny "⛔ Phase ID 不合法：\`$CURRENT_PHASE\` 不在 phase-plan.md DAG JSON 中。有效 ID：$VALID_LIST。"
+        deny "⛔ Phase ID 不合法：\`$CURRENT_PHASE\` 不在 phase-plan.md DAG JSON 中。有效 ID：${VALID_LIST}。"
     fi
 }
 
@@ -654,7 +677,7 @@ if echo "$TARGET_FILE" | grep -q "current-status\.json$"; then
                 ask "⚠️ HG-3 触发条件【缺失判决】：verification.md 无可解析的判决字段（判决行缺失，或残留 \`PASS / PARTIAL / FAIL\` 多值枚举）。verifier 必须报告单一判决值。是否仍标记 HG-3 通过？"
             elif [ "$V_VERDICT" != "PASS" ]; then
                 # AC-14 + AC-18：判决非 PASS（FAIL/PARTIAL）
-                ask "⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 $V_VERDICT（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？"
+                ask "⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 ${V_VERDICT}（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？"
             elif verdict_is_self_inconsistent "$VERI_FILE"; then
                 # AC-16 + AC-18：判决=PASS 但残余含 CRITICAL/MEDIUM（含「已降级/downgraded」SOA 模式）
                 V_SEV=$(max_residual_severity "$VERI_FILE")

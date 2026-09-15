@@ -244,7 +244,7 @@ elif echo "$AGENT_LOWER" | grep -q "verifier"; then
                 cat <<MSG
 ⛔ **verifier 失败回路已达上限（verifier_loop_count = $VLC >= 2）**
 
-verifier 判决：**$V**（最高残余严重性：$SEV）
+verifier 判决：**$V**（最高残余严重性：${SEV}）
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## 🚨 升级用户（不再自动回流）
@@ -264,14 +264,14 @@ MSG
                 cat <<MSG
 🔁 **verifier 判决非通过 → 自动回 implementer 修复**
 
-verifier 判决：**$V**（最高残余严重性：$SEV）
+verifier 判决：**$V**（最高残余严重性：${SEV}）
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## 下一步（镜像 reviewer MUST-FIX 回路）
 
-判决为 $V$FAIL_NOTE，验收标准未达成。
+判决为 $V${FAIL_NOTE}，验收标准未达成。
 请由调度者执行：
-1. **verifier_loop_count +1**（当前 = $VLC，上限 2）
+1. **verifier_loop_count +1**（当前 = ${VLC}，上限 2）
 2. 确保处在 \`impl-<phase-id>\` 分支后，委托 **implementer** 修复 verification.md 列出的问题
 3. implementer 完成后重新走 reviewer → verifier
 
@@ -292,7 +292,7 @@ verifier 判决：**PARTIAL**（最高残余严重性：MEDIUM，无 CRITICAL）
 先向用户展示 verification.md「残余风险」区块中的 MEDIUM 项，然后询问：
 
 - **A) 接受残余风险 → 进入 HG-3 验收**：用户接受后，按常规 HG-3 流程继续
-- **B) 回流修复 → 委托 implementer**：用户选择修复后，由调度者 verifier_loop_count +1（当前 = $VLC，上限 2）→ 委托 implementer 补齐 MEDIUM 项 → 重新 reviewer → verifier
+- **B) 回流修复 → 委托 implementer**：用户选择修复后，由调度者 verifier_loop_count +1（当前 = ${VLC}，上限 2）→ 委托 implementer 补齐 MEDIUM 项 → 重新 reviewer → verifier
 
 **不要自动继续。不要替用户做决定。**
 MSG
@@ -302,7 +302,7 @@ MSG
             cat <<MSG
 ✅ **verifier 已完成**
 
-verifier 判决：**${V:-无可解析判决}**（最高残余严重性：$SEV）
+verifier 判决：**${V:-无可解析判决}**（最高残余严重性：${SEV}）
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## ⏸️ Human Gate 3 — Phase 验收

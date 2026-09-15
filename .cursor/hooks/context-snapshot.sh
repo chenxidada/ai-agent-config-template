@@ -54,7 +54,7 @@ EOF
 if ! read_status "$STATUS_FILE" 2>/tmp/.cursor-status-read.err; then
     ERR_MSG=$(cat /tmp/.cursor-status-read.err 2>/dev/null)
     cat > "$SPEC_DIR/recovery-instructions.md" <<RECOVERY
-# ⚠️ 上下文压缩恢复指南 — $TIMESTAMP（状态读取失败）
+# ⚠️ 上下文压缩恢复指南 — ${TIMESTAMP}（状态读取失败）
 
 **未能生成正常恢复快照** — \`$STATUS_FILE\` 无法读取或缺失关键字段。
 为避免伪造状态污染，本文件不写入任何 Human Gate 状态值。

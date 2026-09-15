@@ -21,9 +21,33 @@ if [ -z "$CMD" ]; then
 fi
 
 # ── 辅助函数 ──
+
+# 跨平台文件 mtime（Unix 秒）：`stat -c` 是 GNU 扩展，macOS 自带 BSD stat 会以
+# 「illegal option」失败（stdout 空、退出码 1）→ 回落 echo 0 → `now - 0` 远大于窗口
+# → 两个逃生舱标记（command-guard-allowed / git-commit-allowed）**恒不生效**。
+# 探测手段：BSD stat 无 --version（GNU stat 有）。
+_file_mtime() {
+    if stat --version >/dev/null 2>&1; then
+        stat -c %Y "$1" 2>/dev/null || echo 0
+    else
+        stat -f %m "$1" 2>/dev/null || echo 0
+    fi
+}
+
+# 标记文件「存在且在 N 秒内创建」（逃生舱统一判定，默认 300s 窗口）
+_marker_fresh() {
+    local f="$1" win="${2:-300}" mt
+    [ -f "$f" ] || return 1
+    mt=$(_file_mtime "$f")
+    case "$mt" in ''|*[!0-9]*) return 1 ;; esac
+    [ $(( $(date +%s) - mt )) -lt "$win" ]
+}
+
 deny_cmd() {
-    local MSG="$1"
-    echo "{\"permission\":\"deny\",\"user_message\":\"$MSG\"}"
+    # 必须用 jq 构造 JSON：MSG 里含未转义的 " （命令串中很常见）或换行时会产出
+    # 非法 JSON，而本 hook 配置为 failClosed → 表现为「hook 返回非法 JSON」黑盒报错，
+    # 真正想传达的拦截原因完全丢失，且无法用逃生舱自查。
+    printf '%b' "$1" | jq -Rs '{permission:"deny", user_message:.}'
     exit 0
 }
 
@@ -53,11 +77,11 @@ _danger_tool_match() {
 }
 
 # 逃生舱：touch /tmp/command-guard-allowed 后 300s 内放行
-if ! { [ -f /tmp/command-guard-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/command-guard-allowed 2>/dev/null || echo 0))) -lt 300 ]; }; then
+if ! _marker_fresh /tmp/command-guard-allowed 300; then
     # 类别 3 — 敏感路径访问
     for p in "${DANGER_SENSITIVE_PATHS[@]}"; do
         if echo "$CMD" | grep -qF "$p"; then
-            deny_cmd "⛔ 命令被拦截 [敏感路径访问]：检测到访问敏感路径（$p）。\\n\\n待执行命令：$CMD\\n\\n如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
+            deny_cmd "⛔ 命令被拦截 [敏感路径访问]：检测到访问敏感路径（${p}）。\\n\\n待执行命令：$CMD\\n\\n如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
         fi
     done
 
@@ -71,13 +95,13 @@ if ! { [ -f /tmp/command-guard-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp
         # 类别 2 — 系统根递归修改
         for m in "${DANGER_RECURSIVE_MODS[@]}"; do
             if _danger_tool_match "$CMD" "$m"; then
-                deny_cmd "⛔ 命令被拦截 [系统根递归修改]：检测到以系统目录为目标的递归修改（命中：$m）。\\n\\n待执行命令：$CMD\\n\\n如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
+                deny_cmd "⛔ 命令被拦截 [系统根递归修改]：检测到以系统目录为目标的递归修改（命中：${m}）。\\n\\n待执行命令：$CMD\\n\\n如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
             fi
         done
         # 类别 1 — 全盘递归扫描
         for t in "${DANGER_SCAN_TOOLS[@]}"; do
             if _danger_tool_match "$CMD" "$t"; then
-                deny_cmd "⛔ 命令被拦截 [全盘扫描]：检测到以系统目录为起点的递归扫描（命中：$t），可能极慢。\\n\\n待执行命令：$CMD\\n\\n建议限定在项目内。如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
+                deny_cmd "⛔ 命令被拦截 [全盘扫描]：检测到以系统目录为起点的递归扫描（命中：${t}），可能极慢。\\n\\n待执行命令：$CMD\\n\\n建议限定在项目内。如确需执行，请回复「允许该命令」，我会 touch /tmp/command-guard-allowed 后重试放行。"
             fi
         done
     fi
@@ -89,7 +113,7 @@ fi
 
 # git commit/push 必须经用户显式允许
 if echo "$CMD" | grep -qE '\bgit (commit|push)\b'; then
-    if [ -f /tmp/git-commit-allowed ] && [ $(($(date +%s) - $(stat -c %Y /tmp/git-commit-allowed 2>/dev/null || echo 0))) -lt 300 ]; then
+    if _marker_fresh /tmp/git-commit-allowed 300; then
         echo '{"permission":"allow"}'
         exit 0
     fi

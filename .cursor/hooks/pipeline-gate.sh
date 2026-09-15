@@ -177,7 +177,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                             exit 0
                         elif [ "$V_VERDICT" != "PASS" ]; then
                             # AC-14：判决非 PASS
-                            echo "{\"permission\":\"ask\",\"user_message\":\"⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 $V_VERDICT（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？\"}"
+                            echo "{\"permission\":\"ask\",\"user_message\":\"⚠️ HG-3 触发条件【非 PASS】：verifier 判决为 ${V_VERDICT}（非 PASS）。$V_VERDICT 表示验收标准未全部达成或存在未解决 Known Gaps。是否仍标记 HG-3 通过？\"}"
                             exit 0
                         elif verdict_is_self_inconsistent "$VERI_FILE"; then
                             # AC-16：判决=PASS 但残余含 CRITICAL/MEDIUM

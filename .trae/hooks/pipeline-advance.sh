@@ -302,7 +302,7 @@ MSG
                 cat <<MSG
 ⛔ **verifier 失败回路已达上限（verifier_loop_count = $VLC ≥ 2）**
 
-verifier 判决：**$V**（最高残余严重性：$SEV）
+verifier 判决：**$V**（最高残余严重性：${SEV}）
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## 🚨 升级用户（不再自动回流）
@@ -323,14 +323,14 @@ MSG
                 cat <<MSG
 🔁 **verifier 判决非通过 → 自动回 implementer 修复**
 
-verifier 判决：**$V**（最高残余严重性：$SEV）
+verifier 判决：**$V**（最高残余严重性：${SEV}）
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
 ## 下一步（镜像 reviewer MUST-FIX 回路，AC-E1/E2）
 
-判决为 $V$FAIL_NOTE，验收标准未达成。
+判决为 $V${FAIL_NOTE}，验收标准未达成。
 请由调度者执行：
-1. **verifier_loop_count +1**（当前 = $VLC，上限 2）
+1. **verifier_loop_count +1**（当前 = ${VLC}，上限 2）
 2. 级联作废下游（本步骤已是末步，无下游需作废）
 3. 确保处在 \`impl-<phase-id>\` 分支后，委托 **implementer** 修复 verification.md 列出的问题
 4. implementer 完成后重新走 reviewer → verifier
@@ -354,7 +354,7 @@ verifier 判决：**PARTIAL**（最高残余严重性：MEDIUM，无 CRITICAL）
 先向用户展示 verification.md「残余风险」区块中的 MEDIUM 项（未做端到端验证 / 未覆盖的边界等），然后询问：
 
 - **A) 接受残余风险 → 进入 HG-3 验收**：用户接受后，按常规 HG-3 流程（展示 \`git diff --stat\` + \`git status -s\` → 用户确认 → commit/merge → 更新 hg3/loop_count/verifier_loop_count）继续
-- **B) 回流修复 → 委托 implementer**：用户选择修复后，由调度者 verifier_loop_count +1（当前 = $VLC，上限 2）→ 委托 implementer 补齐 MEDIUM 项 → 重新 reviewer → verifier
+- **B) 回流修复 → 委托 implementer**：用户选择修复后，由调度者 verifier_loop_count +1（当前 = ${VLC}，上限 2）→ 委托 implementer 补齐 MEDIUM 项 → 重新 reviewer → verifier
 
 **这是 advance（Stop hook）产出的引导：请调度者去问用户，不要静默进 HG-3，也不要替用户做决定。**
 MSG
@@ -363,7 +363,7 @@ MSG
 
         # ── 分支 3：PARTIAL 仅 LOW，或 PASS → 常规 HG-3（AC-E4） ──
         cat <<MSG
-✅ **verifier 已完成（判决：${V:-未解析}，最高残余：$SEV）**
+✅ **verifier 已完成（判决：${V:-未解析}，最高残余：${SEV}）**
 
 输出文件：\`.specdev/specs/<workflow>/phases/<phase>/verification.md\`
 
