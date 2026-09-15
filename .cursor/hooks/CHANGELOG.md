@@ -1,14 +1,20 @@
 # Cursor Hooks v8 变更说明（含 Trae 同步指引）
 
 > 状态：**Cursor 侧已完成并自测通过**（**133 项断言全绿**）；**Trae 侧尚未同步**（按用户决策延后）。
-> ⚠️ **净变化如实修正（本次提交实测）**：已跟踪文件 `+1233 / −1882` → **净减 649 行**。
-> 但**把新增文件计入后，仓库整体是净增**（`tools/` 测试 +721、`drift-reminder.sh` +137、`emit.sh` +52，以及本变更文档自身）。
-> 因此准确表述是：**hooks 层净减，仓库层净增**。「做减法」的实质是**删掉 869 行死代码 / 废弃文件**
-> （`pipeline-advance.sh` −363、已废弃架构档 −432、`opencode.jsonc` −74）
-> 并**把省下的预算换成测试与验证**，而不是把仓库变小。⚠️ 不要把「净减 239 行」的旧说法再引用（已作废）。
+>
+> ⚠️ **净变化 —— 口径必须一起写，否则无法复现**：`git diff --shortstat 6084ab9`（改造起点 → 当前工作区）＝ **33 文件 `+2675 / −1984`**。
+> 拆解：**新增 8 文件 `+1542`**（`tools/test-*.sh` 共 +731、本文件 +622、`drift-reminder.sh` +137、`emit.sh` +52）
+> ／**删除 4 文件 `−961`**（`pipeline-advance.sh` −363、`ORCHESTRATOR_ARCHITECTURE.md` −432、`templates/validation-report.md` −92、`opencode.jsonc` −74）
+> ／其余 21 文件 `+1133 / −1023`。
+> **两口径结论相反，必须并列**：只看已有文件是 `+1133 / −1984`（净减 **851**）；计入新增才是 `+2675 / −1984`（净增 **691**）。
+> 早期只写了前者却标成「已跟踪文件」且未注明 `--diff-filter=MDR` —— 读者一算必然对不上。
+> **`+1233 / −1882`、`净减 649`、`净减 239`、`砍掉 312 行` 四处旧说法全部作废**（溯源见 §11.6）。
+> 唯一稳定的定性表述：**hooks 层净减（`+937 / −966`），仓库层净增；减掉的是死代码 961 行，换来的是测试 5 套件 / 133 断言。**
+>
+> ⚠️ 上述数字**包含本文件自身**，会随本文档增删而变 —— 需要权威值时**重跑该命令**，不要引用此处快照。
 > ⚠️ **gate 本体是变大的**（525 → 640 行）：安全机制变强必然如此，减的是别处。
-> ⚠️ 本文件已含 **§6 勘误**（首轮 5 条断言被证伪）、**§8 v8.2**（四项决策落地 + 本轮复核发现）、
-> **§9 v8.3**（平台范围收敛 + 文档清理）与 **§10**（提交前发现 `drift-reminder.sh` 从未生效）。
+> 本文件含 **§6 勘误**（首轮 5 条断言被证伪）/ **§8 v8.2**（四项决策落地 + 复核发现）/ **§9 v8.3**（平台范围收敛 + 文档清理）
+> / **§10**（`drift-reminder.sh` 从未生效）/ **§11**（模板 skill 还原：把发给下游的文件当成了记事本）。
 > 变更动机：门禁的失败模式不是「拦不住」，而是**「假装在拦」** —— 空操作、静默放行、协议错误。
 
 ---
@@ -24,7 +30,8 @@
 | 5 | 判决解析有 3 条绕过路径 | MUST-FIX 可被静默放行 | 严格单值解析 + 证据计数 |
 | 6 | 心跳机制 | 只在 allow 上附提醒、永不阻断 + 全局 `/tmp` 污染 | **删除** |
 
-一句话：**把「看起来有保护」改成「真的有保护」，并顺手砍掉 312 行。**
+一句话：**把「看起来有保护」改成「真的有保护」—— 净删 961 行死代码 / 废弃配置（4 个文件），同时把 11 处静默放行改成显式拒绝。**
+（hooks 层本身 `+937 / −966` → 净减 29 行，口径与重跑命令见顶部。早期「砍掉 312 行」的说法无法复现，已废弃。）
 
 ---
 
@@ -398,8 +405,8 @@ bash tools/test-drift.sh          → 22 通过 / 0 失败
 | N1 | `.cursor-plugin/plugin.json` 仍是旧世界：**6 个 agent**（实际 11）、**「3 Human Gate」**（实际 4）、`reviewer` 描述为「三视角审查」（实际四视角并行）、hooks 描述里写着「**自动推进**」（该机制已删）、命令只列 `/feature` `/bugfix`（实际 9 个）、路径写 `specs/requirements.md` | 这是**对外发布**的插件清单。它错 = 用户装到的能力描述与实际不符，且「自动推进」这句话本身就是已被证伪的承诺 |
 | N2 | `.cursor/commands/feature.md` 两处声称「**hook 自动触发** HG-1.5/HG-2」「**hook 自动触发 HG-3 停止**」 | 与同文件 `:53`「没有 hook 会代你推进」**自相矛盾**。这正是「宣称了却没落地的机制」的同一类错误，只是换了层 |
 | N3 | `session-recovery.sh` 注入的状态表**不含 HG-1.5**；`emit_anchoring_block` 的「三条铁律」写「**三个节点**」，且 architecture-design / phase-implementation 两段都**不提 HG-1.5 与原型门禁** | 锚定块是**压缩后唯一存活的信息面**（sessionStart + `recovery-instructions.md`）。它漏掉 UI 的两个停止点 → 恢复后最容易跳过的恰好是这两个。**已修 + 已加测试护栏**：`test-hook-contract.sh` 现断言两处锚定文本都含「HG-1.5」「原型确认」（`+4` 项断言）—— 这类「规则升级了但锚定块没跟着升」的漂移此前完全无测试覆盖 |
-| N4 | `.cursor/agents/reviewer.md`、`.cursor/templates/phase-requirements.md`、`code2prompt/SKILL.md`、`project-build|test/SKILL.md` 仍写已废弃的 agent 名 | 那些名字在当前模板中**不存在** → 引用它们的 agent 会去找一个不存在的角色 |
-| N5 | `project-build|test/SKILL.md` 把一批**已不存在的路径**（旧插件脚本、`specs/validation/...`）标为「✅ 已验证」 | 那些路径已不存在。已按「correction over accumulation」原则清理，并补上 Cursor 侧当前有效的构建/测试命令 |
+| N4 | `.cursor/agents/reviewer.md`、`.cursor/templates/phase-requirements.md`、`.cursor/skills/project-build&#124;test/SKILL.md` 仍写已废弃的 agent 名 `validator` | 该名字在当前模板中**不存在** → 引用它的 agent 会去找一个不存在的角色。`.trae/` 侧早已改成 `verifier`，`.cursor/` 侧漏改。（初版把 `code2prompt/SKILL.md` 也列在此处属**误判** —— 该文件从未含废弃 agent 名，见 §11.2） |
+| N5 | `.cursor/skills/project-build&#124;test/SKILL.md` 被当成**本仓库的记事本**：写满 `specs/validation/...`、旧插件脚本、`/home/chendc/.nvm/...` 绝对路径等**只有本仓库才成立**的内容，且逐条标为「✅ 已验证」 | 这两个 skill 是**发给下游工程的模板**（`setup.sh` 整体拷贝 `.cursor/`）。模板里写本仓库的知识 = 每个下游项目开局就带一叠指向不存在路径的「已验证」条目 —— 比空文件更有害。**已还原为空骨架**（§11） |
 | N6 | `feature.md` 初始化步骤有两个「4.」；**完全没写** `git checkout -b impl-<phase>` 与 HG-3 的 commit/merge | 分支隔离是 gate **硬校验**项（分支不对直接 deny），但用户实际执行的命令文档里没有它 |
 
 ## 8.2 决策二：`subagentStop` 只补「提醒器」，不补「推进器」
@@ -494,10 +501,10 @@ hook 代码有测试兜底（133 项断言），**文档没有**。若要继续�
 | C1 | `.cursorrules` | 顶部警示仍在指向已删除的目录与文档 |
 | C2 | `README.md` | 文件清单列了已删除的文件；「使用方法」里还有对应的安装步骤；一处「已废弃 agent 名」清单已无意义（那些名字全仓已不存在） |
 | C3 | `AGENTS.md` / `KB_SYNC_STRATEGY.md` / `README.md` | 多处「本模板没有 X agent」的**否定式指名**（指向一个已不存在的角色）→ 改写为「同步由调度者直接执行」，不再指名 |
-| C4 | `.cursor/skills/code2prompt/SKILL.md` | 用法示例引用不存在的 `.hbs` 模板路径与旧输出目录 → 改为当前路径，并说明模板不随附 |
+| C4 | `.cursor/skills/code2prompt/SKILL.md` | 用法示例引用的是 `.opencode/templates/repo-map.hbs`（路径已不存在）→ **仅改路径前缀**为 `.cursor/`，与 `.trae/` 侧保持逐字对称（`sed 's/\.trae/.cursor/g'` 后两份完全一致）。初版曾顺手删掉 `--template` 参数并改写说明段 —— 属**过度编辑模板**，已回退（§11.2） |
 | C5 | `KB_SYNC_STRATEGY.md` §5 / §9 | 「XX 侧实现」整节指向已不存在的文件与不存在的渲染规范文档 → 改写为 Cursor 侧**实际生效**的四个载体 |
 | C6 | `KNOWNBASE_WRITE_PATH_EXPLAINED.md` | 推荐元数据里的 `sourceTool` 值写的是已废弃平台 → 改为 `cursor` |
-| C7 | `.cursor/skills/project-build|test/SKILL.md` | 见 §8.1 N5；本轮**直接删除**过期条目（而非保留 ⚠️ 标记），仅保留当前有效的构建/测试知识 |
+| C7 | `.cursor/skills/project-build&#124;test/SKILL.md` | 见 §8.1 N5。初版按其「correction over accumulation」规则清理过期条目后，**填入本仓库当前有效的构建/测试命令** —— 这仍是在把模板当记事本，只是内容更新了而已，且更难察觉（看起来是「新鲜知识」）。**最终处置：整份还原为空骨架**（§11） |
 | C8 | `templates/validation-report.md`（根目录） | **孤儿文件**：全仓零引用（`README.md` 里的 `templates/` 是 `.cursor/templates/`，与根目录无关），且阶段清单写的是已废弃的 agent 链 → **已删除**（连同空目录）。verifier 的实际产物契约在 `.cursor/agents/verifier.md` 与 `verification.md` 中，不依赖此模板 |
 
 ## 9.3 验证
@@ -544,7 +551,102 @@ hook 代码有测试兜底（133 项断言），**文档没有**。若要继续�
 
 ## 10.4 教训
 
-`project-build/SKILL.md` 里**早就写着**「改完必须做的事：`chmod +x <脚本>`，否则 hook 不执行」——
-这条知识存在、正确、且被本项目自己的 skill 记录，但**没有任何机制强制它**。
-这与此前所有被证伪的断言同源：**写在文档里的纪律，等于没有纪律**。
+本轮此前**没有任何文件**写过「新增 hook 必须 `chmod +x`」这条纪律。
+（初版此处称「`project-build/SKILL.md` 里早就写着」—— 那两行是**本次审查时我自己补进去的**，并非既有知识；该文件随后已被还原成骨架，见 §11。属**倒果为因**，已更正。）
+
+即：`drift-reminder.sh` 的可执行位从建立起就没人负责 —— **纪律不只没有被强制，它根本不存在**。
+比「写在文档里的纪律等于没有纪律」更糟一层：**没写下来的纪律，连被读到然后忽略的机会都没有**。
+
+唯一有效的补救是把它放进**会失败的测试**里（`test-hook-contract.sh` 的 `-f && -x` 断言，失败消息直接给出 `chmod +x <path>`），而不是放进文档。
+文档只能告诉读到它的人；测试会拦住没读到的人。
+
+---
+
+# 11. 模板 skill 还原：把「发给下游的文件」当成了记事本
+
+> 触发：用户指出 —— 「`project-build` / `project-test` 这两个东西不是给你用来记录的，是一个模板，使用这套框架的工程用的」。
+
+## 11.1 事实
+
+`.cursor/skills/project-build/SKILL.md` 与 `.cursor/skills/project-test/SKILL.md` **不是本仓库的知识库**，
+而是随模板分发给下游工程的**空骨架**：`AGENTS.md` 明确写着「These skills start as empty skeletons」，
+且 `setup.sh` 会把整个 `.cursor/` 拷进目标工程 —— 任何写进去的内容都会出现在**每一个下游项目**里。
+
+这两份文件此前（本次改造之前就已）被填满了**只对本仓库成立**的内容：
+
+| 文件 | 被写进去的内容 | 性质 |
+|---|---|---|
+| `project-build` | `OpenCode 插件（.mjs）— 无需构建`、`Phase 1: 文本规则硬化`、`/home/chendc/.nvm/versions/node/v20.16.0/bin/node` | 路径/概念均只在本仓库存在 |
+| `project-test` | `specs/validation/phase2-enforcement-plugin/test-scripts/*.mjs`、120/120 passed、`validator` | 同上 |
+
+对照之下，`.trae/skills/project-build/SKILL.md` **是干净的骨架**（逐节 `*（项目首次使用时由 implementer 填充）*`）——
+即两侧本来就不一致，`.cursor/` 侧被污染而 `.trae/` 侧没有。
+
+**本轮初版处置是错的**：我按 skill 自己的「correction over accumulation」规则**清理过期条目后补入当前有效命令**
+（`tools/test-*.sh`、`jq` 依赖、git `--trailer` 绕过写法……）。这仍是在把模板当记事本 ——
+只是把**陈旧的本仓库知识**换成了**新鲜的本仓库知识**，而且更难发现：新内容看起来都是对的。
+
+## 11.2 为什么这是两类不同的错误
+
+| | 初版做的事 | 正确的事 |
+|---|---|---|
+| 性质 | 内容**更新**（清旧 + 填新） | 内容**清空**（还原骨架） |
+| 后果 | 下游项目拿到一份「看起来新鲜」的本仓库知识，且被标为 ✅ 已验证 | 下游项目拿到空骨架，首次使用时自行填充 |
+| 为何难察觉 | 内容真实、路径有效、格式合规 —— 所有检查都会通过 | — |
+
+同一批文件里还有第三类错误：`code2prompt/SKILL.md`。它确实含**不存在的路径**（`.opencode/templates/...`，属实打实的过期引用，该改），
+但我顺手**连 `--template` 参数一起删掉并改写了说明段** —— 超出了「修一条死路径」的必要范围。
+`.trae/` 侧对该文件只做了一件事：路径前缀不同，其余逐字一致。已按此回退。
+
+## 11.3 处置与验证
+
+| # | 动作 |
+|---|---|
+| 1 | `.cursor/skills/project-build/SKILL.md` 还原为空骨架 → 与 `.trae/` 侧 **`diff` 完全一致**（保留的 `validator`→`verifier` 改名属 N4，两侧本就应一致） |
+| 2 | `.cursor/skills/project-test/SKILL.md` 还原为空骨架（`.trae/` 侧那份同样被污染，见 §11.4） |
+| 3 | `.cursor/skills/code2prompt/SKILL.md` 回退过度编辑 → 与 `.trae/` 侧 `sed 's/\.trae/.cursor/g'` 后 **逐字一致** |
+| 4 | 修正 §8.1 N4/N5、§9.2 C4/C7、§10.4 中因本次回退而失效的叙述 |
+
+验证：`diff .cursor/skills/project-build/SKILL.md .trae/skills/project-build/SKILL.md` → 无输出（一致）；
+残留自检 `rg 'trailer|cursor-agent-exec|tools/test-|2\.25\.1' <两份文件>` → 零命中。
+
+## 11.4 后续处置（用户确认后已执行）
+
+| 项 | 说明 |
+|---|---|
+| `.trae/skills/project-test/SKILL.md` | **已还原为空骨架** → 与 `.cursor/` 侧逐字一致（骨架内容本身是**平台中立**的：讲的是「首次使用时由 verifier 填充」，不涉及任何一侧专属路径） |
+| `setup.sh` 的 `chmod +x` 不对称 | **已补齐**：`install_cursor()` 现在与 `install_trae()` 对称，都有 `chmod +x <hooks>/*.sh` 兜底。红/绿验证（源仓库**故意抹掉** `x` 位，再安装）：**兜底生效** → `-rwxrwxr-x`；**把 `chmod` 停掉（模拟修复前）** → 仍是 `-rw-rw-r--`，即 5 个 hook **全部会被 Cursor 静默跳过**。这证明该缺失不是理论风险，而是可复现的失效路径 —— 与 §10 的 `drift-reminder.sh` 同一个死法，只是发生在**下游每一个工程**上 |
+
+> ⚠️ 注意 `install_*()` 的 `chmod` 只覆盖 `hooks/*.sh`。`hooks/lib/*.sh` 是被 `source` 的共享库，**不需要** `x` 位，刻意不加。
+
+## 11.5 教训
+
+模板仓库里存在两类文件，它们的**正确修改方式相反**：
+
+- **本仓库的产物**（`tools/`、`README.md`、规则文件）—— 持续更新，越准确越好
+- **发给下游的模板**（`.cursor/skills/*`、`.cursor/agents/*`、`.trae/*`）—— 改动必须问「这对**下游项目**成立吗」，
+  内容只能增删**结构性**的东西（路径前缀、agent 名），不能塞入本仓库的运行事实
+
+判断方法很简单：`setup.sh` 会不会把它拷进目标工程。会 → 它是对外接口。
+
+## 11.6 顺带查清：`+1233 / −1882` 是怎么来的
+
+该数字长期挂在文件顶部（标为「已跟踪文件」），且**与本文件后来给出的总数 `+2675 / −1984` 冲突** ——
+但当时没有说明为什么，读者无从判断哪个对。
+
+实测溯源（逐候选命令比对）：
+
+| 命令 | 结果 |
+|---|---|
+| `git diff --shortstat 6084ab9 36b3f62` | `33 files changed, 2704 insertions(+), 1882 deletions(-)` |
+| **`git diff --shortstat --diff-filter=MDR 6084ab9 36b3f62`** | **`25 files changed, 1233 insertions(+), 1882 deletions(-)`** ← 就是这个 |
+| `git diff --shortstat 6084ab9 36b3f62 -- .cursor/` | `18 files changed, 1731 / 1093` |
+| `git diff --shortstat 6084ab9 36b3f62 -- '*.sh'` | `14 files changed, 1672 / 1023` |
+
+即：**数字本身是实测的，错的是标签** —— `--diff-filter=MDR` 把 8 个新增文件（+1542）整个排除了，
+却写成了「已跟踪文件」，读者按普通 `git diff --shortstat` 一算必然不同。
+同时 `−1882` 与 `−1984` 的差（102）正是此后才删除的 `templates/validation-report.md` ——**同一段文字里混了两个时点的快照**。
+
+**教训**：本文件通篇在要求 agent「不实测不下断言」，但**实测了却不说清了口径，等于没测**。
+可复现的标准不是给出数字，而是给出**能重跑出该数字的命令**。已按此改写顶部章节（口径表 + 重跑指引）。
 

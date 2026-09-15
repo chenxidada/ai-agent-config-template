@@ -21,6 +21,7 @@ cargo install code2prompt
 code2prompt src/ \
   --include="*.cpp,*.h,*.hpp" \
   --exclude="tests/*,third_party/*,build/*" \
+  --template .cursor/templates/repo-map.hbs \
   --output-file .specdev/specs/<slug>/phases/<phase-id>/repo-map.md
 
 # 如果项目根有 .git，code2prompt 自动尊重 .gitignore
@@ -28,8 +29,7 @@ code2prompt src/ \
 
 ### 模板位置
 
-本模板**不随附 `.hbs` 模板**，使用 code2prompt 的默认输出格式即可。
-若项目确实需要自定义模板，放在项目自己的 `templates/` 下并在此处记录路径。
+`.cursor/templates/repo-map.hbs`（如不存在，code2prompt 使用内置默认模板）
 
 ### 输出说明
 
@@ -38,5 +38,4 @@ code2prompt src/ \
 - 文件清单（路径、语言、token 数）
 - Git 状态
 
-code-explorer 用这份清单决定「哪些文件值得重点读」，然后用 read 工具逐个读取文件内容进行分析，
-最终产出 `.specdev/specs/<slug>/phases/<phase-id>/repo-exploration.md`。
+code-explorer 用这份清单决定「哪些文件值得重点读」，然后逐个读取文件内容进行分析。

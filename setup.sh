@@ -174,6 +174,11 @@ install_cursor() {
     # .cursor/ 目录（规则 + 子Agent + 命令 + 钩子 + skills + snippets + mcp.json）
     copy_dir "$SCRIPT_DIR/.cursor" "$TARGET_DIR/.cursor" ".cursor/ (规则+子Agent+命令+钩子+skills)"
 
+    # 确保 hook 脚本有执行权限（Cursor 直接执行注册路径，无 x 位会被静默跳过）
+    if [ -d "$TARGET_DIR/.cursor/hooks" ]; then
+        chmod +x "$TARGET_DIR/.cursor/hooks/"*.sh 2>/dev/null || true
+    fi
+
     # .specdev/ 运行时模板（/feature 初始化工作流时会复制这些模板）
     mkdir -p "$TARGET_DIR/.specdev"
     for tmpl in constitution-template.md tech-debt-registry-template.md ui-spec-template.md; do
