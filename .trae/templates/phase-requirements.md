@@ -53,6 +53,25 @@
   - [ ] AC-3: 用户可以创建文档并用 Markdown 编辑
 -->
 
+## UI 相关性
+
+<!--
+  🔴 必须与 phase-plan.md DAG JSON 中本 Phase 的 "ui" 字段一致；不一致以 DAG JSON 为准。
+     此字段被 pipeline-gate.sh 的 read_phase_ui() 读取，用于启用：
+     ui-spec.md / visual-baseline.md 存在性门禁、原型确认门禁、reviewer-visual 派发、视觉验证强制化。
+
+  - **ui**: `true` / `false`
+  - **ui: true 时必填**：
+    - 本 Phase 页面/路由清单：
+    - ui-spec.md 布局骨架引用：§
+    - 状态矩阵引用：ui-spec.md §6
+    - 断点覆盖引用：ui-spec.md §7
+    - 冻结 token 来源：visual-baseline.md §3
+
+  ⚠️ ui: true 时，本 Phase 的视觉验证项为 must —— verifier 缺视觉证据即判
+     PARTIAL + visual-blocking: true，不可静默放行。
+-->
+
 ## 排除项
 
 <!-- requirements.md 中明确不属于本 Phase 的需求。标注归属 Phase。-->

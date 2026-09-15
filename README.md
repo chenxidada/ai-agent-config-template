@@ -13,22 +13,28 @@
 
 ```text
 ai-agent-config-template/
-├── opencode.jsonc                  # OpenCode MCP + plugin 配置
-├── .mcp.json                       # Cursor / Claude Code / Windsurf MCP 配置
-├── AGENTS.md                       # OpenCode / Claude Code 规则
-├── .cursorrules                    # Cursor 规则（精简版）
+├── opencode.jsonc                  # OpenCode MCP + plugin 配置（镜像）
+├── .mcp.json                       # Claude Code / Windsurf MCP 配置（镜像）
+├── AGENTS.md                       # 通用规则（含 Cursor 侧差异说明）
+├── .cursorrules                    # Cursor 规则（精简版，指向 .cursor/rules/）
 ├── .windsurfrules                  # Windsurf 规则（精简版）
 ├── knowledge-base-mcp.sh           # MCP 启动脚本，避免写死路径
 ├── setup.sh                        # 一键导入脚本
-├── .opencode/                      # OpenCode 模板目录（统一扩展入口）
-│   ├── README.md                   # .opencode 目录约定
-│   ├── agents/                     # staged workflow agents
-│   ├── hooks/                      # runtime trigger docs / automation helpers
-│   ├── plugins/                    # OpenCode runtime plugins
-│   ├── snippets/                   # reusable task snippets
-│   ├── templates/                  # prompt / output templates
-│   └── skills/
-│       └── conversation-sync-kb/   # OpenCode 技能：压缩摘要同步知识库
+├── .cursor/                        # ★ Cursor 侧权威配置（首选平台）
+│   ├── rules/                      # spec-workflow.mdc（Always Apply）
+│   ├── agents/                     # 11 个子Agent（含 reviewer-visual）
+│   ├── commands/                   # /feature /bugfix /brief /research /specify /plan /implement /status
+│   ├── hooks/                      # pipeline-gate.sh 门禁 + pipeline-advance.sh 推进 + pipeline-compact.sh
+│   │   └── lib/                    # status-read.sh / verdict-parse.sh（共享库）
+│   ├── skills/                     # ui-ux-pro-max / code2prompt / drawio-skill / project-build / project-test 等
+│   ├── snippets/                   # escalation-protocol.md / ui-skill-usage.md
+│   ├── templates/                  # 需求/设计/UI 规格/视觉基准输出模板
+│   └── mcp.json                    # knowledge-base + playwright MCP
+├── .specdev/                       # 工作流运行时目录（specs/ 在导入后生成）
+│   ├── ui-spec-template.md         # /feature 初始化时复制
+│   ├── constitution-template.md
+│   └── tech-debt-registry-template.md
+├── .opencode/                      # ⚠️ OpenCode 历史参考（已无 skills/snippets/agents 子目录）
 └── README.md
 ```
 
@@ -42,7 +48,75 @@ ai-agent-config-template/
 
 不再保留和知识库无关的远程构建、刷写、部署技能。
 
+## Cursor 工作流（首选平台）
+
+Cursor 侧不是「知识库同步工具」，而是一套 **Spec 规格文件驱动的开发流程**。所有设计决策、验收标准、审查与验证结果都落到 `.specdev/specs/<slug>/`。
+
+### 核心机制
+
+| 机制 | 实现 | 作用 |
+|------|------|------|
+| Spec 唯一真相源 | `.specdev/specs/<slug>/` | 需求/设计/每 Phase 的实现与验证全落盘 |
+| Human Gate | `pipeline-gate.sh` 程序化阻断 | 用户未明确确认前，物理上无法进入下一阶段 |
+| 反狡辩体系 | 每个子Agent 的专属反狡辩表 | 防止 AI 用「编译通过」「写了 N 个测试」跳过关键步骤 |
+| 三层约束 | Rules（静态）+ Hooks（动态）+ Subagents（独立上下文） | 抗上下文压缩 |
+
+### 流程（6 阶段 + 4 个确认点）
+
+```text
+/feature <描述>
+  → requirement-analyst        → requirements.md (+ ui-spec.md 若有界面)
+  → 🛑 HG-1  需求确认
+  → plan-generator             → design.md + phase-plan.md + (design-system/ + visual-baseline.md)
+  → 🛑 HG-1.5 视觉基准确认（仅 UI 工作流）
+  → 🛑 HG-2  方案确认
+  → [每个 Phase] code-explorer → git 分支 → implementer
+                   → 🛑 原型确认（仅 UI Phase：先出静态原型并停止）
+                   → implementer 接入真实逻辑
+                   → 4 个并行 reviewer（correctness / design / connectivity / visual）
+                   → verifier（UI Phase 强制 4 断点 + 状态矩阵截图）
+                   → 🛑 HG-3 Phase 验收 → commit + merge 回 main
+```
+
+### 前端视觉信息链（UI 工作流专属）
+
+界面偏差的根因不是「描述不够详细」，而是链路上没有环节承载「界面长什么样」。为此插入了一条端到端信息链，**每一环都有落盘产物**：
+
+| 环节 | 产物 | 责任人 | 确认点 |
+|------|------|------|:--:|
+| 需求 | `.specdev/specs/<slug>/ui-spec.md`（ASCII 布局骨架 / 状态矩阵 / 断点行为） | `requirement-analyst` | HG-1 |
+| 设计 | `design-system/<slug>/MASTER.md` + `visual-baseline.md`（冻结 design token） | `plan-generator` | **HG-1.5** |
+| 实施 | 静态原型 + 截图（`implementation.md ## Prototype（待确认）`） | `implementer` | **原型确认门禁** |
+| 审查 | `review-visual.md`（第 4 并行视角：硬编码 token / 状态缺失 / 反模式） | `reviewer-visual` | 合并判决 |
+| 验证 | 基准对比表 + 4 断点矩阵 + 状态矩阵 + `screenshots/<phase>/` | `verifier` | HG-3 |
+
+三条铁律：
+
+```text
+❌ 禁止抽象形容词 —— 不写「美观/现代/简洁/响应式适配」，一律给具体值（色值 / px / 断点行为）
+❌ 禁止文字描述布局 —— 必须有 ASCII 布局骨架，纯文字必然歧义
+❌ 禁止只写「列表页」 —— 状态必须穷举（default / loading / empty / error / disabled …）
+```
+
+设计系统由 `.cursor/skills/ui-ux-pro-max/` 生成，调用规范见 `.cursor/snippets/ui-skill-usage.md`。
+
+### 命令一览
+
+| 命令 | 用途 | Phase 拆分 | 审查 |
+|------|------|:--:|:--:|
+| `/feature <desc>` | 完整新功能开发 | 2-5 Phase + DAG | 四视角并行 |
+| `/bugfix <desc>` | Bug 修复 | 单 Phase | 单视角 |
+| `/brief <desc>` | 轻量快速开发（< 3 文件） | 单 Phase | 单视角（覆盖四视角） |
+| `/research <desc>` | 深度代码调研 | 不实施 | — |
+| `/specify <desc>` | 仅需求分析 | 不实施 | — |
+| `/plan` | 仅架构设计 | 输出 DAG | — |
+| `/implement` | 执行实施（HG-2 已过） | 单 Phase | 四视角并行 |
+| `/status` | 查看进度 + 债务快照 | — | — |
+| `/wiki` | 项目 Wiki 文档维护 | — | — |
+
 ## 建议的 `.opencode/` 目录规范
+
+> ⚠️ **以下为 OpenCode 时代约定，当前 `.opencode/` 已不再包含这些子目录**，仅在需要恢复 OpenCode 侧支持时作为参考。
 
 为了方便你后续继续扩展，当前建议这样组织 `.opencode/`：
 
@@ -72,9 +146,24 @@ ai-agent-config-template/
 - `validator` — 验证（支持前端截图验证）
 - `knowledge-manager` — 知识库同步
 
-其中 `knowledge-manager` 用于把关键需求、方案、实现、验证结果持续同步到当前知识库，并在关键检查点做增量沉淀。
+> ⚠️ 上述为 OpenCode 侧命名。**Cursor 侧实际使用 `.cursor/agents/` 下的 11 个 agent**（命名对照见 `AGENTS.md`
+> 的「命名对照」表）：
 
-当前模板还包含一个 OpenCode runtime plugin，用于把压缩触发、手动同步请求等场景真正接到 MCP 同步流程上。
+| Agent | 职责 |
+|-------|------|
+| `requirement-analyst` | 需求分析（EARS 格式 AC）+ UI 相关性判定 → `requirements.md` / `ui-spec.md` |
+| `plan-generator` | 架构设计 + Phase DAG + design system + 视觉基准 |
+| `code-explorer` | 每 Phase 前的代码调研（含 UI 组件/主题盘点）→ `repo-exploration.md` |
+| `implementer` | 按 spec 实现（UI Phase 走原型先行协议） |
+| `reviewer-correctness` | 并行审查：实现正确性 + 桩检测 |
+| `reviewer-design` | 并行审查：设计一致性 |
+| `reviewer-connectivity` | 并行审查：集成连通性 |
+| `reviewer-visual` | 并行审查：视觉一致性（token / 状态 / 断点 / a11y / 反模式） |
+| `reviewer` | 单视角审查（覆盖四视角，供 `/brief` 使用） |
+| `verifier` | 独立端到端验证（UI Phase 强制视觉证据） |
+| `wiki` | 项目 Wiki 文档维护 |
+
+其中知识库同步在 Cursor 侧由调度者按 `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成（无 `knowledge-manager` agent）。
 
 推荐的总控 workflow：
 
@@ -147,22 +236,24 @@ bash /path/to/ai-agent-config-template/setup.sh
 
 脚本会：
 
-1. 复制配置文件
-2. 同步模板中的整个 `.opencode/` 目录
-3. 复制 `knowledge-base-mcp.sh`
-4. 将 `opencode.jsonc` 加入 `.gitignore`
+1. 复制配置文件（`.mcp.json` / `AGENTS.md` / `.cursorrules` / `knowledge-base-mcp.sh`）
+2. 同步模板中的整个 `.cursor/` 目录（规则 + 子Agent + 命令 + 钩子 + skills + snippets + mcp.json）
+3. 同步 `.specdev/` 模板（UI 规格 / 宪法 / 技术债注册表）
+4. 复制 `knowledge-base-mcp.sh`
+5. 将 `opencode.jsonc` 加入 `.gitignore`
+
+> 也可只装 Cursor：`bash setup.sh --cursor`
 
 ### 方法二：手动复制
 
 ```bash
 cd /your/project
-cp /path/to/ai-agent-config-template/opencode.jsonc .
 cp /path/to/ai-agent-config-template/.mcp.json .
 cp /path/to/ai-agent-config-template/AGENTS.md .
 cp /path/to/ai-agent-config-template/.cursorrules .
-cp /path/to/ai-agent-config-template/.windsurfrules .
 cp /path/to/ai-agent-config-template/knowledge-base-mcp.sh .
-cp -R /path/to/ai-agent-config-template/.opencode .
+cp -R /path/to/ai-agent-config-template/.cursor .
+cp -R /path/to/ai-agent-config-template/.specdev .
 chmod +x knowledge-base-mcp.sh
 ```
 
@@ -327,7 +418,8 @@ Daily/<YYYY>/<YYYY-MM>/
 
 这个目录是你的配置模板源。后续任何知识库相关配置更新，都应优先同步回这里，再分发到其他项目。
 
-如果你后续要新增 OpenCode 的 skill、agent 配置、额外模板文件，也建议都放进这里的 `.opencode/` 下，这样 `setup.sh` 会一起同步出去。
+- **Cursor 侧扩展**（首选）：新增 skill / agent / 命令 / 钩子请放进 `.cursor/` 对应子目录，`setup.sh --cursor` 会整目录带下去。
+- **OpenCode 侧**：`.opencode/` 目前仅保留历史参考，若需恢复 OpenCode 支持，请先补齐 `agents/` `snippets/` `skills/` 子目录，并同步修正 `AGENTS.md` 与 `README.md` 中标注为「历史参考」的章节。
 
 ## 当前模板默认值
 
@@ -335,19 +427,28 @@ Daily/<YYYY>/<YYYY-MM>/
 - 压缩快照目录：`Projects/<project>/Snapshots/`
 - 日导航目录：`Daily/<YYYY>/<YYYY-MM>/`
 - Knownbase 根目录：通过 `KNOWNBASE_ROOT` 或候选路径动态解析
+- 工作流目录：`.specdev/specs/<slug>/`
+- 设计系统落盘：`design-system/<slug>/MASTER.md`（生成于目标项目仓库）
+- 视觉截图落盘：`screenshots/<phase>/`
 
 ## Workflow 选择建议
 
-OpenCode 在选择 workflow 时，建议按下面规则判断：
+Cursor 在选择命令时，建议按下面规则判断：
 
-- `/feature <desc>` — 新功能开发，走统一 pipeline（unified-pipeline）
-- `/bugfix <desc>` — Bug 修复、回归、根因排查，走统一 pipeline
-- `/rebuild <desc>` — 架构级迭代、系统重建，走统一 pipeline
-- `/idea <desc>` — 想法探索，停在 solution-architect 之后，不进入实现
-- `/analyze <desc>` — 代码库/模块分析，产出人类可读报告，不做代码修改
+| 命令 | 适用 | Phase 拆分 | 审查视角 |
+|------|------|:--:|:--:|
+| `/feature <desc>` | 复杂、多模块新功能 | 2-5 Phase + DAG | 四视角并行 |
+| `/bugfix <desc>` | 单个 bug / 回归 | 单 Phase | 单视角 |
+| `/brief <desc>` | 简单、< 3 文件改动 | 单 Phase | 单视角 |
+| `/research <desc>` | 接手陌生模块的深度调研 | 不实施 | — |
+| `/specify <desc>` | 先讨论需求再决定 | 不实施 | — |
+| `/plan` | 已有需求，需设计方案 | 输出 DAG | — |
+| `/implement` | HG-2 已通过，执行实施 | 单 Phase | 四视角并行 |
+| `/status` | 随时查看进度与债务快照 | — | — |
 
 补充判断：
 
-- `/feature`、`/bugfix`、`/rebuild` 共用同一条 unified pipeline，以 intent 标签区分范围和侧重点
-- 如果仓库现实、影响面、根因还不明确，应优先选择会从 `repo-explorer` 开始的 staged workflow，而不是直接实现
-- 非极小任务，默认都应包含 `reviewer` 和 `validator`
+- **选项不确定时优先选信息量最大的**：仓库现实与影响面还不明确 → `/research`；需求模糊 → `/specify`。
+- **UI 工作流自动升级**：只要 `ui_relevant: true`，无论走哪个命令都会插入 HG-1.5、原型确认门禁、`reviewer-visual` 与强制视觉验证。
+- **非极小任务默认包含审查与验证**：`implementer` 不能自己声明完成。
+- **OpenCode 侧**：`/feature`、`/bugfix`、`/rebuild` 共用同一条 unified pipeline（详见上文 `.opencode/` 章节）。

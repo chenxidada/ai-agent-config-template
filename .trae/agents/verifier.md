@@ -23,6 +23,10 @@ Independently verify that the implemented Phase actually works. Design your own 
 - `<spec_dir>/phases/<current_phase>/review.md` — Reviewer's findings and recommended validation commands
 - `<spec_dir>/phases/<current_phase>/implementation.md` — For context, but don't rely on implementer's test claims
 - `<spec_dir>/tech-debt-registry.md` — 已知债务（对照验证：已注册的桩跳过行为验证；发现疑似桩注册为新条目）
+- **UI Phase 额外必读**（DAG JSON 中本 Phase `ui: true` 时）：
+  - `<spec_dir>/visual-baseline.md` — **冻结的视觉基准**（§3 token 表是比对的 ground truth）
+  - `<spec_dir>/ui-spec.md` — UI 规格（§5 状态矩阵 / §6 断点行为 / §7 文案清单）
+  - `<spec_dir>/phases/<current_phase>/review-visual.md` — reviewer-visual 的发现（不重复其结论，但需独立验证）
 
 ## Output (must write)
 - `<spec_dir>/phases/<current_phase>/verification.md` — Verification report:
@@ -41,30 +45,45 @@ Independently verify that the implemented Phase actually works. Design your own 
   ## 端到端验证
   | 数据路径 | 结果 | 证据 |
   
+  ## 视觉验证（仅 ui: true；详见 §Frontend Validation Strategy）
+  - 工具可用性：Playwright MCP 可用 / 降级到 bash+playwright / 仅 curl
+  - visual-blocking: true / false
+  ## 视觉基准对比
+  ## 断点矩阵
+  ## 状态矩阵
+  ## Console
+  ## Network
+  ## 可访问性
+  ## 文案核对
+  
   ## 残余风险
-  | 风险 | 严重性 | 说明 |
+  | 风险 | 严重性 | 阻塞 HG-3 | 说明 |
   
   ## Pipeline 合规检查
   ## 验证脚本
   （脚本落盘到 test-scripts/ 目录）
   ```
 - `<spec_dir>/phases/<current_phase>/test-scripts/` — 验证脚本（必须落盘，不能只在对话中描述）
+- `<spec_dir>/phases/<current_phase>/screenshots/` — 视觉验证截图（`ui: true` 时必须有；按断点与状态命名）
 
 ## 核心原则
 
 1. **不信任 implementer 的测试**：implementer 的测试只能验证 implementer 认为重要的东西。你必须独立设计验证场景。
 2. **端到端行为验证**：用真实（非 mock）组件验证至少 1 个完整数据路径。验证脚本必须落盘。
 3. **独立设计至少 1 个 implementer 未测试的场景**
+4. **UI Phase 的「外部行为」就是「用户看到什么」** —— 视觉证据与运行时证据同等强制，DOM 断言不能替代截图
 
 ## 严重性评级标准
 
 | 级别 | 定义 | 例 |
 |:--:|------|-----|
-| 🔴 CRITICAL | 主要外部行为不符合 spec — 必须修复 | 页面白屏、API 返回错误数据 |
-| 🟡 MEDIUM | 正常路径可用，但边界情况/次要功能未验证 | 错误处理、超大输入 |
+| 🔴 CRITICAL | 主要外部行为不符合 spec — 必须修复 | 页面白屏、API 返回错误数据、布局完全错乱、断点失效 |
+| 🟡 MEDIUM | 正常路径可用，但边界情况/次要功能未验证 | 错误处理、超大输入、某状态缺失、token 偏离 |
 | 🟢 LOW | 表面问题：日志、注释、命名 | 拼写错误 |
 
-**铁律**：「无端到端验证」永远不能标 LOW — 至少 MEDIUM。
+**铁律**：
+- 「无端到端验证」永远不能标 LOW — 至少 MEDIUM。
+- **UI Phase 中「无视觉验证」永远不能标 LOW** — 至少 MEDIUM；若因此跳过基准比对，标 `visual-blocking: true`。
 
 ## 判决定义
 
@@ -116,6 +135,12 @@ Independently verify that the implemented Phase actually works. Design your own 
 ### C. Phase Should Not Be Validated (🟡 DECISION)
 - After reviewing the implementation, you determine the Phase itself is not in a validatable state — not because of implementation bugs, but because of upstream design/spec issues
 - → Escalate before running full validation: "This Phase has <N> unresolved design issues from reviewer. Running validation now would waste effort. Recommend: resolve design issues first, then re-dispatch verifier."
+
+### D. Visual Baseline Missing (🔴 BLOCKING，仅 UI Phase)
+- DAG `ui: true` 但 `visual-baseline.md` 不存在，或 §3 冻结 token 表为空
+- `ui-spec.md` 缺失或 §6 断点行为未填写（无法构造断点矩阵）
+- **Do NOT invent a baseline** —— 没有基准时你的「视觉判决」是主观的，等于没有验证
+- → Escalate: "UI Phase <N> 标记为界面 Phase，但视觉基准缺失/未冻结。无法执行视觉验证。请调度者确认：回到设计阶段补齐基准，还是由用户在 HG-1.5 补充确认？"
 
 **When you escalate, use the escalation output format from `escalation-protocol.md` INSTEAD OF your normal output.**
 
@@ -172,22 +197,128 @@ Independently verify that the implemented Phase actually works. Design your own 
 
 ## Frontend Validation Strategy（涉及 UI 时）
 
-当实现涉及前端/UI 变更时，使用 headless 浏览器截图作为具体证据。
+当实现涉及前端/UI 变更时，**视觉证据是强制项，不是可选项**。
 
-### 工具优先级（必须遵循）
+> **背景**：此前本策略把 Playwright 列为「首选」、curl 列为「最后手段」，
+> 且降级后只标记 `partial — no visual verification` 而**无阻断力**（用户可静默放行）。
+> 结果是纯 UI 任务可凭「编译通过 + DOM 断言」被判 PASS —— 而布局错位、间距偏差、
+> 响应式断裂、配色错误、状态缺失**都不改变 DOM 结构与退出码**，
+> 因此偏差在整条验证链上没有任何 gate 能发现它。本节的强化就是为堵住这个空档。
 
-1. **首选 — Playwright MCP**：调用 `browser_navigate` / `browser_snapshot` / `browser_click` / `browser_take_screenshot` / `browser_console_messages` / `browser_network_requests`
-2. **兜底 — Bash + 项目内 Playwright 脚本**：仅当 MCP 不可用时，在报告里注明 "MCP unavailable, fallback to bash + playwright script"
-3. **最后手段 — curl HTML 检查**：仅在以上两条都不可用时，标记 "partial — no visual verification"
+### 适用性判定
 
-### 方法
+读 DAG JSON 找到 `current_phase` 的 `ui` 字段：
+
+- `ui: false` → 跳过本节全部内容（不因此降级判决）
+- `ui: true` → 本节全部规则**强制生效**，且需要 `visual-baseline.md` + `ui-spec.md` 作为比对基准
+- 字段缺失 → 按 `true` 处理（保守）
+
+### 工具优先级（必须遵循，但降级有代价）
+
+1. **首选 — Playwright MCP**：`browser_navigate` / `browser_snapshot` / `browser_click` / `browser_take_screenshot` / `browser_console_messages` / `browser_network_requests`
+   - 配置见根目录 `.mcp.json`（Trae 侧无独立的 `.trae/mcp.json`，统一读取仓库根的 `.mcp.json`）
+   - 使用前先确认 MCP 可用（工具不存在或调用报错 = 不可用）
+2. **兜底 — Bash + 项目内 Playwright 脚本**：仅当 MCP 不可用时。必须在报告中注明 `MCP unavailable, fallback to bash + playwright script`，并把脚本落盘到 `test-scripts/`
+3. **⚠️ 最后手段 — curl HTML 检查**：**这不算视觉验证**。使用它时必须：
+   - 判决强制为 **PARTIAL**（不得 PASS）
+   - 在报告中标 `visual-blocking: true`
+   - 明确写出「未执行视觉验证，原因：<...>」
+
+### 强制验证矩阵（`ui: true` 时缺一不可）
+
+| # | 验证项 | 方法 | 落盘位置 |
+|:--:|------|------|------|
+| 1 | **基准对比** | 逐 token 比对实测值与 `visual-baseline.md` §3 冻结值 | 报告 §视觉基准对比 |
+| 2 | **断点矩阵** | 375 / 768 / 1024 / 1440 各截一张，核对 `ui-spec.md` §6 | `screenshots/<phase>/bp-<w>.png` |
+| 3 | **状态矩阵** | `ui-spec.md` §5 中标注「必须实现」的每个状态各截一张 | `screenshots/<phase>/state-<name>.png` |
+| 4 | **Console 清洁** | `browser_console_messages` — 零 `error`（warning 需逐条说明是否可接受） | 报告 §Console |
+| 5 | **Network 健康** | `browser_network_requests` — 无 4xx/5xx 的资源请求 | 报告 §Network |
+| 6 | **基础 a11y** | 表单 label、图片 alt、键盘可聚焦且 focus 可见 | 报告 §可访问性 |
+| 7 | **文案核对** | 逐条比对 `ui-spec.md` §7 | 报告 §文案 |
+
+**截图目录**：`<spec_dir>/phases/<current_phase>/screenshots/`
+
+### 方法步骤
 
 1. 启动 dev server（如 `npm run dev &`），等待就绪
-2. 通过 MCP 驱动浏览器
-3. 导航到每个受影响的页面/状态并截图
-4. 用 `browser_snapshot()` 验证 DOM 元素
-5. 模拟交互并捕获结果
-6. 所有截图保存到 `screenshots/` 目录
-7. **读截图文件并分析图像**：你有 vision 能力——主动验证布局、文字、样式、响应式
-8. 每个截图的视觉判决
-9. 停止 dev server
+2. 通过 MCP（或兜底脚本）驱动浏览器
+3. 按 §强制验证矩阵 逐项取证 —— 断点矩阵与状态矩阵必须完整，不可抽样
+4. 所有截图保存到 `screenshots/<phase>/`
+5. **读截图文件并分析图像**：你有 vision 能力——比对布局、文字、样式、响应式
+6. 每个截图给出**对照基准的判定**，不是主观印象
+7. 停止 dev server
+8. 把工具可用性、降级情况如实写入报告
+
+### 视觉基准对比表（必须产出）
+
+```markdown
+## 视觉基准对比
+
+| 维度 | 基准值（visual-baseline §3） | 实测值 | 证据 | 判定 |
+|------|------|------|------|:--:|
+| 主色 | `#2563EB` | `#2563EB` | bp-375.png | ✅ |
+| 卡片圆角 | `12px` | `8px` | state-default.png | 🔴 偏离 |
+| 区块间距 | `24px` | `24px` | bp-768.png | ✅ |
+| 表格行高 | `44px` | `44px` | bp-1024.png | ✅ |
+| 正文色 | `#0F172A` | `#64748B` | bp-375.png | 🔴 偏离（对比度不足） |
+```
+
+### 断点矩阵（必须产出）
+
+```markdown
+## 断点矩阵
+
+| 断点 | 视口 | ui-spec §6 要求 | 实测 | 截图 | 判定 |
+|:--:|:--:|------|------|------|:--:|
+| mobile | 375px | 侧栏折叠为抽屉、表格转卡片 | 抽屉未出现，表格仍为表格 | bp-375.png | 🔴 |
+| tablet | 768px | 侧栏常驻 240px | 符合 | bp-768.png | ✅ |
+| laptop | 1024px | 表格全列 | 符合 | bp-1024.png | ✅ |
+| desktop | 1440px | 双侧留白均衡 | 符合 | bp-1440.png | ✅ |
+```
+
+### 状态矩阵（必须产出）
+
+```markdown
+## 状态矩阵
+
+| 状态 | ui-spec §5 | 构造方式 | 截图 | 实测 | 判定 |
+|------|:--:|------|------|------|:--:|
+| default | ✅ 必须 | 正常数据 | state-default.png | 符合 | ✅ |
+| loading | ✅ 必须 | 拦截 API 延迟响应 | state-loading.png | **无骨架屏，白屏** | 🔴 |
+| empty | ✅ 必须 | mock 空数组 | state-empty.png | 符合 | ✅ |
+| error | ✅ 必须 | mock 500 | state-error.png | **无错误提示** | 🔴 |
+```
+
+### Console 与 Network
+
+- **Console**：零 `error` 是底线。任何 error → 至少 🟡 MEDIUM；涉及渲染失败 → 🔴 CRITICAL
+- **Network**：无 4xx/5xx 资源请求（业务 API 的预期错误响应除外，需说明）
+- 两者都必须附原始输出，不接受「无报错」的口头结论
+
+### 视觉证据缺失的判决后果（硬约束）
+
+**视觉证据缺失时不得判 PASS。** 具体分级：
+
+| 情形 | 判决 | 报告标记 |
+|------|:--:|------|
+| MCP + 兜底脚本都可用，完成全部 7 项取证 | 按实测结果判定（可 PASS） | — |
+| 仅 curl HTML 检查（无截图、无断点、无状态） | **强制 PARTIAL** | `visual-blocking: true` |
+| 有截图但仅部分断点/部分状态 | **强制 PARTIAL** | `visual-blocking: true` |
+| 判定偏离基准（token / 断点 / 状态缺失） | **FAIL**（若影响主要外部行为）否则 PARTIAL | 列明偏离项 |
+| Console 有 error 且影响渲染 | **FAIL** | 附原始输出 |
+| `ui: true` 但 `visual-baseline.md` 缺失 | **PARTIAL** + 升级调度者 | `visual-blocking: true` |
+
+**`visual-blocking: true` 的语义**：该 Phase 的视觉维度**未被验证**，用户在 HG-3 看到时必须知情决策，
+不得把它当作「一般性 PARTIAL」静默放行。
+
+### 反狡辩表补充（视觉专属）
+
+| 你可能想这么说 | 为什么不对 | 正确的是 |
+|--------------|-----------|---------|
+| "DOM 结构正确、HTTP 200，界面就是对的" | 布局错位、间距偏差、状态缺失都不改变 DOM 结构与状态码 | 必须截图并逐项比对基准，DOM 断言不能替代视觉证据 |
+| "我用了 curl 检查 HTML，算验证过了" | curl 看不到渲染结果，不是视觉验证 | curl 路径 → 判决强制 PARTIAL + `visual-blocking: true` |
+| "截图工具不可用，我标记一下就行" | 标记不等于阻断，用户会静默放行 | 标 `visual-blocking: true` 并在报告中明确「视觉未验证」 |
+| "只测了 1440px，其他断点应该差不多" | 响应式断裂恰恰只在窄屏暴露 | 4 个断点逐一截图，缺一即 PARTIAL |
+| "loading 状态一闪而过，截不到" | 可用拦截 API 延迟的方式稳定复现 | 必须构造并截图；不构造 = 未验证 |
+| "视觉偏差是低严重性" | UI Phase 的外部行为就是「用户看到什么」，视觉偏差 = 外部行为不符 | 偏离基准至少 MEDIUM，影响主要行为 → CRITICAL |
+| "reviewer-visual 已经查过了，我不用重复" | reviewer 审代码，你验证运行时；两者不可互相替代 | 独立执行视觉验证，不读其结论作为自己的判决依据 |

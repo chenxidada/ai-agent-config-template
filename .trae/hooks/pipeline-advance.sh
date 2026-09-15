@@ -83,7 +83,48 @@ fi
 # 阶段 2：架构设计刚完成（有 design.md 但 HG-2 未过）
 if [ "$CURRENT_STAGE" = "architecture-design" ] && [ "$HG2" = "pending" ]; then
     if [ -f "$SPEC_DIR/design.md" ] && [ -f "$SPEC_DIR/phase-plan.md" ]; then
-        cat <<'MSG'
+        # ── UI 工作流：检测是否产出视觉基准 → 决定是否需要 HG-1.5 ──
+        if [ -f "$SPEC_DIR/visual-baseline.md" ]; then
+            cat <<'MSG'
+🏗️ **plan-generator 已完成**
+
+输出文件：`.specdev/specs/<workflow>/design.md` + `phase-plan.md` + `phases/<phase>/spec.md`
+UI 附加产物：`visual-baseline.md` + `design-system/<slug>/MASTER.md`
+
+## ⏸️ Human Gate 1.5 — 视觉基准确认（UI 工作流专属）🛑
+
+**先完成 HG-1.5，再进入 HG-2。**
+
+1. 读取 `.specdev/specs/<workflow>/visual-baseline.md`
+2. 向用户展示 2-3 套候选风格的**实际差异**（配色 / 字体 / Style / Pattern），而非抽象描述
+3. 展示 `design-system/<slug>/MASTER.md` 的关键 token（主色 / 字体 / 圆角 / 间距）
+4. 若用户提供了参考图，展示参考图的**参考维度与不参考维度**
+5. 询问：「选哪一套风格？有无需要调整的 token？确认后进入方案确认（HG-2）。」
+6. 用户明确确认后：
+   - 更新 `current-status.json`: `"hg1_5": "passed"`
+   - 在 `visual-baseline.md` §2 填写「用户选定」与「用户调整意见」
+   - 在 §3 逐值填写「冻结的 Design Tokens」表
+   - 在 §6 填写冻结声明
+
+⚠️ 基准不得为「待定」。用户未选定风格前，HG-1.5 不得通过。
+
+## ⏸️ Human Gate 2 — 设计方案确认
+
+1. 读取 `.specdev/specs/<workflow>/design.md` 和 `phase-plan.md`
+2. 展示：架构决策（2-3 个关键决策及理由）+ Phase 拆分表格 + 关键技术选型
+3. 询问：「方案是否合理？确认后开始实施 Phase 1。」
+4. **停止，等待用户明确说「确认」「开始实施」**
+
+用户确认后：更新 `current-status.json` 中 `"hg2": "passed"` + `"current_phase": "phase-1-xxx"`
+
+## 📚 KB Sync (非阻塞)
+- HG-1.5 通过后：resolve_folder_path: "Projects/<project>/Decisions/" → folderId → save_document(title: "[decision:<slug>] 视觉基准", content: visual-baseline.md 全文, folderId)
+- HG-2 通过后（异步，不等待）：resolve_folder_path: "Projects/<project>/Decisions/" → folderId → save_document(title: "[decision:<slug>] 架构设计", content: design.md 全文, folderId)
+
+**不要自动继续。不要替用户做决定。**
+MSG
+        else
+            cat <<'MSG'
 🏗️ **plan-generator 已完成**
 
 输出文件：`.specdev/specs/<workflow>/design.md` + `phase-plan.md` + `phases/<phase>/spec.md`
@@ -101,6 +142,7 @@ HG-2 通过后（异步，不等待）：
 
 **不要自动继续。不要替用户做决定。**
 MSG
+        fi
     fi
     exit 0
 fi
@@ -114,19 +156,63 @@ if [ "$CURRENT_STAGE" = "phase-implementation" ] && [ -n "$CURRENT_PHASE" ]; the
     REV_STATUS=$(jq -r ".phases[\"$CURRENT_PHASE\"].reviewer // \"pending\"" "$STATUS_FILE" 2>/dev/null)
     VER_STATUS=$(jq -r ".phases[\"$CURRENT_PHASE\"].verifier // \"pending\"" "$STATUS_FILE" 2>/dev/null)
 
+    # ── 读取当前 Phase 的 ui 字段（视觉信息链；唯一真相源 = DAG JSON phases[].ui）──
+    PHASE_UI="false"
+    DAG_FILE="$SPEC_DIR/phase-plan.md"
+    if [ -s "$DAG_FILE" ]; then
+        UI_VAL=$(sed -n '/```json/,/```/p' "$DAG_FILE" | grep -v '```' \
+            | jq -r --arg pid "$CURRENT_PHASE" '.phases[] | select(.id == $pid) | .ui' 2>/dev/null | head -1 || echo "")
+        [ "$UI_VAL" = "true" ] && PHASE_UI="true"
+    fi
+
     # 情况 A：implementer 刚完成（有 implementation.md 但 reviewer 还是 pending）
     if [ -f "$PHASE_DIR/implementation.md" ] && [ "$REV_STATUS" = "pending" ]; then
+        # ── UI Phase 原型门禁：原型待用户确认时，先停下，不派发 reviewer ──
+        if [ "$PHASE_UI" = "true" ] && [ ! -f "$PHASE_DIR/.prototype-approved" ] \
+           && grep -q "## Prototype" "$PHASE_DIR/implementation.md" 2>/dev/null; then
+            cat <<'MSG'
+🎨 **implementer 已完成原型阶段（UI Phase）**
+
+输出文件：`.specdev/specs/<workflow>/phases/<phase>/implementation.md`（含 `## Prototype（待确认）`）
+原型与截图：`.specdev/specs/<workflow>/phases/<phase>/prototypes/` + `prototypes/screenshots/`
+
+## ⏸️ 原型确认门禁 — 必须先让用户确认视觉方向 🛑
+
+**本 Phase 尚未完成。** implementer 只做了静态原型并停下，等待用户确认。
+
+请执行：
+1. 读取 `implementation.md` 的 `## Prototype（待确认）` 章节
+2. 读取 `ui-spec.md` §3 ASCII 骨架 与 `visual-baseline.md` §3 冻结 token
+3. **向用户展示原型截图**（每个页面 × 4 断点 × 必须状态），并说明：
+   - 布局骨架的每个区域是否落实
+   - 使用了哪些 design token
+   - 有哪些待确认项（间距 / 密度 / 配色）
+4. 询问：「视觉方向是否符合预期？有无需要调整的地方？」
+
+用户确认后：
+- **创建标记**：`touch .specdev/specs/<workflow>/phases/<phase>/.prototype-approved`
+- **重新委托 implementer**（续做）：告知「原型已确认，继续完整实现」
+- ⚠️ **在此之前不得派发任何 reviewer / verifier**（pipeline-gate.sh 会 deny 写 review*.md / verification.md）
+
+用户要求修改原型：
+- 直接重新委托 implementer（不带标记）继续调整原型 → 再次展示 → 再确认
+
+**不要自动继续。不要替用户做决定。**
+MSG
+            exit 0
+        fi
         cat <<'MSG'
 💻 **implementer 已完成**
 
 输出文件：`.specdev/specs/<workflow>/phases/<phase>/implementation.md`
 
 下一步：
-- **并行**委托 3 个 reviewer（同时执行）：
+- **并行**委托 4 个 reviewer（同时执行）：
   - `reviewer-correctness` — 实现正确性
   - `reviewer-design` — 设计一致性
   - `reviewer-connectivity` — 集成连通性
-- 等 3 个全部完成后，读取各自报告合并为 `review.md`
+  - `reviewer-visual` — 视觉一致性（仅 `ui: true` 的 Phase 产出实质报告；非 UI Phase 会返回 N/A）
+- 等 4 个全部完成后，读取各自报告合并为 `review.md`
 
 如果合并后判决 MUST-FIX：
 - 委托 implementer 修复，loop_count +1（由 pipeline-gate.sh 检查上限 2）
@@ -134,39 +220,48 @@ MSG
         exit 0
     fi
 
-    # 情况 B：reviewer 完成（检查 3 份报告是否全部存在）
+    # 情况 B：reviewer 完成（检查 4 份报告是否全部存在）
     RC="$PHASE_DIR/review-correctness.md"
     RD="$PHASE_DIR/review-design.md"
     RN="$PHASE_DIR/review-connectivity.md"
+    RV="$PHASE_DIR/review-visual.md"
     REVIEW_MERGED="$PHASE_DIR/review.md"
 
     # 部分 reviewer 完成（有至少一份但不全）
-    RC_EXIST=0; RD_EXIST=0; RN_EXIST=0
+    RC_EXIST=0; RD_EXIST=0; RN_EXIST=0; RV_EXIST=0
     [ -f "$RC" ] && RC_EXIST=1
     [ -f "$RD" ] && RD_EXIST=1
     [ -f "$RN" ] && RN_EXIST=1
-    TOTAL=$((RC_EXIST + RD_EXIST + RN_EXIST))
+    [ -f "$RV" ] && RV_EXIST=1
+    TOTAL=$((RC_EXIST + RD_EXIST + RN_EXIST + RV_EXIST))
 
-    if [ "$TOTAL" -gt 0 ] && [ "$TOTAL" -lt 3 ] && [ ! -f "$REVIEW_MERGED" ]; then
+    if [ "$TOTAL" -gt 0 ] && [ "$TOTAL" -lt 4 ] && [ ! -f "$REVIEW_MERGED" ]; then
         DONE_LIST=""
         [ "$RC_EXIST" = 1 ] && DONE_LIST="${DONE_LIST}reviewer-correctness ✅ "
         [ "$RD_EXIST" = 1 ] && DONE_LIST="${DONE_LIST}reviewer-design ✅ "
         [ "$RN_EXIST" = 1 ] && DONE_LIST="${DONE_LIST}reviewer-connectivity ✅ "
-        echo "🔍 并行审查进度：${DONE_LIST}（${TOTAL}/3 完成）。等待全部完成后 merge 判决。"
+        [ "$RV_EXIST" = 1 ] && DONE_LIST="${DONE_LIST}reviewer-visual ✅ "
+        echo "🔍 并行审查进度：${DONE_LIST}（${TOTAL}/4 完成）。等待全部完成后 merge 判决。"
         exit 0
     fi
 
-    # 3 份报告全部就绪但尚未 merge
-    if [ "$TOTAL" -eq 3 ] && [ ! -f "$REVIEW_MERGED" ]; then
+    # 4 份报告全部就绪但尚未 merge
+    if [ "$TOTAL" -eq 4 ] && [ ! -f "$REVIEW_MERGED" ]; then
         cat <<'MSG'
-🔍 **3 个并行 reviewer 全部完成**
+🔍 **4 个并行 reviewer 全部完成**
 
-请读取 3 份报告并 merge 判决：
+请读取 4 份报告并 merge 判决：
 - `review-correctness.md`
 - `review-design.md`
 - `review-connectivity.md`
+- `review-visual.md`
 
 合并规则：任一 MUST-FIX → 整体 MUST-FIX。
+⚠️ `reviewer-visual` 在非 UI Phase（DAG `ui: false`）会输出判决 `N/A`。
+   **N/A 不等于 PASS** —— 它不参与合并加权，也不冲抵其他视角的 must-fix。
+⚠️ 判决行必须只含单一值（如 `## 判决：MUST-FIX`），不得留多值枚举，
+   否则 `parse_review_verdict` 判为无可解析判决 → MUST-FIX 拦截失效。
+
 写入合并后的 `review.md`，然后：
 - 判决 = **PASS** 或 **SHOULD-FIX**：委托 **verifier** 进行验证
 - 判决 = **MUST-FIX**：委托 **implementer** 修复（loop_count +1）→ 重新 reviewer
@@ -277,6 +372,11 @@ MSG
 请将验证报告呈现给用户。
 
 **先展示改动清单**：运行 \`git diff --stat\` + \`git status -s\`，让用户知道哪些文件将被提交。
+
+**UI Phase 追加报告项（\`ui: true\` 时）**：
+- 工具可用性：Playwright MCP / bash + 项目内 Playwright 兜底 / 仅 curl 哪种手段生效
+- \`visual-blocking\` 标记是否为 true —— **为 true 时必须明确告知用户「视觉维度未被验证」**，不得静默略过
+- 视觉基准对比表 / 4 断点矩阵 / 状态矩阵的结论
 
 等待用户回复：
 - 用户说"不通过"/"需要修改" → 停止，了解修改内容

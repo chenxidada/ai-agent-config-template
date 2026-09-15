@@ -21,14 +21,12 @@ alwaysApply: true
   - `reviewer-correctness` — 并行审查：实现正确性
   - `reviewer-design` — 并行审查：设计一致性
   - `reviewer-connectivity` — 并行审查：集成连通性
-  - <br />
-    ```markdown
-    git branch -d impl-<current_phase>
-    ```
-    `reviewer` — 单视角审查（/brief 流程使用）
-  - `verifier` — 独立端到端验证
+  - `reviewer-visual` — 并行审查：视觉一致性（UI Phase；非 UI Phase 返回 N/A）
+  - `reviewer` — 单视角审查（/brief 流程使用）
+  - `verifier` — 独立端到端验证（UI Phase 含强制视觉验证）
   - `wiki` — 项目 Wiki 文档维护（Feature 完成后自动触发，或独立调用）
 - 编辑 `.specdev/specs/<slug>/current-status.json` 追踪状态
+- 在用户确认原型后创建 `.specdev/specs/<slug>/phases/<phase>/.prototype-approved`（UI Phase 原型门禁）
 
 ***
 
@@ -36,15 +34,18 @@ alwaysApply: true
 
 | 命令                 | 用途          | 适用场景        |      Phase 拆分     | 并行 reviewer |
 | ------------------ | ----------- | ----------- | :---------------: | :---------: |
-| `/feature <desc>`  | 完整新功能开发     | 复杂、多模块功能    | ✅ 2-5 Phase + DAG |    ✅ 三视角    |
+| `/feature <desc>`  | 完整新功能开发     | 复杂、多模块功能    | ✅ 2-5 Phase + DAG |    ✅ 四视角    |
 | `/bugfix <desc>`   | Bug 修复      | 单个 bug      |      单 Phase      |    ❌ 单视角    |
 | `/brief <desc>`    | 快速轻量开发      | 简单、< 3 文件改动 |     ❌ 单 Phase     |    ❌ 单视角    |
 | `/research <desc>` | 深度代码调研      | 接手陌生模块      |        不实施        |      —      |
 | `/specify <desc>`  | 需求分析专用      | 先讨论需求再决定    |        不实施        |      —      |
 | `/plan`            | 架构设计专用      | 已有需求，需设计方案  |      ✅ 输出 DAG     |      —      |
-| `/implement`       | 执行实施        | HG-2 已通过    |      单 Phase      |    ✅ 三视角    |
+| `/implement`       | 执行实施        | HG-2 已通过    |      单 Phase      |    ✅ 四视角    |
 | `/status`          | 查看进度 + 债务快照 | 随时          |         —         |      —      |
 | `/wiki`            | 更新项目 Wiki 文档 | 随时 / Feature 完成后 |         —         |      —      |
+
+> **UI 工作流差异**：当 `ui_relevant: true` 时，`/feature` 与 `/implement` 额外经过
+> HG-1.5 视觉基准确认、UI Phase 原型确认门禁，且 `reviewer-visual` 与 verifier 的视觉验证强制生效。
 
 你不能做的事：
 
@@ -57,7 +58,9 @@ alwaysApply: true
 
 ## Human Gate — 强制停止规则（核心）
 
-**以下 3 个节点你必须停下来等待用户确认。绝对不能跳过。**
+**以下 4 个节点你必须停下来等待用户确认。绝对不能跳过。**
+
+> HG-1.5 只对 `ui_relevant: true` 的工作流触发（见下）。纯后端工作流只有 3 个 Gate。
 
 ### HG-1：需求确认
 
@@ -65,9 +68,41 @@ alwaysApply: true
 **你必须做的**：
 
 1. 读取 `.specdev/specs/<slug>/requirements.md`
-2. 用 5-8 句中文向用户概括需求
-3. 明确问用户："需求是否正确？是否需要补充？确认后进入架构设计阶段。"
-4. **停止**，不做任何其他动作，等待用户回复
+2. **若存在 `.specdev/specs/<slug>/ui-spec.md`，一并读取**（界面契约）
+3. 用 5-8 句中文向用户概括需求
+4. **UI 相关时额外展示**（缺一不可，否则 HG-1 不得通过）：
+   - 页面/路由清单（`ui-spec.md` §1）
+   - **布局骨架 ASCII**（§3，桌面 + 移动）
+   - **交互状态矩阵**（§5，含 loading / empty / error）
+   - 响应式行为（§6，逐断点）
+   - 视觉参考状态（§8）——并问用户：「有参考的界面吗？可以给截图或网址」
+5. 明确问用户："需求是否正确？是否需要补充？**UI 规格是否准确？**确认后进入架构设计阶段。"
+6. **停止**，不做任何其他动作，等待用户回复
+
+> 🔴 **UI 需求铁律**：`ui-spec.md` 中不得出现「美观 / 现代 / 简洁 / 大方 / 流畅 / 响应式适配 / 体验好」这类**无法验收的抽象形容词**。
+> 发现即退回 requirement-analyst 重写为具体值（色值 / px / 断点行为）。
+> 这是「禁止抽象形容词」约束在 HG-1 的强制执行点。
+
+### HG-1.5：视觉基准确认（仅 UI 工作流）
+
+**触发时机**：plan-generator 完成，`.specdev/specs/<slug>/visual-baseline.md` 已生成
+**为什么独立于 HG-2**：两者失败模式与纠偏成本差一个量级 —— 架构错了要重跑设计，风格不喜欢只需换一套 design system 文件。合并成一个 Gate 会让「审美方向」被「架构正确性」淹没。
+**你必须做的**：
+
+1. 读取 `.specdev/specs/<slug>/visual-baseline.md`
+2. 向用户展示 2-3 套候选风格的**实际差异**（配色 token / 字体 / Style / Pattern），不是抽象描述
+3. 展示 `design-system/<slug>/MASTER.md` 的关键 token（主色 / 字体 / 圆角 / 间距）
+4. 若用户提供了参考图，展示参考图的**参考维度与不参考维度**
+5. 明确问用户："选哪一套风格？有无需要调整的 token？确认后进入方案确认（HG-2）。"
+6. 用户确认后：
+   - 更新 `current-status.json`: `"hg1_5": "passed"`
+   - 在 `visual-baseline.md` §2 填写「用户选定」+「用户调整意见」
+   - 在 §3 逐值填写「冻结的 Design Tokens」表
+   - 在 §6 填写冻结声明
+7. **停止**，不做任何其他动作，等待用户回复
+
+> 🔴 **基准不得为「待定」**。用户未选定风格前，HG-1.5 不得通过。
+> `pipeline-gate.sh` 会在标记 `hg1_5=passed` 时程序化校验 `visual-baseline.md` 已冻结 + `design-system/` 已生成。
 
 ### HG-2：方案确认
 
@@ -84,14 +119,16 @@ alwaysApply: true
 
 ### HG-3：Phase 完成确认
 
-**触发时机**：当前 Phase 的 implementer → reviewer → verifier 全部完成
+**触发时机**：当前 Phase 的 implementer → reviewer（4 视角）→ verifier 全部完成
 **你必须做的**：
 
 1. 读取 `.specdev/specs/<slug>/phases/<phase>/verification.md`
 2. 向用户报告：
    - 实现概要（改了什么）
-   - 审查结果（判决 + 发现的问题）
+   - 审查结果（4 视角判决 + 发现的问题）
    - 验证结果（PASS/PARTIAL/FAIL + 通过的端到端场景）
+   - **UI Phase 追加**：工具可用性（MCP / bash 兜底 / 仅 curl）+ `visual-blocking` 标记 + 视觉基准对比/断点矩阵/状态矩阵的结论
+     - `visual-blocking: true` → **必须明确告知用户「视觉维度未被验证」**，不得静默略过
    - **如果分支上有未提交的改动**：运行 `git diff --stat` + `git status -s` 展示改动清单
 3. 问用户："Phase 是否通过验收？"
    - 用户说"不通过"/"需要修改" → 停止，说明需要修改什么
@@ -104,6 +141,30 @@ alwaysApply: true
      - 进入下一 Phase 或结束
 4. **停止**，不做任何其他动作，等待用户回复
 
+### 原型确认门禁（UI Phase 专属，独立于 HG）
+
+**这不是 Human Gate，而是 implementer 内部的中途停止点** —— 它发生在 HG-3 之前的实施阶段。
+
+**触发时机**：UI Phase 的 implementer 完成静态原型（`implementation.md` 含 `## Prototype（待确认）` 章节）后返回
+**你必须做的**：
+
+1. 读取 `implementation.md` 的 `## Prototype（待确认）` 章节
+2. 读取 `ui-spec.md` §3 骨架 + `visual-baseline.md` §3 冻结 token
+3. **向用户展示原型截图**（每页面 × 4 断点 × 必须状态），说明：
+   - 布局骨架的每个区域是否落实
+   - 使用了哪些 design token
+   - 待确认项（间距 / 密度 / 配色）
+4. 问用户："视觉方向是否符合预期？有无需要调整的地方？"
+5. 用户确认后：
+   - `touch .specdev/specs/<slug>/phases/<phase>/.prototype-approved`
+   - 重新委托 implementer（**续做**，不归档旧产物），告知「原型已确认，继续完整实现」
+6. 用户要求修改 → 重新委托 implementer（不带标记）继续调整原型 → 再次展示 → 再确认
+7. **停止**，等待用户回复
+
+> 🔴 **在此标记创建前，不得派发任何 reviewer / verifier** —— `pipeline-gate.sh` 会程序化 deny（Trae 侧的具体阻断点为**写入 `review*.md` 与 `verification.md` 时**，效果等价：缺标记则 reviewer / verifier 的产出写不进去）。
+> 理由：原型是整条链上**最便宜的纠偏点**（文字 → 原型是秒级的，原型 → 生产代码是昂贵的）。
+> 让用户在生产代码完成后才第一次看到界面，等于放弃了唯一的低成本纠偏机会。
+
 ### Human Gate 铁律
 
 ```
@@ -112,6 +173,9 @@ alwaysApply: true
 ❌ 禁止：跳过 Human Gate 直接委托 implementer
 ❌ 禁止：在用户未确认方案前，委托 plan-generator 或 implementer
 ❌ 禁止：将用户的"先分析看看"理解为"确认并进入实施"
+❌ 禁止：UI 工作流跳过 HG-1.5 直接进入 HG-2（风格未定就实施）
+❌ 禁止：UI Phase 在用户确认原型前派发 reviewer / verifier
+❌ 禁止：以"用户没提风格要求"为由跳过 HG-1.5（无偏好 ≠ 无需选择）
 ```
 
 ### HG 状态更新规则（程序化执行）
@@ -123,8 +187,13 @@ alwaysApply: true
 | HG       | 触发条件                   | 操作                                                             | KB 同步        |
 | -------- | ---------------------- | -------------------------------------------------------------- | ------------ |
 | HG-1 ⏳→✅ | 用户明确说「确认需求」「OK 进入设计」等  | 更新 `current-status.json`: `"hg1": "passed"`                    | Topic Doc    |
+| HG-1.5 ⏳→✅ | 用户明确选定风格「选 A」「用第二套」等（**仅 UI 工作流**） | 更新 `current-status.json`: `"hg1_5": "passed"` + 冻结 `visual-baseline.md` | Decision Doc |
 | HG-2 ⏳→✅ | 用户明确说「确认方案」「开始实施」等     | 更新 `current-status.json`: `"hg2": "passed"`                    | Decision Doc |
 | HG-3 ⏳→✅ | 用户明确说「Phase 通过」「验收通过」等 | 更新 `current-status.json`: `"hg3": "passed"`, `"loop_count": 0` | Task Doc     |
+
+> **`hg1_5` 是可选字段**。存量工作流（`ui_relevant: false`，或创建于本次改造之前）不含该字段，
+> `status-read.sh` 会读作 `"n/a"`（语义 = 不阻塞）。只有 UI 工作流才需要写入它。
+> **不要**为纯后端工作流补写 `hg1_5` —— 那只会制造无意义的状态噪声。
 
 #### HG 状态更新流程
 
@@ -137,12 +206,17 @@ alwaysApply: true
    - 记录 last_update 时间戳
 3. hg 状态切 passed 后：
    - HG-1→HG-2: 委托 plan-generator
+   - HG-1.5（仅 UI 工作流）:
+     1. 确认用户已选定风格 → 更新 current-status.json: "hg1_5": "passed"
+     2. 在 visual-baseline.md §2/§3/§6 落定「选定项 + 冻结 token + 冻结声明」
+     3. ➜ **不要跳过 HG-2**，接着走下面的 HG-2 确认
    - HG-2→HG-3: 
      1. **读取 `phase-plan.md` DAG JSON，获取 Phase ID 列表**
      2. 取第一个 `dependencies` 为空的 Phase ID，设置 `current_phase`
      3. **current_phase 必须与 DAG JSON 中的 `id` 字段完全一致，禁止自己编名字**
      4. **创建 git 分支：`git checkout -b impl-<current_phase>`**（详见「Per-Phase Git 分支管理」章节）
      5. 委托 implementer（implementer 自动读取 current_phase 确定路径）
+        - ⚠️ UI Phase（DAG `ui: true`）→ implementer 会先出原型并停止，届时走「原型确认门禁」
    - 每个 Phase HG-3→下一个 Phase:
      1. 用户说"通过" → touch /tmp/git-commit-allowed && commit + merge + 删除分支
      2. **读取 `phase-plan.md` DAG JSON，找到当前 Phase 的 `id`**
@@ -158,27 +232,47 @@ alwaysApply: true
 - ❌ 在用户回复「看看」「再说」「我考虑一下」后更新 HG 状态
 - ❌ 同时更新多个 HG 状态（一次只能过一个 HG）
 - ❌ 回退已经 ✅ 的 HG 状态（除非用户明确要求重新设计）
+- ❌ 为纯后端工作流写入 `hg1_5`（可选字段，只在 UI 工作流使用）
+- ❌ 把 HG-1.5 与 HG-2 合并为一次确认（两者失败模式与纠偏成本不同，合并会让审美决策被架构讨论淹没）
 
 ***
 
 ## 工作流阶段定义
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌─────────────────────┐
-│  阶段 1       │     │  阶段 2       │     │  阶段 3              │
-│  需求分析      │ ──→ │  架构设计      │ ──→ │  Phase 实施 (DAG)    │
-│  req-analyst  │     │  plan-gen     │     │  impl→rev→ver       │
-└──────┬───────┘     └──────┬───────┘     └──────────┬──────────┘
-       │                    │                         │
-    🛑 HG-1              🛑 HG-2              🛑 HG-3 (per Phase)
-   等待用户确认           等待用户确认           等待用户确认
+┌──────────────┐     ┌───────────────────────┐     ┌─────────────────────┐
+│  阶段 1       │     │  阶段 2                │     │  阶段 3              │
+│  需求分析      │ ──→ │  架构设计 + 视觉基准    │ ──→ │  Phase 实施 (DAG)    │
+│  req-analyst  │     │  plan-gen             │     │  impl→rev×4→ver     │
+│  +ui-spec     │     │  +design-system       │     │  (+原型门禁)         │
+└──────┬───────┘     └──────┬────────────────┘     └──────────┬──────────┘
+       │                    │                                  │
+    🛑 HG-1              🛑 HG-1.5 (仅 UI 工作流)            🛑 HG-3 (per Phase)
+   等待用户确认          🛑 HG-2                              等待用户确认
+                       等待用户确认
+```
+
+**UI 视觉信息链**（`ui_relevant: true` 时全程启用）：
+
+```
+requirements.md + ui-spec.md  →  design-system/<slug>/MASTER.md
+（布局骨架/状态矩阵/断点）        +  visual-baseline.md（冻结 token）
+       │                                  │
+    🛑 HG-1                        🛑 HG-1.5（选风格/冻基准）
+       │                                  │
+   implementer 出原型 + 截图  →  🛑 原型确认
+       │
+   4 视角并行审查（含 reviewer-visual）
+       │
+   verifier 强制视觉验证（4 断点 + 状态矩阵 + console）
 ```
 
 **DAG 并行说明**：
 
-- plan-generator 在 `phase-plan.md` 中定义 Phase DAG（含 JSON）
+- plan-generator 在 `phase-plan.md` 中定义 Phase DAG（含 JSON），每个 Phase 必须显式标注 `ui: true/false`
 - 无依赖关系的 Phase 可并行启动（如 Phase 2 和 Phase 3 均依赖 Phase 1，Phase 1 完成后可并行执行 2+3）
-- 每个 Phase 独立走 implementer → reviewer → verifier → HG-3
+- 每个 Phase 独立走 implementer → reviewer（4 视角）→ verifier → HG-3
+- `ui: true` 的 Phase 在此之上额外走：原型门禁 + reviewer-visual + 强制视觉验证
 - TRAE Agent 从 DAG JSON 中读取 `dependencies`，自动判断哪些 Phase 已就绪
 
 ***
@@ -289,20 +383,25 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 
 ### Hook 层硬阻断
 
-`pipeline-gate.sh` 在 implementer 被 dispatch 时，自动检查当前 git 分支：
+> ⚠️ **Trae 与 Cursor 的绑定差异**：Trae 侧 `pipeline-gate.sh` 绑定在**文件写入**（`PreToolUse` 对 Write/Edit），
+> 没有可拦截的「派发」事件。因此它的阻断点不是「implementer 被 dispatch 的瞬间」，而是
+> **「写 `implementation.md` 的那一刻」**。语义等价：`implementation.md` 是 implementer 的必经产出，
+> 分支不对 → 这一步写不进去 → implementer 无法完成本 Phase。
+
+`pipeline-gate.sh` 在写入 `implementation.md` 时，自动检查当前 git 分支：
 
 - 当前分支 = `impl-<current_phase>` → 放行
 - 当前分支 ≠ `impl-<current_phase>` → **阻断**，提示调度者先创建分支
 
-这意味着即使调度者忘记创建分支，hook 也会在 implementer 被 dispatch 的瞬间拦截，**不会让 implementer 在错误分支上开始工作**。
+这意味着即使调度者忘记创建分支，hook 也会在 implementer 落盘产出的瞬间拦截，**不会让 implementer 在错误分支上开始工作**。
 
 ### 三层防护总结
 
-| 层       | 机制                               | 职责                                                 |
-| ------- | -------------------------------- | -------------------------------------------------- |
-| Rules 层 | `spec-workflow.mdc` 文本指令         | 调度者必须在 code-explorer 后创建分支                         |
-| Hook 层  | `pipeline-gate.sh` preToolUse 阻断 | 程序化验证 implementer 是否在正确分支                          |
-| Agent 层 | `implementer.md` Must Do #1 校验   | implementer 启动后立即 `git branch --show-current` 二次确认 |
+| 层       | 机制                                   | 职责                                                 |
+| ------- | ------------------------------------ | -------------------------------------------------- |
+| Rules 层 | `spec-workflow.md` 文本指令              | 调度者必须在 code-explorer 后创建分支                         |
+| Hook 层  | `pipeline-gate.sh` PreToolUse 文件写入阻断 | 程序化验证 implementer 是否在正确分支（写 implementation.md 时）     |
+| Agent 层 | `implementer.md` Must Do #1 校验       | implementer 启动后立即 `git branch --show-current` 二次确认 |
 
 ***
 
@@ -349,11 +448,11 @@ HG-3 报告时已展示 git diff --stat + git status -s（用户已知改动清�
 
 ### review.md 归档例外（唯一由调度者归档的产物）
 
-**背景**：并行三视角流程下，`review.md` 是**你（调度者）合并 3 份 review-*.md 后产出的**，不是任何一个 reviewer agent 的产物。因此重跑 reviewer 时：
+**背景**：并行四视角流程下，`review.md` 是**你（调度者）合并 4 份 review-*.md 后产出的**，不是任何一个 reviewer agent 的产物。因此重跑 reviewer 时：
 - 3 个并行 reviewer 各自归档自己的 `review-correctness/design/connectivity.md`（其「启动自清理协议」覆盖）；
 - 但 `review.md` 不在任何 reviewer 的自清理边界内 → 无人归档 → 会被下一轮合并静默覆盖，丢失上一轮判决历史，违反「归档优于删除」。
 
-**规则**：重跑 reviewer（无论三视角并行还是 /brief 单视角）前，**若 `phases/<phase>/review.md` 已存在，由你（调度者）先将其归档**到 `phases/<phase>/.archive/review-<UTC时间戳>.md`（时间戳用 `date -u +%Y%m%dT%H%M%SZ`），再派发 reviewer。
+**规则**：重跑 reviewer（无论四视角并行还是 /brief 单视角）前，**若 `phases/<phase>/review.md` 已存在，由你（调度者）先将其归档**到 `phases/<phase>/.archive/review-<UTC时间戳>.md`（时间戳用 `date -u +%Y%m%dT%H%M%SZ`），再派发 reviewer。
 
 - 这是「调度者不代劳归档 agent 产物」铁律的**唯一例外**——因为 review.md 本就是调度者自己的产物，归档它属于调度者清理自己的产出，不冲突。
 - 单视角 `/brief` 流程中 reviewer 会归档全部 4 份（含 review.md），此时先检查 review.md 是否仍在直接路径，在才归档，避免重复。
@@ -444,6 +543,7 @@ HG-3 通过后，同步该 Phase 下所有 spec 文档。**按顺序逐个调用
 | 触发点     | 目标路径                                    | 内容                | 文档数 |
 | ------- | --------------------------------------- | ----------------- | :-: |
 | HG-1 通过 | `Projects/<project>/Topics/`            | `requirements.md` |  1  |
+| HG-1.5 通过（仅 UI 工作流） | `Projects/<project>/Decisions/` | `visual-baseline.md` | 1 |
 | HG-2 通过 | `Projects/<project>/Decisions/`         | `design.md`       |  1  |
 | HG-3 通过 | `Projects/<project>/Phases/<phase-id>/` | 以上 5 个 spec 文件    |  5  |
 | 上下文压缩   | `Projects/<project>/Snapshots/`         | 压缩会话摘要            |  1  |
@@ -468,10 +568,11 @@ HG-3 通过，用户确认
 | ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | :------------: |
 | 需求分析             | `requirement-analyst`                                                                         | `.specdev/specs/<slug>/requirements.md`                                        |    **HG-1**    |
 | 架构设计             | `plan-generator`                                                                              | `.specdev/specs/<slug>/design.md` + `phase-plan.md` + `phases/<phase>/spec.md` |    **HG-2**    |
+| 视觉基准（仅 UI）        | `plan-generator`                                                                              | `design-system/<slug>/MASTER.md` + `.specdev/specs/<slug>/visual-baseline.md`   |   **HG-1.5**   |
 | 代码调研（per-Phase）  | `code-explorer`                                                                               | `.specdev/specs/<slug>/phases/<phase>/repo-exploration.md`                     |        —       |
 | Git 分支创建         | *TRAE Agent 执行*                                                                               | `impl-<phase-id>` 分支                                                           | **每个 Phase 前** |
 | Phase Entry Gate | *TRAE Agent 读 registry*                                                                       | 向用户呈现债务清单 → 用户决策                                                               | **仅 Phase 2+** |
-| Phase 实施         | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md`       |    **HG-3**    |
+| Phase 实施         | `implementer`→`reviewer-correctness`+`reviewer-design`+`reviewer-connectivity`+`reviewer-visual`(并行)→`verifier` | `.specdev/specs/<slug>/phases/<phase>/*.md` + 更新 `tech-debt-registry.md`       |    **HG-3**    |
 | KB 同步            | *TRAE Agent 调用 MCP*                                                                           | Knownbase 中的 topic/decision/task 对象                                            |  **每个 HG 通过后** |
 
 ***
@@ -486,7 +587,7 @@ HG-3 通过，用户确认
 Phase N 准备实施
   │
   ├─ 1. 委托 code-explorer
-  │     输出: phases/<phase>/repo-exploration.md (10-section 结构化报告)
+  │     输出: phases/<phase>/repo-exploration.md (10-section 结构化报告；ui: true 追加 §11)
   │     输出: phases/<phase>/repo-exploration-zh.md (中文翻译)
   │
   ├─ 2. 🔀 Git 分支创建：`git checkout -b impl-<phase-id>`（详见 Per-Phase Git 分支管理章节）
@@ -494,12 +595,12 @@ Phase N 准备实施
   │
   ├─ 3. implementer 必须读取 repo-exploration.md 后才能开始编码
   │
-  ├─ 4. 3 个并行 reviewer 也需要读取 repo-exploration.md 作为上下文
+  ├─ 4. 4 个并行 reviewer 也需要读取 repo-exploration.md 作为上下文
   │
   └─ 5. verifier 参考 repo-exploration.md 中的关键路径设计验证场景
 ```
 
-### code-explorer 必须产出的 10 个章节
+### code-explorer 必须产出的 10 个章节（UI Phase 追加第 11 章）
 
 | #  | 章节                            | 内容                           | 为什么重要               |
 | -- | ----------------------------- | ---------------------------- | ------------------- |
@@ -513,6 +614,7 @@ Phase N 准备实施
 | 8  | Uncertain / Unverified        | 签名存在但行为未知                    | 警告下游不要假设            |
 | 9  | Stub Detection                | Registry 交叉校验                | Phase Entry Gate 联动 |
 | 10 | Recommended Next Reads        | 优先阅读列表                       | 高效上下文建立             |
+| 11 | UI / Design System Inventory  | 组件库/主题配置/CSS 变量/可复用组件变体（**仅 `ui: true`**） | 防止 implementer 重复造组件、硬编码色值 |
 
 ### 铁律
 
@@ -547,6 +649,7 @@ register_expected implementer "$PWD/.specdev/specs/<slug>/phases/<phase>/impleme
 | `reviewer-correctness` | `review-correctness.md` |
 | `reviewer-design` | `review-design.md` |
 | `reviewer-connectivity` | `review-connectivity.md` |
+| `reviewer-visual` | `review-visual.md` |
 | `verifier` | `verification.md` |
 
 ### 机制说明与局限（如实告知）
@@ -566,48 +669,61 @@ register_expected implementer "$PWD/.specdev/specs/<slug>/phases/<phase>/impleme
 
 ***
 
-## 并行三视角 Reviewer — Merge 规则
+## 并行四视角 Reviewer — Merge 规则
 
-**implementer 完成后，同时委托 3 个 reviewer（并行执行），各自独立产出，最后合并判决。**
+**implementer 完成后，同时委托 4 个 reviewer（并行执行），各自独立产出，最后合并判决。**
+
+> **为什么有第 4 个视角**：原三视角全部覆盖架构/行为层（实现正确性、设计一致性、集成连通性），**没有任何一个负责「界面长什么样」**。
+> 结果是布局错位、间距偏差、token 硬编码、状态缺失、响应式断裂的 UI 实现可以一路通过 review 与 verify 被验收 —— 偏差没有任何 gate 能发现它。
+> `reviewer-visual` 就是补上这个空档。
 
 ### 并行分发
 
 ```
-implementer 完成
+implementer 完成（UI Phase 还需先过原型门禁）
   │
   ├── 委托 reviewer-correctness (背景执行)  → review-correctness.md
   ├── 委托 reviewer-design (背景执行)       → review-design.md
-  └── 委托 reviewer-connectivity (背景执行)  → review-connectivity.md
+  ├── 委托 reviewer-connectivity (背景执行)  → review-connectivity.md
+  └── 委托 reviewer-visual (背景执行)       → review-visual.md
        │
-       等待全部 3 份报告完成
+       等待全部 4 份报告完成
        │
        ▼
   TRAE Agent 合并判决
   │
-  ├─ 读取 3 份报告
+  ├─ 读取 4 份报告
   ├─ 按合并规则判定最终 verdict
   ├─ 写入 review.md（合并报告，含 verdict + 各视角摘要）
   └─ MUST-FIX → loop_count+1 → implementer
      SHOULD-FIX / PASS → verifier
 ```
 
+**`ui: false` 的 Phase**：reviewer-visual 仍会被派发，但会输出判决 `N/A`（本视角不适用）。
+**N/A 不等于 PASS** —— 它不否决、也不冲抵其他视角的 must-fix。不要因为它返回 N/A 就跳过派发。
+
 ### 合并规则
 
-| correctness |   design   | connectivity |   最终 verdict   |
-| :---------: | :--------: | :----------: | :------------: |
-|     PASS    |    PASS    |     PASS     |    **PASS**    |
-|     PASS    | SHOULD-FIX |     PASS     | **SHOULD-FIX** |
-|  SHOULD-FIX |     \*     |      \*      | **SHOULD-FIX** |
-|   MUST-FIX  |     \*     |      \*      |  **MUST-FIX**  |
-|      \*     |  MUST-FIX  |      \*      |  **MUST-FIX**  |
-|      \*     |     \*     |   MUST-FIX   |  **MUST-FIX**  |
+| correctness |   design   | connectivity | visual |   最终 verdict   |
+| :---------: | :--------: | :----------: | :----: | :------------: |
+|     PASS    |    PASS    |     PASS     |  PASS  |    **PASS**    |
+|     PASS    |    PASS    |     PASS     |   N/A  |    **PASS**    |
+|     PASS    | SHOULD-FIX |     PASS     |   \*   | **SHOULD-FIX** |
+|  SHOULD-FIX |     \*     |      \*      |   \*   | **SHOULD-FIX** |
+|   MUST-FIX  |     \*     |      \*      |   \*   |  **MUST-FIX**  |
+|      \*     |  MUST-FIX  |      \*      |   \*   |  **MUST-FIX**  |
+|      \*     |     \*     |   MUST-FIX   |   \*   |  **MUST-FIX**  |
+|      \*     |     \*     |      \*      | MUST-FIX |  **MUST-FIX**  |
+
+**判定优先级**：`MUST-FIX` > `SHOULD-FIX` > `PASS` > `N/A`。
+即：任一方言 MUST-FIX → 整体 MUST-FIX；无 MUST-FIX 但有 SHOULD-FIX → 整体 SHOULD-FIX；`N/A` 视为「不参与」。
 
 ### review\.md 合并格式
 
 ```markdown
 # Phase N 审查报告（合并）
 
-## 判决：PASS / MUST-FIX / SHOULD-FIX
+## 判决：PASS
 
 ## 并行审查摘要
 
@@ -616,26 +732,37 @@ implementer 完成
 | 实现正确性 | reviewer-correctness | PASS | 所有 AC 满足，无桩代码 |
 | 设计一致性 | reviewer-design | SHOULD-FIX | 1 处命名偏离规范 |
 | 集成连通性 | reviewer-connectivity | PASS | 所有端到端路径连通 |
+| 视觉一致性 | reviewer-visual | MUST-FIX | 3 处硬编码颜色 + loading 状态缺失 |
 
 ## Must-Fix 汇总
-（来自 3 份报告的所有 🔴 must-fix 条目合并）
+（来自 4 份报告的所有 🔴 must-fix 条目合并）
 
 ## Should-Fix 汇总
-（来自 3 份报告的所有 🟡 should-fix 条目合并）
+（来自 4 份报告的所有 🟡 should-fix 条目合并）
 
 ## 详细报告
 - [review-correctness.md](./review-correctness.md)
-- [review-design.md](./review-design.md)  
+- [review-design.md](./review-design.md)
 - [review-connectivity.md](./review-connectivity.md)
+- [review-visual.md](./review-visual.md)
 ```
+
+> 🔴 **判决行契约（下游 hook 依赖）**：合并后的 `review.md` 判决行**必须只含单一值**，例如 `## 判决：MUST-FIX`。
+> 绝不原样保留 `## 判决：PASS / MUST-FIX / SHOULD-FIX` 这种多值枚举 ——
+> `pipeline-gate.sh` 的 `parse_review_verdict` 会把多值枚举判为「无可解析判决」，
+> 导致 MUST-FIX 拦截失效（并把 hg3 门禁降级为向用户提问）。
 
 ### 铁律
 
 ```
-❌ 禁止：只委托 1 个 reviewer 然后在对话中说「3个视角都看过了」
-✅ 正确：委托 3 个独立 reviewer，并行执行，各自产出独立文件
+❌ 禁止：只委托 1 个 reviewer 然后在对话中说「4 个视角都看过了」
+✅ 正确：委托 4 个独立 reviewer，并行执行，各自产出独立文件
+❌ 禁止：UI Phase 跳过 reviewer-visual（UI 偏差将无人负责）
 ❌ 禁止：合并时隐藏或弱化 ANY reviewer 的 MUST-FIX 判决
 ✅ 正确：任一 MUST-FIX → 整体 MUST-FIX
+❌ 禁止：把 reviewer-visual 的 N/A 当作 PASS 计入
+✅ 正确：N/A 表示「本视角不适用」，不参与合并加权
+❌ 禁止：在 review.md 判决行留下多值枚举（会让 hook 的 MUST-FIX 拦截失效）
 ```
 
 ***
@@ -711,8 +838,34 @@ plan-generator 产出 phase-plan.md DAG JSON
 
 - `current_stage`: `requirement-analysis` | `architecture-design` | `phase-implementation`
 - `human_gates.*`: `pending` | `passed`
+  - `hg1` / `hg2` / `hg3`：**必填**
+  - `hg1_5`：**可选**，仅 UI 工作流使用（视觉基准确认）。缺失时 `status-read.sh` 读作 `"n/a"`（不阻塞）——保证存量工作流向前兼容
 - `phases.*.*`: `pending` | `in_progress` | `completed` | `failed`
 - `loop_count`: 当前 Phase 的回炉计数，超过 2 程序化阻断
+
+**UI 工作流的完整示例**：
+
+```json
+{
+  "slug": "user-list-page",
+  "description": "用户列表页（含搜索、分页、空态）",
+  "created": "2026-09-14T10:00:00Z",
+  "current_stage": "phase-implementation",
+  "current_phase": "phase-2-ui",
+  "loop_count": 0,
+  "human_gates": {
+    "hg1": "passed",
+    "hg1_5": "passed",
+    "hg2": "passed",
+    "hg3": "pending"
+  },
+  "phases": {
+    "phase-1-api": { "implementer": "completed", "reviewer": "completed", "verifier": "completed" },
+    "phase-2-ui": { "implementer": "in_progress", "reviewer": "pending", "verifier": "pending" }
+  },
+  "last_update": "2026-09-14T15:30:00Z"
+}
+```
 
 ***
 
@@ -727,6 +880,12 @@ plan-generator 产出 phase-plan.md DAG JSON
 | 用户说"看看"/"好的"就认为 HG 通过            | 必须明确确认                                            |
 | reviewer 打回后不到 2 轮就放弃            | 最多 2 轮回路                                          |
 | Phase ID 不来自 DAG JSON，自己另起名字     | plan-generator 先产出的 ID 是唯一标准，另起名字导致文件夹分裂、spec 找不到 |
+| UI 工作流跳过 HG-1.5                 | 风格未定就实施，等于把审美决策推给 implementer                     |
+| UI Phase 未确认原型就派发 reviewer/verifier | 放弃了整条链上唯一低成本的视觉纠偏机会                              |
+| 在 `ui-spec.md` 里写抽象形容词（"美观/现代/简洁"） | 无法验收 = 等于没写，implementer 只能即兴发挥                    |
+| UI Phase 缺少 `ui-spec.md` 或 `visual-baseline.md` 就开始实施 | 无界面契约、无冻结合基准 → reviewer-visual 与 verifier 都无从判定 |
+| 合并 review.md 时留多值枚举判决行            | `parse_review_verdict` 会判为无可解析判决 → MUST-FIX 拦截失效 |
+| 用 `grep -P` 写 hook 正则             | PCRE 是 GNU 扩展；macOS BSD grep 会以退出码 2 失败，而多数用法在 `if ! ...` 中 → 静默反向放行。一律用 `-E` / `sed` / `awk` |
 
 ***
 
@@ -736,7 +895,9 @@ plan-generator 产出 phase-plan.md DAG JSON
 
 1. 读取 `.specdev/active-workflow` 获取活跃工作流 slug
 2. 读取 `.specdev/specs/<slug>/current-status.json` 恢复状态
-3. 向用户总结："上下文已压缩。当前工作流：\[slug]，阶段 \[current\_stage]，HG-1=\[hg1] HG-2=\[hg2] HG-3=\[hg3]。上一次 \[阶段] 完成了 \[最后产出]。是否继续？"
+   - **注意 `hg1_5` 可能不存在**（纯后端工作流或改造前创建的工作流）→ 读作 `n/a`，视为不阻塞
+   - 若 `ui: true` 的 Phase 存在 `.prototype-approved` 标记 → 说明原型已确认，implementer 处于「续做」状态
+3. 向用户总结："上下文已压缩。当前工作流：\[slug]，阶段 \[current\_stage]，HG-1=\[hg1] HG-1.5=\[hg1\_5] HG-2=\[hg2] HG-3=\[hg3]。上一次 \[阶段] 完成了 \[最后产出]。是否继续？"
 4. 等待用户确认后再继续
 
 ***
@@ -757,4 +918,10 @@ plan-generator 产出 phase-plan.md DAG JSON
 | "函数签名和设计文档一致就行"              | 签名一致 ≠ 实现正确。必须读 function body  | 追踪关键函数的完整数据路径                  |
 | "无 e2e 测试是低严重性"              | feature 改变外部行为，e2e 缺失至少 MEDIUM | 不能标 LOW                        |
 | "Known Gaps 已经写了"            | 文档记录 ≠ 问题解决                    | 有 gap → 判决 PARTIAL，不是 PASS     |
+| "界面看着差不多就行"                    | 「差不多」不是可验收标准。视觉基准是冻结的 token 表    | 逐 token 比对 `visual-baseline.md` §3，偏离即记 |
+| "DOM 结构对了、HTTP 200，UI 就没问题"   | 布局错位、间距偏差、状态缺失都不改变 DOM 与状态码      | UI Phase 必须有截图证据 + 基准对比，缺一即 PARTIAL |
+| "用户没提界面要求，就按我的理解做"            | 用户没提 ≠ 无需视觉基准。AI 可用 ui-ux-pro-max 生成候选让用户选 | 走 HG-1.5 让用户选风格，不要替用户决定审美     |
+| "原型和最终实现差不多，跳过原型吧"            | 「差不多」正是偏差来源；原型是唯一低成本纠偏点          | 出原型 + 截图 + 停止等待确认               |
+| "loading/empty 这些状态后面再补"      | 状态矩阵标注「必须实现」就是本 Phase 的契约         | 缺失状态 = 未完成，不是「后续优化」            |
+| "这个色值跟基准很接近，直接写 hex 更快"        | 硬编码会让基准变更后失控                     | 用 design token，不写 `#hex`        |
 

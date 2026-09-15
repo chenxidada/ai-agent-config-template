@@ -14,8 +14,8 @@ argument-hint: <任务描述>
 | **适用** | 简单功能（改动 < 3 个文件、单一模块） | 复杂功能（多模块、多 Phase） |
 | **Phase 拆分** | 无，单个 Phase | 2-5 个 Phase + DAG |
 | **code-explorer** | 轻量，口头输出 | 完整，写入文件 |
-| **review** | 单 reviewer | 并行三视角 reviewer |
-| **Human Gate** | HG-1 + HG-2 + HG-3（简易） | 完整 HG-1/2/3 |
+| **review** | 单 reviewer（覆盖四视角） | 并行四视角 reviewer |
+| **Human Gate** | HG-1 + HG-2 + HG-3（简易；UI 任务额外含 HG-1.5 + 原型确认） | 完整 HG-1/1.5/2/3 + 原型确认 |
 | **时间** | ~10-15min | ~30-60min |
 
 ## 流程
@@ -44,7 +44,7 @@ argument-hint: <任务描述>
 
 1. @code-explorer：轻量调研当前代码状态（口头输出）
 2. @implementer：按 requirements.md 实现
-3. @reviewer：单视角审查（含 correctness + design + connectivity）
+3. @reviewer：单视角审查（含 correctness + design + connectivity + visual）
 4. @verifier：独立验证
 
 ### 第五步：Human Gate 2 — 验收确认 🛑
@@ -55,3 +55,5 @@ argument-hint: <任务描述>
 - 不经过 Phase 拆分 — 适用于单次提交能完成的改动
 - 不经过完整 HG-2 — design/plan 由 TRAE Agent 口头决策
 - 仍有 implementer→reviewer→verifier 三阶段闭环
+- UI 任务（`ui_relevant: true`）**不得**以「改动小」为由跳过 HG-1.5 与视觉验证
+- 不写抽象形容词（「美观/现代/简洁」）—— 一律给具体值（色值 / px / 断点行为）

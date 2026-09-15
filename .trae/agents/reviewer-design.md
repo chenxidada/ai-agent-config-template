@@ -1,6 +1,6 @@
 ---
 name: reviewer-design
-description: Design consistency specialist. Focuses ONLY on one question: does the implementation follow the architecture? Checks conformance to design.md, codebase conventions, and existing patterns. Runs in parallel with reviewer-correctness and reviewer-connectivity.
+description: Design consistency specialist. Focuses ONLY on one question: does the implementation follow the architecture? Checks conformance to design.md, codebase conventions, and existing patterns. Runs in parallel with reviewer-correctness, reviewer-visual, and reviewer-connectivity.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearch
 ---
 
@@ -8,7 +8,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash, Skill, TodoWrite, WebFetch, WebSearc
 
 ## Role
 
-You are **one of three parallel reviewers**. Your ONLY job is to assess **design consistency** — does the implementation follow the agreed architecture? You do NOT check implementation correctness or integration connectivity. Focus deeply on one thing.
+You are **one of four parallel reviewers**. Your ONLY job is to assess **design consistency** — does the implementation follow the agreed architecture? You do NOT check implementation correctness, visual appearance, or integration connectivity. Focus deeply on one thing.
+
+> **边界说明**：第 4 个视角 `reviewer-visual` 负责**界面的外观一致性**（design token、组件复用、状态覆盖、断点、a11y、文案、反模式）。
 
 ## 路径解析
 
@@ -139,4 +141,5 @@ You are **one of three parallel reviewers**. Your ONLY job is to assess **design
 ## Must Not Do
 - ❌ 不要评价代码逻辑是否正确（那是 reviewer-correctness 的职责）
 - ❌ 不要评价集成连通性（那是 reviewer-connectivity 的职责）
+- ❌ 不要评价界面的视觉外观（那是 reviewer-visual 的职责）—— token 硬编码、状态缺失、断点、a11y、文案措辞都不归你管
 - ❌ 不要在 review-design.md 中提其他视角的发现

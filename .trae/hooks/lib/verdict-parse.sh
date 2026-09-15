@@ -10,6 +10,10 @@
 #   1) parse_verdict <verification.md 路径>
 #        成功: echo PASS|PARTIAL|FAIL 到 stdout, return 0
 #        无法解析（无判决行 / 判决行为多值枚举 / 值非法）: echo "" , return 1
+#   1b) parse_review_verdict <review.md 路径>
+#        成功: echo PASS|MUST-FIX|SHOULD-FIX 到 stdout, return 0
+#        无法解析: echo "" , return 1
+#        （供 pipeline-gate.sh 判定审查是否 MUST-FIX，取代原 `grep -oP` 实现）
 #   2) max_residual_severity <verification.md 路径>
 #        只扫「## 残余风险」区块（到下一个 ## 之前），扫 CRITICAL/MEDIUM/LOW 与 🔴/🟡/🟢
 #        echo CRITICAL|MEDIUM|LOW|NONE 到 stdout, return 0（恒成功，NONE 兜底）
@@ -17,29 +21,37 @@
 #        判决=PASS 且 max_residual_severity ∈ {CRITICAL, MEDIUM} → return 0（矛盾）
 #        否则 → return 1
 #
+# ⚠️ 可移植性铁律（重要）：
+#   本库**严禁使用 `grep -P` / `grep -oP`**（PCRE 是 GNU 扩展）。macOS 的 BSD grep
+#   遇到 -P 会以「invalid option -- P」退出码 2 失败；而 gate/advance 中大量 grep
+#   用在 `if ! ...` 或 `$( ... || echo "")` 上下文中，失败会被静默吞掉并产生
+#   **错误的方向**（例如白名单校验失败 → 误判为「不在白名单」→ 提前放行）。
+#   所有正则一律用 POSIX：sed（捕获组替代 \K、[[:space:]] 替代 \s）、awk、grep -E/-F。
+#
 # 引入方（source 本文件）：
-#   - pipeline-gate.sh      (PreToolUse, set -euo pipefail)   — Class C（Phase 3，本 Phase）
-#   - pipeline-advance.sh   (Stop, set -euo pipefail)         — Class E（Phase 4）
+#   - pipeline-gate.sh      (PreToolUse, set -euo pipefail)   — Class C
+#   - pipeline-advance.sh   (Stop, set -euo pipefail)         — Class E
 #
-# ⚠️ 调用约定（关键，照 status-read.sh L25-32 / drift-lib.sh L21-29）:
+# ⚠️ 调用约定（关键，照 status-read.sh）:
 #   在 `set -euo pipefail` 的 hook 中，本库中「可失败」的函数（parse_verdict /
-#   verdict_is_self_inconsistent）**绝不能裸调用**，必须用 `if fn; then ...; fi`
-#   或 `V=$(fn ... || echo "")` 包裹。在 `if`/`||`/`&&`/`$( || )` 上下文中调用时，
-#   bash 会在函数体内临时禁用 set -e，因此函数内部中间命令（grep 无匹配等）失败
-#   不会误杀调用方。max_residual_severity 恒返回 0（NONE 兜底），可直接 $(...) 捕获。
+#   parse_review_verdict / verdict_is_self_inconsistent）**绝不能裸调用**，必须用
+#   `if fn; then ...; fi` 或 `V=$(fn ... || echo "")` 包裹。在 `if`/`||`/`&&`/`$( || )`
+#   上下文中调用时，bash 会在函数体内临时禁用 set -e，因此函数内部中间命令
+#   （grep 无匹配等）失败不会误杀调用方。
+#   max_residual_severity 恒返回 0（NONE 兜底），可直接 $(...) 捕获。
 #
-# 判决行契约（verifier.md L31/L75，Phase 2 已锁定，已在 main）:
+# 判决行契约（verifier.md）:
 #   - 判决行格式：`## 判决：<VALUE>`，全角冒号「：」，<VALUE> ∈ {PASS, PARTIAL, FAIL}。
 #   - 真实报告只保留单一值（如 `## 判决：PARTIAL`）；模板残留的多值枚举行
-#     `## 判决：PASS / PARTIAL / FAIL` 必须视为「无 parseable verdict」（触发 AC-15）。
+#     `## 判决：PASS / PARTIAL / FAIL` 必须视为「无 parseable verdict」。
 #   - 只取第一处匹配（head -1）。
 #   ⚠️ 绝不照抄 review.md 的粗体正则 `判决.*?\*\*`（那是 markdown 加粗格式），
 #      本库用标题正则 `^##\s*判决[：:]\s*\K\S+`。
 #
-# 残余风险契约（verifier.md L44-45 / L59-67）:
+# 残余风险契约（verifier.md）:
 #   - `## 残余风险` 标题后接 markdown 表 `| 风险 | 严重性 | 说明 |`。
 #   - 严重性单元格含关键字 + emoji：`🔴 CRITICAL` / `🟡 MEDIUM` / `🟢 LOW`。
-#   - 只扫「## 残余风险」到下一个 `##` 之间（AC-16 误伤缓解，requirements §Risks）。
+#   - 只扫「## 残余风险」到下一个 `##` 之间（避免误伤）。
 #
 # 库内部所有 grep/正则匹配写在 if 条件内或 $( ) 捕获中，绝不裸调用。
 # ============================================
@@ -57,9 +69,11 @@ parse_verdict() {
     fi
 
     # 抽取判决行的冒号后剩余内容（第一处匹配）。全角「：」或半角「:」皆可。
-    # grep -oP 无匹配返回 1；包在 $( ) + || echo "" 中，set -e 不误杀。
+    # ⚠️ 可移植性：不得使用 `grep -P`（PCRE 是 GNU 扩展，macOS 的 BSD grep 会以
+    #   「invalid option -- P」退出码 2 失败），否则本函数在该平台恒返回「无判决」。
+    #   改用 POSIX sed：`\K` 由捕获组替代，`\s` 由 [[:space:]] 替代。
     local raw
-    raw=$(grep -oP '^##\s*判决\s*[：:]\s*\K.+$' "$file" 2>/dev/null | head -1 || echo "")
+    raw=$(sed -n 's/^##[[:space:]]*判决[[:space:]]*[：:][[:space:]]*\(.*\)$/\1/p' "$file" 2>/dev/null | head -1 || echo "")
 
     # 去掉首尾空白
     raw=$(echo "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
@@ -85,9 +99,13 @@ parse_verdict() {
         return 1
     fi
 
-    # 单值：取第一个 token（防止 `PARTIAL（原因...）` 尾随说明）
+    # 单值：只取前导 token（形如 PASS / MUST-FIX），丢弃尾随说明
+    #   例：`PARTIAL（原因：某些项未验证）` → `PARTIAL`
+    #   ⚠️ 原实现用 `awk '{print $1}'`（等价于旧 `grep -oP '^\S+'`）依赖空格分隔，
+    #      而 `PARTIAL（...）` 中间无空格 → 整串被当作 token → 判决解析失败。
+    #      改用 sed 只截取开头的字母/连字符序列。
     local token
-    token=$(echo "$raw" | grep -oP '^\S+' | head -1 || echo "")
+    token=$(echo "$raw" | sed -n 's/^\([A-Za-z][A-Za-z-]*\).*/\1/p' | head -1 || echo "")
 
     case "$token" in
         PASS|PARTIAL|FAIL)
@@ -96,6 +114,65 @@ parse_verdict() {
             ;;
         *)
             # 值非合法枚举 → 无可解析判决
+            echo ""
+            return 1
+            ;;
+    esac
+}
+
+# ── parse_review_verdict <review.md 路径> ──
+# 提取合并后 review.md 的判决值（与 parse_verdict 同构，但枚举域不同）。
+#   契约：真实 review.md 只能有一行 `## 判决：<VALUE>`，<VALUE> ∈ {PASS, MUST-FIX, SHOULD-FIX}
+#   容错：值两侧的 markdown 粗体标记 `**` 会被剥除（`## 判决：**MUST-FIX**` 亦可解析）
+#   成功: echo PASS|MUST-FIX|SHOULD-FIX, return 0
+#   无法解析（无判决行 / 值非法）: echo "", return 1
+#
+# 用途：pipeline-gate.sh 在「标记 hg3=passed」与「派发 verifier」两处需要判定
+#       审查是否为 MUST-FIX。此前用 `grep -oP '判决.*?\*\*\s*\K[^*]+'` 实现，
+#       该写法在 BSD grep 上不可用（该平台恒返回空 → MUST-FIX 拦截永不生效）。
+parse_review_verdict() {
+    local file="${1:-}"
+
+    if [ -z "$file" ] || [ ! -f "$file" ]; then
+        echo ""
+        return 1
+    fi
+
+    local raw
+    raw=$(sed -n 's/^##[[:space:]]*判决[[:space:]]*[：:][[:space:]]*\(.*\)$/\1/p' "$file" 2>/dev/null | head -1 || echo "")
+
+    # 去空白 + 剥离 markdown 粗体标记
+    raw=$(echo "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/\*//g')
+
+    if [ -z "$raw" ]; then
+        echo ""
+        return 1
+    fi
+
+    # 多值枚举（模板残留 `PASS / MUST-FIX / SHOULD-FIX`）→ 无可解析判决
+    # 判据：出现 2 个及以上合法判决词，或含 `/` 分隔符
+    local hit_count=0
+    local w
+    for w in PASS MUST-FIX SHOULD-FIX; do
+        if echo "$raw" | grep -qwF "$w"; then
+            hit_count=$((hit_count + 1))
+        fi
+    done
+    if [ "$hit_count" -ge 2 ] || echo "$raw" | grep -q '/'; then
+        echo ""
+        return 1
+    fi
+
+    # 取前导 token（形如 PASS / MUST-FIX），丢弃尾随说明
+    local token
+    token=$(echo "$raw" | sed -n 's/^\([A-Za-z][A-Za-z-]*\).*/\1/p' | head -1 || echo "")
+
+    case "$token" in
+        PASS|MUST-FIX|SHOULD-FIX)
+            echo "$token"
+            return 0
+            ;;
+        *)
             echo ""
             return 1
             ;;

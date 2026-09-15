@@ -28,10 +28,11 @@ Review the implementation against the Phase spec and design document. Focus on c
 - `<spec_dir>/phases/<current_phase>/review.md` — Review report:
   ```markdown
   # Phase N 审查报告
-  ## 判决：PASS / MUST-FIX / SHOULD-FIX
+  ## 判决：PASS / MUST-FIX / SHOULD-FIX   ← 只含单一值，不得多值枚举
   ## 逐条验收标准审查（每个 AC 标注 ✅/⚠️/❌）
   ## 桩检测报告（发现的空壳函数或虚假实现）
   ## 集成连通性验证结果
+  ## 视觉一致性检查结果（UI 任务时；对照 visual-baseline.md 冻结 token + ui-spec.md 状态矩阵）
   ## 发现的问题（按严重性分类：🔴 must-fix / 🟡 should-fix / 🟢 optional）
   ## Registry 对照（发现的未注册债务 + 可关闭的已解决条目）
   ## 验证命令建议（给 verifier 的建议）
@@ -39,15 +40,15 @@ Review the implementation against the Phase spec and design document. Focus on c
 
 ## 启动自清理协议（第 0 步，先于一切审查动作）
 
-单视角 `reviewer` 一次覆盖三视角，重跑时会重新生成全部四份 review 报告，因此**必须归档全部四份**旧产物（AC-B6）：
+单视角 `reviewer` 一次覆盖四视角，重跑时会重新生成全部五份 review 报告，因此**必须归档全部五份**旧产物（AC-B9）：
 
-- 你的产出文件（全部四份）：`review-correctness.md`、`review-design.md`、`review-connectivity.md`、`review.md`
+- 你的产出文件（全部五份）：`review-correctness.md`、`review-design.md`、`review-connectivity.md`、`review-visual.md`、`review.md`
 - 启动即检测：若这些文件中任一已存在（说明这是一次「重跑」——旧审查报告残留），必须在写任何新内容前逐一归档：
   ```bash
   PHASE_DIR=".specdev/specs/<slug>/phases/<current_phase>"
   TS="$(date -u +%Y%m%dT%H%M%SZ)"
   mkdir -p "$PHASE_DIR/.archive"
-  for f in review-correctness review-design review-connectivity review; do
+  for f in review-correctness review-design review-connectivity review-visual review; do
     [ -f "$PHASE_DIR/$f.md" ]    && mv "$PHASE_DIR/$f.md"    "$PHASE_DIR/.archive/$f-$TS.md"
     [ -f "$PHASE_DIR/$f-zh.md" ] && mv "$PHASE_DIR/$f-zh.md" "$PHASE_DIR/.archive/$f-zh-$TS.md"
   done
@@ -56,15 +57,19 @@ Review the implementation against the Phase spec and design document. Focus on c
 - **硬约束（不可违反）**：
   ① **绝不运行任何 git 命令**（`git reset` / `checkout` / `clean` / `restore` / `stash` 等一律禁止）——本步骤只用 `mv`；
   ② **绝不修改 `current-status.json`**（状态重置是调度者职责，非你的职责）；
-  ③ **边界**：只归档你自己产出的这四份 review 报告，不碰其他 agent 产物（implementation.md / verification.md）、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
+  ③ **边界**：只归档你自己产出的这五份 review 报告，不碰其他 agent 产物（implementation.md / verification.md）、不碰非当前 Phase 文件、不碰 `.specdev/specs/<slug>/` 之外任何文件。
 
-## 三视角审查（每个关键函数至少审查 3 个视角）
+## 四视角审查（每个关键函数至少审查 4 个视角）
 
 | 视角 | 检查什么 | 信号 |
 |------|---------|------|
 | **实现正确性** | 函数体有真实逻辑？不是空壳、硬编码返回、`(void)args`？ | `(void)args` → 🔴 |
 | **设计一致性** | 遵循 design.md 的架构决策？接口/数据流符合设计？ | 设计指定用接口 A，代码用了接口 B → 🔴 |
 | **集成连通性** | 代码正确连接到上下游？写入的数据被读取？ | 数据存了但下游不读 → 🔴 |
+| **视觉一致性** | 界面符合 `visual-baseline.md` 冻结 token 与 `ui-spec.md` 状态矩阵？ | 硬编码 `#hex` / 状态缺失 → 🔴 |
+
+> 视觉视角的详细检查清单与判决规则见 `.trae/agents/reviewer-visual.md`。
+> 非 UI 任务时视觉视角记 `N/A`，不参与判决加权。
 
 ## Amendment Tracking（偏差审批）
 

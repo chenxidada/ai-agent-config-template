@@ -15,7 +15,7 @@
 #   - session-recovery.sh   (sessionStart，Phase 1 建立) — read_status + emit_anchoring_block
 #
 # read_status "$STATUS_FILE"
-#   成功: 导出 CURRENT_STAGE / HG1 / HG2 / HG3 / CURRENT_PHASE / LOOP_COUNT / DESCRIPTION 七个变量, return 0
+#   成功: 导出 CURRENT_STAGE / HG1 / HG2 / HG3 / HG1_5 / CURRENT_PHASE / LOOP_COUNT / DESCRIPTION 八个变量, return 0
 #   失败: 向 stderr 打印 `STATUS_READ_ERROR: <原因 + 缺失字段名 + 文件路径>`, return 非零
 #
 # 四步校验:
@@ -23,6 +23,11 @@
 #   2) `jq empty` 验证 JSON 合法
 #   3) 关键字段存在 (.human_gates 且含 hg1/hg2/hg3；.current_stage)
 #   4) 用正确路径 .human_gates.hgN 读值（历史 bug：曾用顶层 .hgN）
+#
+# ⚠️ HG1_5 为**可选字段**（Phase 1 视觉信息链新增），故意不纳入步骤 3 的必填循环：
+#   存量工作流的 current-status.json 不含 hg1_5，若强制校验会让 failClosed:true 的
+#   pipeline-gate.sh 对所有实施类 Agent 一律 deny（向前不兼容）。缺失时读作 "n/a"，
+#   语义 = 「本工作流不使用视觉基准确认」，等同于视为已通过（不阻塞）。
 #
 # ⚠️ 调用约定（关键，AC-F5）:
 #   在 failClosed:true 的 gate（pipeline-gate.sh）以及任何未来启用 `set -euo pipefail`
@@ -71,15 +76,17 @@ read_status() {
         fi
     done
 
-    # ── 步骤 4：用正确路径 .human_gates.hgN 读值并导出（7 个变量全部赋值）──
+    # ── 步骤 4：用正确路径 .human_gates.hgN 读值并导出（8 个变量全部赋值）──
     CURRENT_STAGE=$(jq -r '.current_stage // "unknown"' "$status_file" 2>/dev/null)
     HG1=$(jq -r '.human_gates.hg1 // "pending"' "$status_file" 2>/dev/null)
     HG2=$(jq -r '.human_gates.hg2 // "pending"' "$status_file" 2>/dev/null)
     HG3=$(jq -r '.human_gates.hg3 // "pending"' "$status_file" 2>/dev/null)
+    # HG1_5 可选：缺失 → "n/a"（存量工作流向前兼容，语义为「不阻塞」）
+    HG1_5=$(jq -r '.human_gates.hg1_5 // "n/a"' "$status_file" 2>/dev/null)
     CURRENT_PHASE=$(jq -r '.current_phase // ""' "$status_file" 2>/dev/null)
     LOOP_COUNT=$(jq -r '.loop_count // 0' "$status_file" 2>/dev/null)
     DESCRIPTION=$(jq -r '.description // ""' "$status_file" 2>/dev/null)
-    export CURRENT_STAGE HG1 HG2 HG3 CURRENT_PHASE LOOP_COUNT DESCRIPTION
+    export CURRENT_STAGE HG1 HG2 HG3 HG1_5 CURRENT_PHASE LOOP_COUNT DESCRIPTION
     return 0
 }
 
@@ -144,7 +151,7 @@ ANCHOR
             cat <<'ANCHOR'
 ### 当前阶段：phase-implementation（Phase 实施）
 
-- ✅ 该做：每个 Phase 前**先委托 `code-explorer`** → 建 `impl-<phase-id>` 分支 → 委托 `implementer` → 3 个并行 reviewer → `verifier`；每个 Phase 完成后等待 **HG-3** 验收。current_phase 必须取自 DAG JSON。
+- ✅ 该做：每个 Phase 前**先委托 `code-explorer`** → 建 `impl-<phase-id>` 分支 → 委托 `implementer` → 4 个并行 reviewer（correctness / design / connectivity / visual）→ `verifier`；每个 Phase 完成后等待 **HG-3** 验收。current_phase 必须取自 DAG JSON。
 - ⛔ 不能做：不能跳过 code-explorer / reviewer / verifier；不能自己写、审、验代码；HG-3 未过不能进入下一 Phase。
 ANCHOR
             ;;

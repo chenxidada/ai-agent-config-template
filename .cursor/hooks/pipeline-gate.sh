@@ -130,7 +130,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                         ''|*[!0-9]*) VLC=0 ;;
                     esac
                     IS_ADVANCE=0
-                    if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
+                    if echo "$NEW_CONTENT" | grep -qE '"hg3"[[:space:]]*:[[:space:]]*"passed"'; then
                         IS_ADVANCE=1
                     else
                         NEW_PHASE=$(echo "$NEW_CONTENT" | jq -r '.current_phase // empty' 2>/dev/null)
@@ -145,7 +145,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                 fi
 
                 # 检查是否试图设置 hg3=passed
-                if echo "$NEW_CONTENT" | grep -q '"hg3".*"passed"'; then
+                if echo "$NEW_CONTENT" | grep -qE '"hg3"[[:space:]]*:[[:space:]]*"passed"'; then
                     if [ -n "$CURRENT_PHASE" ]; then
                         PHASE_DIR="$SPEC_DIR/phases/$CURRENT_PHASE"
                         if ! check_file_valid "$PHASE_DIR/implementation.md" 10 "##"; then
@@ -160,7 +160,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                             echo '{"permission":"deny","user_message":"⛔ 流程不完整：尝试标记 HG-3 通过，但 verification.md 不存在。必须先完成 verifier 独立验证。"}'
                             exit 0
                         fi
-                        VERDICT=$(grep -oP '判决.*?\*\*\s*\K[^*]+' "$PHASE_DIR/review.md" 2>/dev/null | head -1 | tr -d ' ')
+                        VERDICT=$(parse_review_verdict "$PHASE_DIR/review.md" || echo "")
                         if [ "$VERDICT" = "MUST-FIX" ]; then
                             echo '{"permission":"deny","user_message":"⛔ 流程不完整：review.md 判决为 MUST-FIX，不能标记 HG-3 通过。请先修复并重新审查。"}'
                             exit 0
@@ -189,7 +189,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                 fi
                 
                 # 检查是否试图设置 hg2=passed
-                if echo "$NEW_CONTENT" | grep -q '"hg2".*"passed"'; then
+                if echo "$NEW_CONTENT" | grep -qE '"hg2"[[:space:]]*:[[:space:]]*"passed"'; then
                     if ! check_file_valid "$SPEC_DIR/design.md" 10 "##"; then
                         echo '{"permission":"deny","user_message":"⛔ 流程不完整：尝试标记 HG-2 通过，但 design.md 不存在或内容无效。"}'
                         exit 0
@@ -200,8 +200,27 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
                     fi
                 fi
                 
+                # 检查是否试图设置 hg1_5=passed（视觉基准确认，仅 UI 工作流）
+                if echo "$NEW_CONTENT" | grep -qE '"hg1_5"[[:space:]]*:[[:space:]]*"passed"'; then
+                    if [ -f "$SPEC_DIR/ui-spec.md" ]; then
+                        if ! check_file_valid "$SPEC_DIR/visual-baseline.md" 10; then
+                            echo '{"permission":"deny","user_message":"⛔ 流程不完整：尝试标记 HG-1.5 通过，但 visual-baseline.md 不存在或内容无效。请先完成视觉基准生成（ui-ux-pro-max --design-system --persist）。"}'
+                            exit 0
+                        fi
+                        # 基准必须已冻结（§3 token 表非空 —— 以标记分隔线与表格行为准）
+                        if ! grep -q "冻结的 Design Tokens\|冻结值" "$SPEC_DIR/visual-baseline.md" 2>/dev/null; then
+                            echo '{"permission":"deny","user_message":"⛔ 视觉基准未冻结：visual-baseline.md 缺少「冻结的 Design Tokens」章节，无法作为比对基准。"}'
+                            exit 0
+                        fi
+                        if [ ! -d "design-system" ]; then
+                            echo '{"permission":"deny","user_message":"⛔ 设计系统未生成：design-system/ 目录不存在。请先执行 ui-ux-pro-max 的 --design-system --persist。"}'
+                            exit 0
+                        fi
+                    fi
+                fi
+                
                 # 检查是否试图设置 hg1=passed
-                if echo "$NEW_CONTENT" | grep -q '"hg1".*"passed"'; then
+                if echo "$NEW_CONTENT" | grep -qE '"hg1"[[:space:]]*:[[:space:]]*"passed"'; then
                     if ! check_file_valid "$SPEC_DIR/requirements.md" 10 "##"; then
                         echo '{"permission":"deny","user_message":"⛔ 流程不完整：尝试标记 HG-1 通过，但 requirements.md 不存在或内容无效。"}'
                         exit 0
@@ -233,15 +252,18 @@ fi
 TOOL_INPUT_RAW=$(echo "$INPUT" | jq -r '.tool_input // "{}"')
 SUBAGENT=$(echo "$TOOL_INPUT_RAW" | jq -r '.subagent_type // empty' 2>/dev/null)
 [ -z "$SUBAGENT" ] && SUBAGENT=$(echo "$TOOL_INPUT_RAW" | jq -r '.subagent_name // empty' 2>/dev/null)
-[ -z "$SUBAGENT" ] && SUBAGENT=$(echo "$TOOL_INPUT_RAW" | grep -oP '\b(implementer|reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity|verifier|plan-generator|requirement-analyst|code-explorer)\b' | head -1)
+[ -z "$SUBAGENT" ] && SUBAGENT=$(echo "$TOOL_INPUT_RAW" | grep -oE '(implementer|reviewer-correctness|reviewer-connectivity|reviewer-design|reviewer-visual|reviewer|verifier|plan-generator|requirement-analyst|code-explorer)' | head -1)
 
 # 内置agent放行
 case "$SUBAGENT" in
     explore|bash|browser|generalPurpose) allow_with_heartbeat ;;
 esac
 
-KNOWN="implementer|reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity|verifier|plan-generator|requirement-analyst|code-explorer"
-if ! echo "$SUBAGENT" | grep -qP "^($KNOWN)$"; then
+KNOWN="implementer|reviewer-correctness|reviewer-connectivity|reviewer-design|reviewer-visual|reviewer|verifier|plan-generator|requirement-analyst|code-explorer"
+# ⚠️ 必须用 -E（POSIX ERE）。原 `grep -qP` 在 macOS BSD grep 上以退出码 2 失败，
+#    而本行处于 `if ! ...` 中 → 失败被反向解读为「不在白名单」→ 提前放行全部子 Agent，
+#    使后续所有 Human Gate / 阶段门禁形同虚设。
+if ! echo "$SUBAGENT" | grep -qE "^($KNOWN)$"; then
     allow_with_heartbeat
 fi
 
@@ -285,7 +307,7 @@ fi
 # ── 阶段一致性检查 ──
 if [ "$CURRENT_STAGE" != "phase-implementation" ]; then
     case "$SUBAGENT" in
-        implementer|reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity|verifier)
+        implementer|reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity|reviewer-visual|verifier)
             echo "{\"permission\":\"deny\",\"user_message\":\"⛔ 阶段不一致：当前处于 \`$CURRENT_STAGE\` 阶段，但尝试调度实施类 Agent($SUBAGENT)。请先完成需求确认(HG-1)和方案确认(HG-2)。\"}"
             exit 0
             ;;
@@ -315,6 +337,46 @@ validate_phase_id() {
     fi
     echo "{\"permission\":\"deny\",\"user_message\":\"⛔ Phase ID 不合法：\`$CURRENT_PHASE\` 不在 phase-plan.md DAG JSON 中。有效 ID：$VALID_LIST\"}"
     return 1
+}
+
+# ── 读取当前 Phase 的 ui 字段（Phase 1 视觉信息链）──
+# 唯一真相源：phase-plan.md 的 DAG JSON phases[].ui。
+# 只认显式标注，不做关键词猜测 —— 避免给纯后端 Phase 误加 UI 门禁。
+# 字段缺失 → 返回 false（保守：不加门禁；UI 门禁的权威判定由已标注的工作流承担）。
+read_phase_ui() {
+    local DAG_FILE="$SPEC_DIR/phase-plan.md"
+    [ -z "$CURRENT_PHASE" ] && { echo "false"; return 0; }
+    [ ! -s "$DAG_FILE" ] && { echo "false"; return 0; }
+    local UI_VAL
+    UI_VAL=$(sed -n '/```json/,/```/p' "$DAG_FILE" | grep -v '```' \
+        | jq -r --arg pid "$CURRENT_PHASE" '.phases[] | select(.id == $pid) | .ui' 2>/dev/null | head -1)
+    if [ "$UI_VAL" = "true" ]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+    return 0
+}
+
+# ── UI Phase 原型门禁校验（Phase 1 视觉信息链）──
+# 规则：ui: true 的 Phase，在用户确认原型前不得派发 reviewer / verifier。
+# 判定「已确认」的唯一依据 = 调度者在用户确认后创建的 .prototype-approved 标记。
+# 若 implementation.md 含「Prototype」章节但标记不存在 → 说明原型还等着用户看 → deny。
+# 非 UI Phase 或 implementer 尚未产出原型 → 直接放行（不干扰首轮 implementer 派发）。
+check_prototype_gate() {
+    local UI_FLAG="$1"
+    [ "$UI_FLAG" != "true" ] && return 0
+
+    local P_DIR="$SPEC_DIR/phases/$CURRENT_PHASE"
+    local APPROVED_MARK="$P_DIR/.prototype-approved"
+    [ -f "$APPROVED_MARK" ] && return 0
+
+    # 未批准：若 implementation.md 已含原型章节 → 原型待确认，禁止进入审查
+    if [ -f "$P_DIR/implementation.md" ] && grep -q "## Prototype" "$P_DIR/implementation.md" 2>/dev/null; then
+        echo '{"permission":"deny","user_message":"⛔ UI Phase 原型门禁：implementation.md 已含「Prototype」章节，但 .prototype-approved 标记不存在 —— 用户尚未确认视觉方向。请先把原型与截图呈现给用户确认，确认后创建 .specdev/specs/<slug>/phases/<phase>/.prototype-approved，再派发 reviewer。","agent_message":"Prototype not yet approved by user. Present it and get confirmation first."}'
+        return 1
+    fi
+    return 0
 }
 
 # ── 按 Agent 类型校验 ──
@@ -361,6 +423,18 @@ case "$SUBAGENT" in
             echo '{"permission":"deny","user_message":"⛔ 阶段跳跃：repo-exploration.md 不存在或内容不足。请先委托 code-explorer 进行代码调研。"}'
             exit 0
         fi
+        # ── UI Phase 前置：界面契约与冻结基准缺一不可（Phase 1 视觉信息链）──
+        PHASE_UI=$(read_phase_ui)
+        if [ "$PHASE_UI" = "true" ]; then
+            if ! check_file_valid "$SPEC_DIR/ui-spec.md" 10; then
+                echo '{"permission":"deny","user_message":"⛔ UI Phase 缺少界面契约：本 Phase 标记为 ui: true，但 ui-spec.md 不存在。implementer 无布局骨架与状态矩阵可依，请先回到需求阶段补齐。"}'
+                exit 0
+            fi
+            if ! check_file_valid "$SPEC_DIR/visual-baseline.md" 10; then
+                echo '{"permission":"deny","user_message":"⛔ UI Phase 缺少视觉基准：本 Phase 标记为 ui: true，但 visual-baseline.md 不存在。implementer 将退回「即兴发挥样式」，请先回到设计阶段生成并冻结基准。"}'
+                exit 0
+            fi
+        fi
         # Git 分支校验
         EXPECTED_BRANCH="impl-${CURRENT_PHASE}"
         ACTUAL_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
@@ -371,7 +445,7 @@ case "$SUBAGENT" in
         allow_with_heartbeat
         ;;
 
-    reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity)
+    reviewer|reviewer-correctness|reviewer-design|reviewer-connectivity|reviewer-visual)
         PHASE_DIR="$SPEC_DIR/phases/$CURRENT_PHASE"
         # 阶段跳跃检测：implementation.md 必须有效（含结构化章节）
         if ! check_file_valid "$PHASE_DIR/implementation.md" 10 "##"; then
@@ -384,6 +458,21 @@ case "$SUBAGENT" in
             echo "$VALIDATE_OUT"
             exit 0
         fi
+        # ── UI Phase 原型门禁：用户未确认原型前不得进入审查 ──
+        PHASE_UI=$(read_phase_ui)
+        PROTOTYPE_OUT=$(check_prototype_gate "$PHASE_UI")
+        PROTOTYPE_RC=$?
+        if [ $PROTOTYPE_RC -ne 0 ]; then
+            echo "$PROTOTYPE_OUT"
+            exit 0
+        fi
+        # ── reviewer-visual 专属前置：UI Phase 必须有冻结的视觉基准 ──
+        if [ "$SUBAGENT" = "reviewer-visual" ] && [ "$PHASE_UI" = "true" ]; then
+            if ! check_file_valid "$SPEC_DIR/visual-baseline.md" 10; then
+                echo '{"permission":"deny","user_message":"⛔ 视觉基准缺失：本 Phase 标记为 ui: true，但 visual-baseline.md 不存在或内容不足。reviewer-visual 无基准可对照，请先回到 plan-generator 生成并冻结视觉基准。","agent_message":"visual-baseline.md missing for a UI phase. Cannot review visuals without a baseline."}'
+                exit 0
+            fi
+        fi
         allow_with_heartbeat
         ;;
 
@@ -394,7 +483,7 @@ case "$SUBAGENT" in
             echo '{"permission":"deny","user_message":"⛔ 阶段跳跃：review.md 不存在或缺少「判决」字段。请先完成 reviewer 审查合并。","agent_message":"No valid review.md with verdict. Complete review first."}'
             exit 0
         fi
-        VERDICT=$(grep -oP '判决.*?\*\*\s*\K[^*]+' "$PHASE_DIR/review.md" 2>/dev/null | head -1 | tr -d ' ')
+        VERDICT=$(parse_review_verdict "$PHASE_DIR/review.md" || echo "")
         if [ "$VERDICT" = "MUST-FIX" ]; then
             echo '{"permission":"deny","user_message":"⛔ 审查判决为 MUST-FIX。请先委托 implementer 修复后重新审查。","agent_message":"Review verdict is MUST-FIX. Fix and re-review before verification."}'
             exit 0
@@ -404,6 +493,21 @@ case "$SUBAGENT" in
         if [ $VALIDATE_RC -ne 0 ]; then
             echo "$VALIDATE_OUT"
             exit 0
+        fi
+        # ── UI Phase 原型门禁：用户未确认原型前不得进入验证 ──
+        PHASE_UI=$(read_phase_ui)
+        PROTOTYPE_OUT=$(check_prototype_gate "$PHASE_UI")
+        PROTOTYPE_RC=$?
+        if [ $PROTOTYPE_RC -ne 0 ]; then
+            echo "$PROTOTYPE_OUT"
+            exit 0
+        fi
+        # ── UI Phase 视觉验证前置：无基准则无法执行视觉比对 ──
+        if [ "$PHASE_UI" = "true" ]; then
+            if ! check_file_valid "$SPEC_DIR/visual-baseline.md" 10; then
+                echo '{"permission":"deny","user_message":"⛔ 视觉基准缺失：本 Phase 标记为 ui: true，但 visual-baseline.md 不存在。verifier 无法执行视觉比对（基准对比表无 ground truth），请先补齐基准。","agent_message":"visual-baseline.md missing for a UI phase. Cannot run visual verification."}'
+                exit 0
+            fi
         fi
         allow_with_heartbeat
         ;;

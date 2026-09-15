@@ -27,6 +27,25 @@
 
 <!-- 明确不属于本 sub-spec 的内容 -->
 
+## UI 相关性
+
+<!--
+  🔴 必须与 phase-plan.md DAG JSON 中对应 Phase 的 "ui" 字段取值一致。
+     不一致时以 DAG JSON 为准（唯一真相源），并回报 plan-generator。
+
+  - **ui**: `true` / `false`
+  - **ui: true 时必填**：
+    - 本 sub-spec 涉及的页面/路由：
+    - ui-spec.md 布局骨架章节引用（如 §3.1）：
+    - 需实现的状态（引用 ui-spec.md §6）：
+    - 需覆盖的断点（引用 ui-spec.md §7）：
+    - 可复用组件来源路径：
+    - 设计 token 文件路径（visual-baseline.md §3 冻结表）：
+  - **视觉反模式**：本 sub-spec 需特别避免的（引用 design.md §视觉反模式）
+
+  ⚠️ ui: true 时，硬编码任何色值/间距/字号字面量 = must-fix（由 reviewer-visual 判定）。
+-->
+
 ## 关联模块
 
 <!-- 影响哪些代码模块 -->
@@ -47,6 +66,14 @@
 |---|------|--------------|-------------|------|
 <!-- 类型: functional | boundary | error-handling | regression | performance | visual -->
 
+<!--
+  ⚠️ ui: true 时，visual 类型场景为 **must**，且必须覆盖：
+    - 4 个断点（375 / 768 / 1024 / 1440）各一条
+    - ui-spec.md §6 状态矩阵中每个非 default 状态各一条
+    - 冻结 token 实测值比对（基准值 vs 实测值）一条
+  缺失 visual 场景 → verifier 判 PARTIAL + visual-blocking: true。
+-->
+
 ### 回归检查
 
 - [ ] ...
@@ -55,6 +82,8 @@
 
 - [ ] 构建通过无错误
 - [ ] 无新增 lint 警告
+- [ ] （ui: true）无硬编码色值/间距/字号字面量，全部使用 token
+- [ ] （ui: true）截图落盘 `screenshots/<phase>/`，含 4 断点 + 状态矩阵
 
 ## 完成标准
 

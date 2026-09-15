@@ -173,17 +173,17 @@ install_cursor() {
         copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
     done
 
-    # .cursor/ 目录（规则 + 子Agent + 命令 + 钩子 + 插件清单）
-    copy_dir "$SCRIPT_DIR/.cursor" "$TARGET_DIR/.cursor" ".cursor/ (规则+子Agent+命令+钩子)"
+    # .cursor/ 目录（规则 + 子Agent + 命令 + 钩子 + skills + snippets + mcp.json）
+    # 注：skills 已随 `.cursor/skills/` 一并复制，不再需要从 `.opencode/skills` 补拷贝。
+    copy_dir "$SCRIPT_DIR/.cursor" "$TARGET_DIR/.cursor" ".cursor/ (规则+子Agent+命令+钩子+skills)"
 
-    # 技能目录（Cursor 自动发现 SKILL.md）
-    if [ -d "$SCRIPT_DIR/.opencode/skills" ]; then
-        # 移除符号链接或非目录文件，避免 mkdir 冲突
-        if [ -L "$TARGET_DIR/.cursor/skills" ] || { [ -e "$TARGET_DIR/.cursor/skills" ] && [ ! -d "$TARGET_DIR/.cursor/skills" ]; }; then
-            rm -f "$TARGET_DIR/.cursor/skills"
+    # .specdev/ 运行时模板（/feature 初始化工作流时会复制这些模板）
+    mkdir -p "$TARGET_DIR/.specdev"
+    for tmpl in constitution-template.md tech-debt-registry-template.md ui-spec-template.md; do
+        if [ -f "$SCRIPT_DIR/.specdev/$tmpl" ]; then
+            copy_file "$SCRIPT_DIR/.specdev/$tmpl" "$TARGET_DIR/.specdev/$tmpl" ".specdev/$tmpl"
         fi
-        copy_dir "$SCRIPT_DIR/.opencode/skills" "$TARGET_DIR/.cursor/skills" ".cursor/skills/"
-    fi
+    done
 
     echo ""
     echo "  ✅ Cursor 配置导入完成"
@@ -191,9 +191,9 @@ install_cursor() {
     echo "  在 Cursor 中的使用方式:"
     echo "    1. 打开项目 -> 侧边栏「自定义」"
     echo "    2. 确认知识库 MCP: knowledge-base → Running"
-    echo "    3. 确认 Playwright MCP: playwright → Running"
-    echo "    4. 子 Agent 已自动注册，Orchestrator 通过 Task 工具调度"
-    echo "    5. 命令已注册: /feature /bugfix /rebuild /idea /analyze"
+    echo "    3. 确认 Playwright MCP: playwright → Running（UI 任务的视觉验证依赖它）"
+    echo "    4. 子 Agent 已自动注册，调度者通过 Task 工具派发"
+    echo "    5. 命令已注册: /feature /bugfix /brief /research /specify /plan /implement /status"
     echo ""
 }
 
@@ -223,12 +223,11 @@ install_trae() {
 
     # .specdev/ 运行时目录结构
     mkdir -p "$TARGET_DIR/.specdev"
-    if [ -f "$SCRIPT_DIR/.specdev/constitution-template.md" ]; then
-        copy_file "$SCRIPT_DIR/.specdev/constitution-template.md" "$TARGET_DIR/.specdev/constitution-template.md" ".specdev/constitution-template.md"
-    fi
-    if [ -f "$SCRIPT_DIR/.specdev/tech-debt-registry-template.md" ]; then
-        copy_file "$SCRIPT_DIR/.specdev/tech-debt-registry-template.md" "$TARGET_DIR/.specdev/tech-debt-registry-template.md" ".specdev/tech-debt-registry-template.md"
-    fi
+    for tmpl in constitution-template.md tech-debt-registry-template.md ui-spec-template.md; do
+        if [ -f "$SCRIPT_DIR/.specdev/$tmpl" ]; then
+            copy_file "$SCRIPT_DIR/.specdev/$tmpl" "$TARGET_DIR/.specdev/$tmpl" ".specdev/$tmpl"
+        fi
+    done
 
     echo ""
     echo "  ✅ Trae 配置导入完成"
@@ -236,9 +235,10 @@ install_trae() {
     echo "  在 Trae 中的使用方式:"
     echo "    1. 打开项目 -> SOLO 模式"
     echo "    2. 确认知识库 MCP: knowledge-base → Running"
-    echo "    3. Subagent 已注册在 .trae/agents/，SOLO Agent 自动路由"
-    echo "    4. Hook 已配置在 .trae/hooks.json（PreToolUse + Stop + SessionStart）"
-    echo "    5. 命令已注册: /feature /bugfix /brief /research /specify /plan /implement /status"
+    echo "    3. 确认 Playwright MCP: playwright → Running（UI 任务的视觉验证依赖它；不可用会降级为 bash+Playwright 并标记 visual-blocking）"
+    echo "    4. Subagent 已注册在 .trae/agents/，SOLO Agent 自动路由"
+    echo "    5. Hook 已配置在 .trae/hooks.json（PreToolUse + Stop + SessionStart）"
+    echo "    6. 命令已注册: /feature /bugfix /brief /research /specify /plan /implement /status"
     echo ""
 }
 

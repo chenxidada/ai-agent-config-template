@@ -10,12 +10,23 @@
 #   1) parse_verdict <verification.md 路径>
 #        成功: echo PASS|PARTIAL|FAIL 到 stdout, return 0
 #        无法解析（无判决行 / 判决行为多值枚举 / 值非法）: echo "" , return 1
+#   1b) parse_review_verdict <review.md 路径>
+#        成功: echo PASS|MUST-FIX|SHOULD-FIX 到 stdout, return 0
+#        无法解析: echo "" , return 1
+#        （供 pipeline-gate.sh 判定审查是否 MUST-FIX，取代原 `grep -oP` 实现）
 #   2) max_residual_severity <verification.md 路径>
 #        只扫「## 残余风险」区块（到下一个 ## 之前），扫 CRITICAL/MEDIUM/LOW 与 🔴/🟡/🟢
 #        echo CRITICAL|MEDIUM|LOW|NONE 到 stdout, return 0（恒成功，NONE 兜底）
 #   3) verdict_is_self_inconsistent <verification.md 路径>
 #        判决=PASS 且 max_residual_severity ∈ {CRITICAL, MEDIUM} → return 0（矛盾）
 #        否则 → return 1
+#
+# ⚠️ 可移植性铁律（重要）：
+#   本库**严禁使用 `grep -P` / `grep -oP`**（PCRE 是 GNU 扩展）。macOS 的 BSD grep
+#   遇到 -P 会以「invalid option -- P」退出码 2 失败；而 gate/advance 中大量 grep
+#   用在 `if ! ...` 或 `$( ... || echo "")` 上下文中，失败会被静默吞掉并产生
+#   **错误的方向**（例如白名单校验失败 → 误判为「不在白名单」→ 提前放行）。
+#   所有正则一律用 POSIX：sed（捕获组替代 \K、[[:space:]] 替代 \s）、awk、grep -E/-F。
 #
 # 引入方（source 本文件）：
 #   - pipeline-gate.sh      (preToolUse, Cursor hook)   — Class C
@@ -55,9 +66,11 @@ parse_verdict() {
     fi
 
     # 抽取判决行的冒号后剩余内容（第一处匹配）。全角「：」或半角「:」皆可。
-    # grep -oP 无匹配返回 1；包在 $( ) + || echo "" 中，set -e 不误杀。
+    # ⚠️ 可移植性：不得使用 `grep -P`（PCRE 是 GNU 扩展，macOS 的 BSD grep 会以
+    #   「invalid option -- P」退出码 2 失败），否则本函数在本平台恒返回「无判决」。
+    #   改用 POSIX sed：`\K` 由捕获组替代，`\s` 由 [[:space:]] 替代。
     local raw
-    raw=$(grep -oP '^##\s*判决\s*[：:]\s*\K.+$' "$file" 2>/dev/null | head -1 || echo "")
+    raw=$(sed -n 's/^##[[:space:]]*判决[[:space:]]*[：:][[:space:]]*\(.*\)$/\1/p' "$file" 2>/dev/null | head -1 || echo "")
 
     # 去掉首尾空白
     raw=$(echo "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
@@ -83,9 +96,13 @@ parse_verdict() {
         return 1
     fi
 
-    # 单值：取第一个 token（防止 `PARTIAL（原因...）` 尾随说明）
+    # 单值：只取前导 token（形如 PASS / MUST-FIX），丢弃尾随说明
+    #   例：`PARTIAL（原因：某些项未验证）` → `PARTIAL`
+    #   ⚠️ 原实现用 `awk '{print $1}'`（等价于旧 `grep -oP '^\S+'`）依赖空格分隔，
+    #      而 `PARTIAL（...）` 中间无空格 → 整串被当作 token → 判决解析失败。
+    #      改用 sed 只截取开头的字母/连字符序列。
     local token
-    token=$(echo "$raw" | grep -oP '^\S+' | head -1 || echo "")
+    token=$(echo "$raw" | sed -n 's/^\([A-Za-z][A-Za-z-]*\).*/\1/p' | head -1 || echo "")
 
     case "$token" in
         PASS|PARTIAL|FAIL)
@@ -94,6 +111,65 @@ parse_verdict() {
             ;;
         *)
             # 值非合法枚举 → 无可解析判决
+            echo ""
+            return 1
+            ;;
+    esac
+}
+
+# ── parse_review_verdict <review.md 路径> ──
+# 提取合并后 review.md 的判决值（与 parse_verdict 同构，但枚举域不同）。
+#   契约：真实 review.md 只能有一行 `## 判决：<VALUE>`，<VALUE> ∈ {PASS, MUST-FIX, SHOULD-FIX}
+#   容错：值两侧的 markdown 粗体标记 `**` 会被剥除（`## 判决：**MUST-FIX**` 亦可解析）
+#   成功: echo PASS|MUST-FIX|SHOULD-FIX, return 0
+#   无法解析（无判决行 / 值非法）: echo "", return 1
+#
+# 用途：pipeline-gate.sh 在「标记 hg3=passed」与「派发 verifier」两处需要判定
+#       审查是否为 MUST-FIX。此前用 `grep -oP '判决.*?\*\*\s*\K[^*]+'` 实现，
+#       该写法在 BSD grep 上不可用（本平台恒返回空 → MUST-FIX 拦截永不生效）。
+parse_review_verdict() {
+    local file="${1:-}"
+
+    if [ -z "$file" ] || [ ! -f "$file" ]; then
+        echo ""
+        return 1
+    fi
+
+    local raw
+    raw=$(sed -n 's/^##[[:space:]]*判决[[:space:]]*[：:][[:space:]]*\(.*\)$/\1/p' "$file" 2>/dev/null | head -1 || echo "")
+
+    # 去空白 + 剥离 markdown 粗体标记
+    raw=$(echo "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/\*//g')
+
+    if [ -z "$raw" ]; then
+        echo ""
+        return 1
+    fi
+
+    # 多值枚举（模板残留 `PASS / MUST-FIX / SHOULD-FIX`）→ 无可解析判决
+    # 判据：出现 2 个及以上合法判决词，或含 `/` 分隔符
+    local hit_count=0
+    local w
+    for w in PASS MUST-FIX SHOULD-FIX; do
+        if echo "$raw" | grep -qwF "$w"; then
+            hit_count=$((hit_count + 1))
+        fi
+    done
+    if [ "$hit_count" -ge 2 ] || echo "$raw" | grep -q '/'; then
+        echo ""
+        return 1
+    fi
+
+    # 取前导 token（形如 PASS / MUST-FIX），丢弃尾随说明
+    local token
+    token=$(echo "$raw" | sed -n 's/^\([A-Za-z][A-Za-z-]*\).*/\1/p' | head -1 || echo "")
+
+    case "$token" in
+        PASS|MUST-FIX|SHOULD-FIX)
+            echo "$token"
+            return 0
+            ;;
+        *)
             echo ""
             return 1
             ;;

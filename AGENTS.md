@@ -2,14 +2,21 @@
 
 ## Cursor 集成说明
 
-本项目以 Cursor 为**首要平台**进行开发流程工具设计。OpenCode 配置保留在 `.opencode/` 中作为参考。
+本项目以 Cursor 为**首要平台**进行开发流程工具设计。
+
+> ⚠️ **`.opencode/` 目录已退化为历史参考**：其中已无 `skills/`、`snippets/`、`agents/` 子目录。
+> 下文凡引用 `.opencode/skills/...`、`.opencode/snippets/...`、`.opencode/agents/...` 的内容均为 OpenCode 时代残留，
+> **不要在 Cursor 下按那些路径调用**。Cursor 侧的权威定义在 `.cursor/` 下（见下节「Cursor 侧实际结构」）。
 
 | 特性 | 路径 | 说明 |
 |------|------|------|
 | 核心规则 | `.cursor/rules/spec-workflow.mdc` | Always Apply — 3 Human Gate + 反狡辩准则 |
-| 子 Agent | `.cursor/agents/` | 6 个聚焦子Agent（含反狡辩表） |
-| 命令 | `.cursor/commands/` | `/feature` + `/bugfix` |
+| 子 Agent | `.cursor/agents/` | 11 个聚焦子Agent（含反狡辩表） |
+| 命令 | `.cursor/commands/` | `/feature` + `/bugfix` + `/brief` + `/research` + `/specify` + `/plan` + `/implement` + `/status` + `/wiki` |
 | 钩子 | `.cursor/hooks/` | Human Gate 门禁（preToolUse）+ 自动推进（subagentStop）+ 压缩快照（preCompact） |
+| Skill | `.cursor/skills/` | ui-ux-pro-max / code2prompt / drawio-skill / project-build / project-test 等 |
+| 片段 | `.cursor/snippets/` | escalation-protocol.md、ui-skill-usage.md |
+| MCP | `.cursor/mcp.json` | knowledge-base + playwright |
 
 ### 三层约束体系
 1. **Rules**（静态，抗压缩）— `spec-workflow.mdc` 永远不会丢失
@@ -17,11 +24,31 @@
 3. **Subagents**（独立上下文）— 每个子Agent 有自己的反狡辩表
 
 ### 核心设计原则
-- Spec 是唯一真相源（所有决策写入 `specs/`）
+- Spec 是唯一真相源（所有决策写入 `.specdev/specs/`）
 - Human Gate 强制停止确认（需求 → 方案 → Phase 完成）
 - 实施类子Agent（implementer/reviewer/verifier）不能自己声明"完成"，必须经过独立验证
 
 ## Orchestrator Architecture
+
+<!--
+  ⚠️ 本章为 OpenCode 时代的编排规范，**与 Cursor 侧的实际实现存在命名差异**。
+  下游若在 Cursor 下工作，请以 `.cursor/rules/spec-workflow.mdc` 为准。
+
+  命名对照（左 = 下文旧称，右 = Cursor 侧实际）：
+  | 旧称 | Cursor 侧实际 |
+  |------|------|
+  | repo-explorer | code-explorer |
+  | validator | verifier |
+  | reviewer | reviewer-correctness / reviewer-design / reviewer-connectivity / reviewer-visual |
+  | requirement-analyst | requirement-analyst（同名） |
+  | program-planner / solution-architect | plan-generator |
+  | knowledge-manager | 调度者按 `spec-workflow.mdc` 的 KB 同步章节直接执行 |
+  | specs/master-spec.md | `.specdev/specs/<slug>/requirements.md` |
+  | specs/phases/<id>/ | `.specdev/specs/<slug>/phases/<id>/` |
+  | enforcement-gate.mjs | `.cursor/hooks/pipeline-gate.sh` |
+  | 2 个 Human Gate | 3 个 Human Gate（+ UI 工作流的 HG-1.5） |
+  | max 3 rounds | max 2 rounds |
+-->
 
 This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator is the default primary agent and the only agent the user interacts with directly.
 
@@ -48,7 +75,7 @@ This project uses an Orchestrator-driven multi-agent workflow. The Orchestrator 
 
 ### Escalation Rules
 
-**Reference**: `.opencode/snippets/escalation-protocol.md` for the full taxonomy, output format, and conflict resolution rules.
+**Reference**: `.cursor/snippets/escalation-protocol.md` for the full taxonomy, output format, and conflict resolution rules.
 
 - **When in doubt, STOP. Do NOT guess.** An agent that guesses is worse than an agent that escalates.
 - Every agent has role-specific Stop & Escalate Conditions in its definition. These are not optional — they are part of the agent's contract.
@@ -123,55 +150,84 @@ MCP is the preferred sync path in this template. When MCP is unavailable in suba
 
 This project also exposes a Playwright MCP server (`playwright`) so that subagents can drive a real headless browser for UI validation: navigate pages, click, fill forms, take snapshots / screenshots, observe console messages and network requests.
 
-- **Configured in**: `opencode.jsonc -> mcp.playwright` (and mirrored in `.mcp.json`)
+- **Configured in**: `.cursor/mcp.json`（Cursor 侧生效）；`opencode.jsonc -> mcp.playwright` 与 `.mcp.json` 为镜像配置
 - **Backend**: reuses the system Chrome at `/usr/bin/google-chrome`, headless + isolated + no-sandbox by default
-- **Granted to**: `validator`, `implementer`, `reviewer` (declared explicitly in each agent frontmatter via `tools.playwright: allow`)
+- **使用者**：
+  - `verifier` — **`ui: true` 的 Phase 中为强制手段**，不可用则降级 bash + 项目内 Playwright，并判 `PARTIAL` + 标 `visual-blocking: true`
+  - `implementer` — 生成静态原型截图取证
 - **Entry tools**: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, etc. (see Playwright MCP docs)
-- **Fallback**: if the MCP server is unavailable, agents fall back to bash + project-local Playwright as documented in `validator.md`.
+- **Fallback**: MCP 不可用时退回 bash + 项目内 Playwright（见 `verifier.md` 的 Frontend Validation Strategy）。**兜底失败不是静默放行的理由** —— 必须标记 blocking 交由用户在 HG-3 显式决策。
 
-## UI/UX Skill 注入规则
+## UI/UX Skill 与视觉信息链（Cursor 侧）
 
-This template ships with `ui-ux-pro-max` skill at `.opencode/skills/ui-ux-pro-max/`. Coordination uses **dynamic snippet injection** to avoid polluting non-UI task contexts.
+> 本节描述 **Cursor 侧实际生效的实现**。`.opencode/` 目录当前仅保留 OpenCode 时代的编排说明作为历史参考，
+> 其中引用的 `.opencode/skills/`、`.opencode/snippets/`、`.opencode/agents/` **均不存在**，不要按那些路径调用。
 
-### Orchestrator behavior
+### Skill 位置与调用方
 
-When dispatching `solution-architect`, `implementer`, `reviewer`, or `validator`:
+| 项 | 值 |
+|------|------|
+| Skill 路径 | `.cursor/skills/ui-ux-pro-max/` |
+| 调用规范 | `.cursor/snippets/ui-skill-usage.md` |
+| 唯一执行者 | `plan-generator`（在设计阶段一次性生成设计系统） |
+| 消费方 | `implementer`（按 token 实现）、`reviewer-visual`（对照反模式与 token）、`verifier`（基准对比 ground truth） |
 
-1. **Detect UI relevance** in the sub-spec / task description using these keywords:
-   - **UI keywords (zh)**: 界面 / 组件 / 样式 / 按钮 / 表单 / 布局 / 响应式 / 暗色模式 / 配色 / 字体 / 动效 / 视觉 / 前端 / 页面
-   - **UI keywords (en)**: component / page / UI / layout / responsive / dark mode / button / form / modal / dashboard / landing / banner / icon / shadcn / Tailwind / CSS / animation / accessibility (visual)
-   - **Negative keywords (skip injection)**: API only / database / migration / DevOps / CI / cron / schema / pure backend logic
-2. **If UI-relevant**: append the contents of `.opencode/snippets/ui-skill-usage.md` to the dispatch prompt under a clearly-marked section `## UI Skill Coordination (auto-injected)`.
-3. **If ambiguous (mixed task)**: default to inject (cost is small, missing context is more expensive).
-4. **If not UI-relevant**: do NOT inject. Zero token overhead.
+### 调用方式
 
-### Subagent behavior
+- **不采用「动态 snippet 注入」**。Cursor 的 skill 由 agent 通过显式 bash 调用，不需要调度者在 dispatch 时拼接 snippet。
+- 调用命令（plan-generator 执行）：
 
-- Subagents call the skill via **explicit bash** (`python3 .opencode/skills/ui-ux-pro-max/scripts/search.py ...`), NOT via skill auto-routing.
-- The orchestrator never invokes the skill itself; only subagents do.
-- The orchestrator must NOT load `ui-ux-pro-max` SKILL.md into its own context.
+```bash
+python3 .cursor/skills/ui-ux-pro-max/scripts/search.py \
+  "<产品类型> <行业> <风格关键词>" \
+  --design-system --persist -p "<项目 slug>"
+```
 
-### Design assets ownership
+- 落盘位置：`design-system/<slug>/MASTER.md` + `design-system/<slug>/pages/<page>.md`
+- `implementer` / `reviewer-visual` / `verifier` **禁止**自行调用该 skill 生成新设计系统 —— 视觉方向已在 HG-1.5 冻结，只能消费。
 
-- `design-system/<project-slug>/MASTER.md` is the project's design single-source-of-truth.
-- It is generated by `solution-architect` and committed to the project repo (NOT to this template repo).
-- This template ships only the skill; downstream projects generate their own design-system/.
+### 视觉信息链（端到端）
+
+偏差的根因不是「描述不够详细」，而是链路上没有任何环节承载「界面长什么样」。
+因此在既有流程中插入了一条完整的信息链，**每一环都有落盘产物与责任人**：
+
+| 环节 | 载体 | 责任人 | 门禁 |
+|------|------|------|:--:|
+| 需求 | `.specdev/specs/<slug>/ui-spec.md`（布局骨架 / 状态矩阵 / 断点行为） | `requirement-analyst` | HG-1 |
+| 设计 | `design-system/<slug>/MASTER.md` + `.specdev/specs/<slug>/visual-baseline.md`（冻结 token） | `plan-generator` | **HG-1.5** |
+| 实施 | 静态原型 + 截图 → `implementation.md ## Prototype（待确认）` | `implementer` | **原型确认门禁** |
+| 审查 | `phases/<phase>/review-visual.md`（第 4 并行视角） | `reviewer-visual` | 合并判决 |
+| 验证 | 基准对比表 + 4 断点矩阵 + 状态矩阵 + `screenshots/<phase>/` | `verifier` | HG-3（`visual-blocking` 不可静默放行） |
+
+### 三条铁律
+
+```
+❌ 禁止抽象形容词 —— 不写「美观/现代/简洁/响应式适配」，一律给具体值（色值 / px / 断点行为）
+❌ 禁止文字描述布局 —— 必须有 ASCII 布局骨架，纯文字必然歧义
+❌ 禁止只写「列表页」 —— 状态必须穷举（default / loading / empty / error / disabled …）
+```
+
+### 设计资产归属
+
+- `design-system/<project-slug>/MASTER.md` 是**目标项目**的设计唯一真相源，随目标项目仓库提交（不提交回本模板仓库）。
+- 本模板只提供 skill；下游项目自行生成自己的 `design-system/`。
 
 ### Rollback
 
-To remove this integration:
-1. `rm -rf .opencode/skills/ui-ux-pro-max .opencode/snippets/ui-skill-usage.md`
-2. Remove this section from `AGENTS.md`
-3. No agent definitions need to change (this is the design's main strength).
+移除本集成：
+1. `rm -rf .cursor/skills/ui-ux-pro-max .cursor/snippets/ui-skill-usage.md`
+2. 移除本节 + `.cursor/rules/spec-workflow.mdc` 中的 HG-1.5 / 原型门禁章节
+3. 移除 `.cursor/agents/reviewer-visual.md`
+4. 撤销 `requirement-analyst` / `plan-generator` / `implementer` / `verifier` 中的 UI 章节
 
 ## Project Operation Skills (Auto-Evolving)
 
 This template ships with skeleton skills that agents maintain during development:
 
-- `.opencode/skills/project-build/SKILL.md` — Build/compile knowledge, maintained by `implementer`
-- `.opencode/skills/project-test/SKILL.md` — Test/validation knowledge, maintained by `validator`
+- `.cursor/skills/project-build/SKILL.md` — Build/compile knowledge, maintained by `implementer`
+- `.cursor/skills/project-test/SKILL.md` — Test/validation knowledge, maintained by `verifier`
 
-These skills start as empty skeletons. Agents update them after successful operations, accumulating project-specific knowledge. The opencode skill discovery mechanism auto-loads them when relevant (e.g., when an agent needs to compile or test).
+These skills start as empty skeletons. Agents update them after successful operations, accumulating project-specific knowledge, and load them explicitly when a build/test is needed.
 
 ### Rules
 
@@ -180,12 +236,14 @@ These skills start as empty skeletons. Agents update them after successful opera
 - Skills are project-specific — each downstream project generates its own content
 - **Correction over accumulation**: If an agent finds a wrong entry in a skill, it MUST correct or deprecate it. Wrong knowledge actively harms downstream agents.
 - **Verification state**: Every knowledge entry in a skill should have a verification status (verified / deprecated / unverified) and a last-verified timestamp.
-- **Cross-agent verification**: validator may update project-build skill; implementer may update project-test skill. Skills are not single-agent silos.
+- **Cross-agent verification**: verifier may update project-build skill; implementer may update project-test skill. Skills are not single-agent silos.
 - Never delete accumulated knowledge from skills — mark deprecated entries as ⚠️ 已过期 with a reason instead of deleting them
 
 ## Tech Debt Registry
 
 `specs/tech-debt-registry.md` is the unified technical debt registry. All phases share one file.
+
+> Cursor 侧实际路径：`.specdev/specs/<slug>/tech-debt-registry.md`（每个工作流一份，非全局一份）。
 
 ### Rules
 
@@ -264,23 +322,30 @@ Use these tools for document-centric workflows:
 
 ## Knowledge Base Sync
 
-KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only job is to **dispatch it at the right time**. All sync procedures, object models, naming conventions, and merge rules are defined in `knowledge-manager.md` and `.opencode/snippets/kb-sync-sop.md` — the Orchestrator does not need to know these details.
+<!--
+  ⚠️ Cursor 侧差异：**没有 `knowledge-manager` agent，也没有 `.opencode/snippets/kb-sync-sop.md`
+     与 `.opencode/project-config.md`**。KB 同步由调度者（Cursor Agent）按
+     `.cursor/rules/spec-workflow.mdc` 的「Knowledge Base 同步」章节直接调用 MCP 完成。
+     权威说明以 `spec-workflow.mdc` 为准，下文保留 OpenCode 侧原始描述供对照。
+-->
+
+KB sync is executed by the `knowledge-manager` subagent. The Orchestrator's only job is to **dispatch it at the right time**. All sync procedures, object models, naming conventions, and merge rules are defined in `knowledge-manager.md` and the KB sync SOP — the Orchestrator does not need to know these details.
 
 ### Mandatory Dispatch Points
 
 | When | What to Sync |
 |------|-------------|
-| After requirement-analyst completes | Topic Doc or Decision Doc |
-| After Human Gate 1 (user confirms design) | Decision Doc for architecture |
-| After validator completes (**NEVER skip**) | Task Doc with implementation result |
+| After requirement-analyst completes / HG-1 passed | Topic Doc（`requirements.md`） |
+| After HG-2 passed | Decision Doc（`design.md`） |
+| After verifier completes / HG-3 passed (**NEVER skip**) | Task Doc（`verification.md`，UI 工作流含 `visual-baseline.md`） |
 | On context compression | Snapshot Doc + Daily Digest (if pipeline has progressed) |
 | On explicit user request (e.g. "同步知识库") | Immediate sync per user instruction |
 
 ### Rules
 
-- Always pass `project` identifier from `.opencode/project-config.md` when dispatching knowledge-manager
+- `project` 标识取自工作流 slug（`.specdev/specs/<slug>/` 目录名）
 - A checkpoint is not complete until sync action has actually executed and returned success or failure
 - If sync fails twice, report to user and continue the pipeline — do not block indefinitely
-- On compression recovery, check `specs/current-status.md` for any pending KM checkpoints and execute them before continuing
-- If knowledge-manager reports `[KB_PENDING]`, the Orchestrator should retry MCP sync at pipeline end or on the next manual `/sync` command
-- `[KB_PENDING]` files are stored in `specs/kb-pending/` and contain full sync content with YAML frontmatter for retry
+- On compression recovery, check `.specdev/specs/<slug>/current-status.json` for any pending KB checkpoints and execute them before continuing
+- If KB sync is unavailable, write pending files to `.specdev/specs/<slug>/kb-pending/` and retry at pipeline end
+- `[KB_PENDING]` files contain full sync content with YAML frontmatter for retry

@@ -9,8 +9,8 @@
 | **适用** | 简单功能（改动 < 3 个文件、单一模块） | 复杂功能（多模块、多 Phase） |
 | **Phase 拆分** | 无，单个 Phase | 2-5 个 Phase + DAG |
 | **code-explorer** | 轻量，口头输出 | 完整，写入文件 |
-| **review** | 单 reviewer | 并行三视角 reviewer |
-| **Human Gate** | HG-1 + HG-2 + HG-3（简易） | 完整 HG-1/2/3 |
+| **review** | 单 reviewer（覆盖四视角） | 并行四视角 reviewer |
+| **Human Gate** | HG-1 + HG-2 + HG-3（简易；UI 任务额外含 HG-1.5 + 原型确认） | 完整 HG-1/1.5/2/3 + 原型确认 |
 | **时间** | ~10-15min | ~30-60min |
 
 ## 流程
