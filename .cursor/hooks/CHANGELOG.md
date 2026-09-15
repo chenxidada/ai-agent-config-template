@@ -498,7 +498,7 @@ hook 代码有测试兜底（133 项断言），**文档没有**。若要继续�
 | C5 | `KB_SYNC_STRATEGY.md` §5 / §9 | 「XX 侧实现」整节指向已不存在的文件与不存在的渲染规范文档 → 改写为 Cursor 侧**实际生效**的四个载体 |
 | C6 | `KNOWNBASE_WRITE_PATH_EXPLAINED.md` | 推荐元数据里的 `sourceTool` 值写的是已废弃平台 → 改为 `cursor` |
 | C7 | `.cursor/skills/project-build|test/SKILL.md` | 见 §8.1 N5；本轮**直接删除**过期条目（而非保留 ⚠️ 标记），仅保留当前有效的构建/测试知识 |
-| C8 | `templates/validation-report.md` | **孤儿文件**：无任何引用，且阶段清单写的是已废弃的 agent 链 → 更新为现行 agent 名 + 加孤儿提示。⚠️ **建议后续删除**（本轮未删，等用户确认） |
+| C8 | `templates/validation-report.md`（根目录） | **孤儿文件**：全仓零引用（`README.md` 里的 `templates/` 是 `.cursor/templates/`，与根目录无关），且阶段清单写的是已废弃的 agent 链 → **已删除**（连同空目录）。verifier 的实际产物契约在 `.cursor/agents/verifier.md` 与 `verification.md` 中，不依赖此模板 |
 
 ## 9.3 验证
 
@@ -511,7 +511,6 @@ hook 代码有测试兜底（133 项断言），**文档没有**。若要继续�
 | 项 | 原因 |
 |---|---|
 | `.trae/` 中同类的陈旧 agent 名（`.trae/templates/phase-requirements.md`、`.trae/agents/reviewer.md`） | Trae 侧同步本轮延后（同 §8.4）。**这两处是已知的待同步项**，修复方式与 `.cursor/` 侧完全相同 |
-| 删除 `templates/validation-report.md` | 见 C8，等用户确认 |
 
 ---
 
